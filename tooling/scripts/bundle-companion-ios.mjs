@@ -35,6 +35,8 @@ const reactNativeBin = path.join(
   '.bin',
   process.platform === 'win32' ? 'react-native.cmd' : 'react-native',
 );
+const maxWorkers = process.env.OPAPP_BUNDLE_MAX_WORKERS?.trim() ||
+  (process.platform === 'win32' ? '1' : '');
 const bundleArgs = [
   'bundle',
   '--platform',
@@ -49,6 +51,7 @@ const bundleArgs = [
   bundleOutput,
   '--assets-dest',
   outputRoot,
+  ...(maxWorkers ? ['--max-workers', maxWorkers] : []),
   ...(resetCache ? ['--reset-cache'] : []),
 ];
 

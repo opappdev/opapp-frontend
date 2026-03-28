@@ -210,6 +210,23 @@ export function createCompanionOpenSurfaceRequest(
   };
 }
 
+export function shouldCompanionStartupTargetWaitForBundleReload({
+  runtimeBundleId,
+  targetBundleId,
+  presentation,
+}: {
+  runtimeBundleId: string;
+  targetBundleId?: string | null;
+  presentation?: SurfacePresentation | null;
+}) {
+  if (presentation !== 'current-window') {
+    return false;
+  }
+
+  const resolvedTargetBundleId = targetBundleId ?? companionBundleIds.main;
+  return resolvedTargetBundleId !== runtimeBundleId;
+}
+
 export function isCompanionSurfaceRequestAlreadyActive({
   runtimeBundleId,
   activeSurfaceId,

@@ -23,6 +23,7 @@ import {
   companionBundleIds,
   isCompanionSurfaceRequestAlreadyActive,
   resolveCompanionStartupTargetAutoOpen,
+  shouldCompanionStartupTargetWaitForBundleReload,
 } from './companion-runtime';
 import {useCompanionStartupTarget} from './useCompanionStartupTarget';
 
@@ -318,11 +319,12 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
       }
 
       setStartupTargetPhase('pending');
-      const targetStartupBundleId =
-        startupTargetDecision.request.bundleId ?? bundleConfig.bundleId;
       const waitsForCurrentWindowBundleReload =
-        startupTargetDecision.request.presentation === 'current-window' &&
-        targetStartupBundleId !== bundleConfig.bundleId;
+        shouldCompanionStartupTargetWaitForBundleReload({
+          runtimeBundleId: bundleConfig.bundleId,
+          targetBundleId: startupTargetDecision.request.bundleId,
+          presentation: startupTargetDecision.request.presentation,
+        });
       console.log(
         `[frontend-companion] startup-target-auto-open bundle=${bundleConfig.bundleId} window=${resolvedSession.windowId} surface=${startupTargetDecision.request.surfaceId} presentation=${startupTargetDecision.request.presentation} targetBundle=${startupTargetDecision.request.bundleId ?? bundleConfig.bundleId}`,
       );

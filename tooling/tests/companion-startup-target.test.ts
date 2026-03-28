@@ -7,6 +7,7 @@ import {
   parseCompanionStartupTarget,
   resolveCompanionStartupTargetMigration,
   resolveCompanionStartupTargetAutoOpen,
+  shouldCompanionStartupTargetWaitForBundleReload,
 } from '../../apps/companion-app/src/companion-runtime';
 
 export function run() {
@@ -134,5 +135,29 @@ export function run() {
     {
       kind: 'cleanup-legacy',
     },
+  );
+  assert.equal(
+    shouldCompanionStartupTargetWaitForBundleReload({
+      runtimeBundleId: companionBundleIds.main,
+      targetBundleId: undefined,
+      presentation: 'current-window',
+    }),
+    false,
+  );
+  assert.equal(
+    shouldCompanionStartupTargetWaitForBundleReload({
+      runtimeBundleId: companionBundleIds.main,
+      targetBundleId: privateBundleId,
+      presentation: 'current-window',
+    }),
+    true,
+  );
+  assert.equal(
+    shouldCompanionStartupTargetWaitForBundleReload({
+      runtimeBundleId: companionBundleIds.main,
+      targetBundleId: privateBundleId,
+      presentation: 'new-window',
+    }),
+    false,
   );
 }

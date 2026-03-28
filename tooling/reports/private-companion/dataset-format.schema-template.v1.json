@@ -1,0 +1,600 @@
+{
+  "schemaVersion": "opapp.private-companion.dataset-format.v1",
+  "generatedAt": "2026-03-27T16:47:08.141Z",
+  "source": {
+    "kind": "format-extraction",
+    "from": "private-companion-dataset:sample-data.ts",
+    "note": "格式提取，仅用于定义 dataset 结构，不代表字段值真实性。"
+  },
+  "stats": {
+    "sampledStyles": 63,
+    "sampledEncounters": 7,
+    "sampledTracks": 3,
+    "sampledSquads": 10
+  },
+  "datasetSchema": {
+    "type": "object",
+    "properties": {
+      "styles": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "styleName": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "squadId": {
+              "type": "string"
+            },
+            "skillNames": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "skillEffectTags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "role": {
+              "type": "string"
+            },
+            "element": {
+              "type": "string"
+            },
+            "weapon": {
+              "type": "string"
+            },
+            "preferredLane": {
+              "type": "string"
+            },
+            "power": {
+              "type": "number"
+            },
+            "training": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "number"
+                },
+                "levelCap": {
+                  "type": "number"
+                },
+                "bondLevel": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "bondCap": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "rebirth": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "bondCap",
+                "bondLevel",
+                "level",
+                "levelCap",
+                "rebirth"
+              ],
+              "additionalProperties": false
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "note": {
+              "type": "string"
+            },
+            "buildFocus": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "buildFocus",
+            "element",
+            "id",
+            "name",
+            "note",
+            "power",
+            "preferredLane",
+            "role",
+            "skillEffectTags",
+            "skillNames",
+            "squadId",
+            "styleName",
+            "tags",
+            "training",
+            "weapon"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "encounters": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "trackId": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "chapter": {
+              "type": "string"
+            },
+            "subtitle": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "availability": {
+              "type": "string"
+            },
+            "tacticalModeCadence": {
+              "type": "string"
+            },
+            "tacticalModes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "element": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "bonus": {
+                    "type": "string"
+                  },
+                  "weapon": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "bonus",
+                  "id",
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "requiresSquads": {
+              "type": "number"
+            },
+            "totalTurnGoal": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "rewardRule": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "battles": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "weakElements": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "preferredElements": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "preferredWeapons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "requiredRoles": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "focusTurns": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "focusTurns",
+                  "id",
+                  "note",
+                  "preferredElements",
+                  "preferredWeapons",
+                  "requiredRoles",
+                  "summary",
+                  "title",
+                  "weakElements"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "provenance": {
+              "type": "object",
+              "properties": {
+                "sourceKind": {
+                  "type": "string"
+                },
+                "checkedOn": {
+                  "type": "string"
+                },
+                "evidenceItems": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "sourceKind": {
+                        "type": "string"
+                      },
+                      "checkedOn": {
+                        "type": "string"
+                      },
+                      "evidenceRef": {
+                        "type": "string"
+                      },
+                      "note": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "checkedOn",
+                      "evidenceRef",
+                      "note",
+                      "sourceKind"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "verificationStatus": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "checkedOn",
+                "evidenceItems",
+                "notes",
+                "sourceKind",
+                "verificationStatus"
+              ],
+              "additionalProperties": false
+            },
+            "rewardMappings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "route": {
+                    "type": "string"
+                  },
+                  "condition": {
+                    "type": "string"
+                  },
+                  "rewards": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "detailLevel": {
+                    "type": "string"
+                  },
+                  "sourceKind": {
+                    "type": "string"
+                  },
+                  "checkedOn": {
+                    "type": "string"
+                  },
+                  "evidenceRef": {
+                    "type": "string"
+                  },
+                  "verificationStatus": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "checkedOn",
+                  "condition",
+                  "detailLevel",
+                  "evidenceRef",
+                  "id",
+                  "note",
+                  "rewards",
+                  "route",
+                  "sourceKind",
+                  "verificationStatus"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "availability",
+            "battles",
+            "chapter",
+            "id",
+            "notes",
+            "provenance",
+            "requiresSquads",
+            "rewardRule",
+            "subtitle",
+            "summary",
+            "tacticalModeCadence",
+            "tacticalModes",
+            "title",
+            "totalTurnGoal",
+            "trackId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "encounterTracks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "shortLabel": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "shortLabel",
+            "summary",
+            "title"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "styleSquads": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "label"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "encounterTracks",
+      "encounters",
+      "styleSquads",
+      "styles"
+    ],
+    "additionalProperties": false
+  },
+  "datasetTemplate": {
+    "styles": [
+      {
+        "id": "<string>",
+        "name": "<string>",
+        "styleName": "<null|string>",
+        "squadId": "<string>",
+        "skillNames": [
+          "<string>"
+        ],
+        "skillEffectTags": [
+          "<string>"
+        ],
+        "role": "<string>",
+        "element": "<string>",
+        "weapon": "<string>",
+        "preferredLane": "<string>",
+        "power": "<number>",
+        "training": {
+          "level": "<number>",
+          "levelCap": "<number>",
+          "bondLevel": "<null|number>",
+          "bondCap": "<null|number>",
+          "rebirth": "<number>"
+        },
+        "tags": [
+          "<string>"
+        ],
+        "note": "<string>",
+        "buildFocus": "<string>"
+      }
+    ],
+    "encounters": [
+      {
+        "id": "<string>",
+        "trackId": "<string>",
+        "title": "<string>",
+        "chapter": "<string>",
+        "subtitle": "<string>",
+        "summary": "<string>",
+        "availability": "<string>",
+        "tacticalModeCadence": "<string>",
+        "tacticalModes": [
+          {
+            "id": "<string>",
+            "element": "<string>",
+            "title": "<string>",
+            "bonus": "<string>",
+            "weapon": "<string>"
+          }
+        ],
+        "requiresSquads": "<number>",
+        "totalTurnGoal": "<null|number>",
+        "rewardRule": "<string>",
+        "notes": [
+          "<string>"
+        ],
+        "battles": [
+          {
+            "id": "<string>",
+            "title": "<string>",
+            "summary": "<string>",
+            "weakElements": [
+              "<string>"
+            ],
+            "preferredElements": [
+              "<string>"
+            ],
+            "preferredWeapons": [
+              "<string>"
+            ],
+            "requiredRoles": [
+              "<string>"
+            ],
+            "focusTurns": [
+              "<number>"
+            ],
+            "note": "<string>"
+          }
+        ],
+        "provenance": {
+          "sourceKind": "<string>",
+          "checkedOn": "<string>",
+          "evidenceItems": [
+            {
+              "sourceKind": "<string>",
+              "checkedOn": "<string>",
+              "evidenceRef": "<string>",
+              "note": "<string>"
+            }
+          ],
+          "verificationStatus": "<string>",
+          "notes": [
+            "<string>"
+          ]
+        },
+        "rewardMappings": [
+          {
+            "id": "<string>",
+            "route": "<string>",
+            "condition": "<string>",
+            "rewards": [
+              "<string>"
+            ],
+            "detailLevel": "<string>",
+            "sourceKind": "<string>",
+            "checkedOn": "<string>",
+            "evidenceRef": "<string>",
+            "verificationStatus": "<string>",
+            "note": "<string>"
+          }
+        ]
+      }
+    ],
+    "encounterTracks": [
+      {
+        "id": "<string>",
+        "title": "<string>",
+        "shortLabel": "<string>",
+        "summary": "<string>"
+      }
+    ],
+    "styleSquads": [
+      {
+        "id": "<string>",
+        "label": "<string>"
+      }
+    ]
+  }
+}

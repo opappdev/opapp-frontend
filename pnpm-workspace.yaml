@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "contracts/*"
+  - "framework/*"
+  - "domains/*"
+  - "ui/*"
+  - "capabilities/*"
+  - "tooling/*"

@@ -1,0 +1,89 @@
+{
+  "main": {
+    "policyId": "main",
+    "defaultMode": "balanced",
+    "minWidth": 960,
+    "minHeight": 780,
+    "defaultPlacement": "centered",
+    "rememberWindowRect": true,
+    "allowManualResize": true,
+    "geometry": {
+      "balanced": {
+        "widthFactor": 0.5,
+        "aspectRatio": 0.72,
+        "minWidth": 960,
+        "minHeight": 780
+      },
+      "compact": {
+        "widthFactor": 0.42,
+        "aspectRatio": 0.78,
+        "minWidth": 820,
+        "minHeight": 730
+      },
+      "wide": {
+        "widthFactor": 0.6,
+        "aspectRatio": 0.66,
+        "minWidth": 1140,
+        "minHeight": 800
+      }
+    }
+  },
+  "settings": {
+    "policyId": "settings",
+    "defaultMode": "balanced",
+    "minWidth": 780,
+    "minHeight": 820,
+    "defaultPlacement": "centered",
+    "rememberWindowRect": true,
+    "allowManualResize": true,
+    "geometry": {
+      "balanced": {
+        "widthFactor": 0.34,
+        "aspectRatio": 0.88,
+        "minWidth": 780,
+        "minHeight": 820
+      },
+      "compact": {
+        "widthFactor": 0.26,
+        "aspectRatio": 0.94,
+        "minWidth": 720,
+        "minHeight": 770
+      },
+      "wide": {
+        "widthFactor": 0.44,
+        "aspectRatio": 0.82,
+        "minWidth": 960,
+        "minHeight": 840
+      }
+    }
+  },
+  "tool": {
+    "policyId": "tool",
+    "defaultMode": "balanced",
+    "minWidth": 860,
+    "minHeight": 760,
+    "defaultPlacement": "centered",
+    "rememberWindowRect": true,
+    "allowManualResize": true,
+    "geometry": {
+      "balanced": {
+        "widthFactor": 0.4,
+        "aspectRatio": 0.82,
+        "minWidth": 860,
+        "minHeight": 760
+      },
+      "compact": {
+        "widthFactor": 0.32,
+        "aspectRatio": 0.88,
+        "minWidth": 720,
+        "minHeight": 710
+      },
+      "wide": {
+        "widthFactor": 0.5,
+        "aspectRatio": 0.76,
+        "minWidth": 1040,
+        "minHeight": 780
+      }
+    }
+  }
+}

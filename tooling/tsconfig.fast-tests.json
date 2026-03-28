@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "rootDir": "..",
+    "outDir": "../.tmp/test-build",
+    "lib": ["ES2022"],
+    "types": ["node", "react"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "../contracts/**/*.ts",
+    "../domains/**/*.ts",
+    "../framework/**/*.ts",
+    "./tests/**/*.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../.dist",
+    "../.tmp",
+    "../apps/**/*.tsx",
+    "../capabilities/**/*.tsx",
+    "../ui/**/*.tsx"
+  ]
+}

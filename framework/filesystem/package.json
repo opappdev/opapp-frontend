@@ -1,0 +1,15 @@
+{
+  "name": "@opapp/framework-filesystem",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "react": "^19.1.1",
+    "react-native": "0.82.0"
+  }
+}

@@ -1,0 +1,138 @@
+import assert from 'node:assert/strict';
+import {
+  areCompanionTargetsEqual,
+  companionBundleIds,
+  defaultCompanionStartupTarget,
+  isCompanionSurfaceRequestAlreadyActive,
+  parseCompanionStartupTarget,
+  resolveCompanionStartupTargetMigration,
+  resolveCompanionStartupTargetAutoOpen,
+} from '../../apps/companion-app/src/companion-runtime';
+
+export function run() {
+  const privateSurfaceId = 'private.surface';
+  const privateBundleId = 'opapp.private.bundle';
+  const privateTarget = {
+    ...defaultCompanionStartupTarget,
+    surfaceId: privateSurfaceId,
+    bundleId: privateBundleId,
+  };
+
+  assert.equal(
+    isCompanionSurfaceRequestAlreadyActive({
+      runtimeBundleId: companionBundleIds.main,
+      activeSurfaceId: 'companion.main',
+      activeBundleId: companionBundleIds.main,
+      requestSurfaceId: 'companion.main',
+      requestBundleId: companionBundleIds.main,
+      requestPresentation: 'current-window',
+    }),
+    true,
+  );
+
+  assert.equal(
+    isCompanionSurfaceRequestAlreadyActive({
+      runtimeBundleId: companionBundleIds.main,
+      activeSurfaceId: privateSurfaceId,
+      activeBundleId: privateBundleId,
+      requestSurfaceId: privateSurfaceId,
+      requestBundleId: privateBundleId,
+      requestPresentation: 'current-window',
+    }),
+    false,
+  );
+
+  assert.equal(
+    isCompanionSurfaceRequestAlreadyActive({
+      runtimeBundleId: companionBundleIds.main,
+      activeSurfaceId: 'companion.settings',
+      activeBundleId: companionBundleIds.main,
+      requestSurfaceId: 'companion.settings',
+      requestBundleId: companionBundleIds.main,
+      requestPresentation: 'new-window',
+    }),
+    false,
+  );
+
+  const launcherOverrideDecision = resolveCompanionStartupTargetAutoOpen({
+    runtimeBundleId: companionBundleIds.main,
+    windowId: 'window.main',
+    activeSurfaceId: 'companion.settings',
+    activeBundleId: companionBundleIds.main,
+    startupTarget: defaultCompanionStartupTarget,
+    launchConfigAutoOpenRequested: false,
+  });
+  assert.deepEqual(launcherOverrideDecision, {
+    kind: 'open',
+    request: {
+      surfaceId: 'companion.main',
+      bundleId: undefined,
+      policy: 'main',
+      presentation: 'current-window',
+    },
+  });
+
+  const alreadyActiveDecision = resolveCompanionStartupTargetAutoOpen({
+    runtimeBundleId: companionBundleIds.main,
+    windowId: 'window.main',
+    activeSurfaceId: 'companion.main',
+    activeBundleId: companionBundleIds.main,
+    startupTarget: defaultCompanionStartupTarget,
+    launchConfigAutoOpenRequested: false,
+  });
+  assert.deepEqual(alreadyActiveDecision, {
+    kind: 'skip',
+    reason: 'already-active',
+  });
+
+  const launchConfigDecision = resolveCompanionStartupTargetAutoOpen({
+    runtimeBundleId: companionBundleIds.main,
+    windowId: 'window.main',
+    activeSurfaceId: 'companion.settings',
+    activeBundleId: companionBundleIds.main,
+    startupTarget: defaultCompanionStartupTarget,
+    launchConfigAutoOpenRequested: true,
+  });
+  assert.deepEqual(launchConfigDecision, {
+    kind: 'skip',
+    reason: 'launch-config',
+  });
+
+  assert.equal(
+    areCompanionTargetsEqual(privateTarget, defaultCompanionStartupTarget),
+    false,
+  );
+  assert.deepEqual(
+    parseCompanionStartupTarget(JSON.stringify(privateTarget)),
+    privateTarget,
+  );
+  assert.deepEqual(
+    resolveCompanionStartupTargetMigration({
+      storedStartupTarget: null,
+      legacyStartupTarget: defaultCompanionStartupTarget,
+    }),
+    {
+      kind: 'migrate-legacy',
+      target: defaultCompanionStartupTarget,
+    },
+  );
+  assert.deepEqual(
+    resolveCompanionStartupTargetMigration({
+      storedStartupTarget: null,
+      legacyStartupTarget: privateTarget,
+    }),
+    {
+      kind: 'migrate-legacy',
+      target: privateTarget,
+    },
+  );
+  assert.deepEqual(
+    resolveCompanionStartupTargetMigration({
+      storedStartupTarget: privateTarget,
+      legacyStartupTarget: defaultCompanionStartupTarget,
+    }),
+    {
+      kind: 'cleanup-legacy',
+    },
+  );
+}

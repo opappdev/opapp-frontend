@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.pnpm-store/
+.dist/
+.DS_Store
+*.log
+.bundle/
+.tmp/
+apps/companion-app/.private-*/
+.codex/
+.github/skills

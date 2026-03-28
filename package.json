@@ -1,0 +1,32 @@
+{
+  "name": "opapp-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "lint": "echo \"TODO: configure frontend lint\"",
+    "test": "node ./tooling/scripts/run-frontend-tests.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "commit:check": "corepack pnpm typecheck && corepack pnpm test:fast",
+    "bundle:companion:windows": "pnpm --filter @opapp/app-companion bundle:windows",
+    "bundle:companion:android": "pnpm --filter @opapp/app-companion bundle:android",
+    "bundle:companion:ios": "pnpm --filter @opapp/app-companion bundle:ios",
+    "pack:companion": "node ./tooling/scripts/pack-companion.mjs",
+    "start:companion:windows": "pnpm --filter @opapp/app-companion start:windows",
+    "test:fast": "node ./tooling/scripts/run-frontend-tests.mjs"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@react-native/babel-preset": "0.82.0",
+    "@react-native/metro-config": "0.82.0",
+    "@react-native/typescript-config": "0.82.0",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.1.1",
+    "react": "19.1.1",
+    "react-native": "0.82.0",
+    "typescript": "^5.8.3",
+    "@react-native-community/cli": "20.0.0",
+    "react-native-windows": "0.82.0",
+    "@babel/runtime": "^7.29.0"
+  }
+}

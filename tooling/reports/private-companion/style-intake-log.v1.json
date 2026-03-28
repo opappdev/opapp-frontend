@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "opapp.private-companion.style-intake-log.v1",
+  "weeklyTarget": 10,
+  "sourcePolicy": {
+    "status": "blocked-until-local-evidence",
+    "allowedEvidenceKinds": [
+      "manual-screenshot",
+      "user-notes"
+    ],
+    "notes": [
+      "Third-party page URLs and scraped style intake are blocked from tracked product data.",
+      "Add new batches only after evidence is captured as local screenshots or user-provided notes."
+    ]
+  },
+  "batches": []
+}

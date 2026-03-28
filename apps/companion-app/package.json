@@ -1,0 +1,44 @@
+{
+  "name": "@opapp/app-companion",
+  "version": "0.1.0",
+  "private": false,
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "sideEffects": false,
+  "files": [
+    "src",
+    "app.json",
+    "index.js",
+    "index.main.js",
+    ".private-companion",
+    "babel.config.js",
+    "metro.config.js"
+  ],
+  "scripts": {
+    "bundle:windows": "node ../../tooling/scripts/bundle-companion-windows.mjs",
+    "bundle:android": "node ../../tooling/scripts/bundle-companion-android.mjs",
+    "bundle:ios": "node ../../tooling/scripts/bundle-companion-ios.mjs",
+    "start:windows": "node ../../tooling/scripts/start-companion-windows.mjs"
+  },
+  "dependencies": {
+    "@opapp/capability-settings": "workspace:*",
+    "@opapp/contracts-windowing": "workspace:*",
+    "@opapp/framework-view-shot": "workspace:*",
+    "@opapp/framework-window-capture": "workspace:*",
+    "@opapp/framework-filesystem": "workspace:*",
+    "@opapp/framework-surfaces": "workspace:*",
+    "@opapp/framework-windowing": "workspace:*",
+    "@opapp/ui-native-primitives": "workspace:*",
+    "@opapp/framework-i18n": "workspace:*",
+    "@opapp/framework-diagnostics": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.1",
+    "react-native": "0.82.0"
+  },
+  "devDependencies": {
+    "react": "19.1.1",
+    "react-native": "0.82.0",
+    "react-native-windows": "0.82.0"
+  }
+}

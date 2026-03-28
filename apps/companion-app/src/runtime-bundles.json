@@ -1,0 +1,15 @@
+{
+  "mainBundleId": "opapp.companion.main",
+  "bundles": [
+    {
+      "bundleId": "opapp.companion.main",
+      "defaultSurfaceId": "companion.main",
+      "surfaces": [
+        "companion.main",
+        "companion.settings",
+        "companion.view-shot",
+        "companion.window-capture"
+      ]
+    }
+  ]
+}

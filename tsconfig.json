@@ -1,0 +1,70 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noEmit": true,
+    "types": [
+      "node",
+      "react",
+      "react-native"
+    ],
+    "paths": {
+      "@opapp/app-companion": [
+        "./apps/companion-app/src/index.tsx"
+      ],
+      "@opapp/capability-settings": [
+        "./capabilities/settings/src/index.tsx"
+      ],
+      "@opapp/contracts-windowing": [
+        "./contracts/windowing/src/index.ts"
+      ],
+      "@opapp/framework-i18n": [
+        "./framework/i18n/src/index.ts"
+      ],
+      "@opapp/framework-diagnostics": [
+        "./framework/diagnostics/src/index.ts"
+      ],
+      "@opapp/framework-filesystem": [
+        "./framework/filesystem/src/index.ts"
+      ],
+      "@opapp/framework-surfaces": [
+        "./framework/surfaces/src/index.ts"
+      ],
+      "@opapp/framework-view-shot": [
+        "./framework/view-shot/src/index.tsx"
+      ],
+      "@opapp/framework-window-capture": [
+        "./framework/window-capture/src/index.ts"
+      ],
+      "@opapp/framework-windowing": [
+        "./framework/windowing/src/index.ts"
+      ],
+      "@opapp/ui-native-primitives": [
+        "./ui/native-primitives/src/index.tsx"
+      ]
+    },
+    "resolveJsonModule": true
+  },
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "capabilities/**/*.ts",
+    "capabilities/**/*.tsx",
+    "contracts/**/*.ts",
+    "contracts/**/*.tsx",
+    "domains/**/*.ts",
+    "domains/**/*.tsx",
+    "framework/**/*.ts",
+    "framework/**/*.tsx",
+    "tooling/**/*.ts",
+    "tooling/**/*.tsx",
+    "ui/**/*.ts",
+    "ui/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    ".dist",
+    "dist",
+    "build"
+  ]
+}

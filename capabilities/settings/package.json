@@ -1,0 +1,21 @@
+{
+  "name": "@opapp/capability-settings",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "sideEffects": false,
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@opapp/contracts-windowing": "workspace:*",
+    "@opapp/framework-windowing": "workspace:*",
+    "@opapp/ui-native-primitives": "workspace:*",
+    "@opapp/framework-i18n": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.1",
+    "react-native": "0.82.0"
+  }
+}

@@ -362,6 +362,50 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
     const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     void (async () => {
+      const focusRetryDelaysMs = [280, 420, 560, 720];
+      const runFocusedSmokeCapture = async (
+        actionId: CaptureActionId,
+        resultKind: ViewShotResult,
+        execute: () => Promise<string>,
+        options: CaptureExecutionOptions = {},
+      ) => {
+        for (let attempt = 0; ; attempt += 1) {
+          try {
+            return await runCapture(actionId, resultKind, execute, options);
+          } catch (error) {
+            const normalizedError = normalizeThrownError(
+              error,
+              'View Shot capture failed.',
+            );
+            if (
+              cancelled ||
+              !/focused OPApp window/i.test(normalizedError.message) ||
+              attempt >= focusRetryDelaysMs.length
+            ) {
+              throw normalizedError;
+            }
+
+            const retryAttempt = attempt + 1;
+            const retryDelayMs = focusRetryDelaysMs[attempt];
+            console.log(
+              `[frontend-view-shot] dev-smoke-focus-retry attempt=${retryAttempt} delayMs=${retryDelayMs}`,
+            );
+            logInteraction('view-shot-lab.dev-smoke.focus-retry', {
+              scenario: devSmokeScenario,
+              windowId: currentWindowId ?? appI18n.common.unknown,
+              attempt: retryAttempt,
+              delayMs: retryDelayMs,
+            });
+
+            await focusWindow(currentWindowId ?? 'window.main');
+            await wait(retryDelayMs);
+            if (cancelled) {
+              return null;
+            }
+          }
+        }
+      };
+
       if (!hostBridgeReady) {
         throw new Error('View Shot dev smoke requires the OpappViewShot host bridge.');
       }
@@ -378,12 +422,12 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
       }
 
       await focusWindow(currentWindowId ?? 'window.main');
-      await wait(180);
+      await wait(320);
       if (cancelled) {
         return;
       }
 
-      const refCaptureResult = await runCapture(
+      const refCaptureResult = await runFocusedSmokeCapture(
         'capture-ref-tmpfile',
         'tmpfile',
         () =>
@@ -414,7 +458,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
         return;
       }
 
-      const inspectionCaptureResult = await runCapture(
+      const inspectionCaptureResult = await runFocusedSmokeCapture(
         'capture-ref-tmpfile',
         'tmpfile',
         () =>
@@ -578,7 +622,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
         return;
       }
 
-      const screenCaptureResult = await runCapture(
+      const screenCaptureResult = await runFocusedSmokeCapture(
         'capture-screen-tmpfile',
         'tmpfile',
         () =>

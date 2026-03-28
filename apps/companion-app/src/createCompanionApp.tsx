@@ -318,10 +318,20 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
       }
 
       setStartupTargetPhase('pending');
+      const targetStartupBundleId =
+        startupTargetDecision.request.bundleId ?? bundleConfig.bundleId;
+      const waitsForCurrentWindowBundleReload =
+        startupTargetDecision.request.presentation === 'current-window' &&
+        targetStartupBundleId !== bundleConfig.bundleId;
       console.log(
         `[frontend-companion] startup-target-auto-open bundle=${bundleConfig.bundleId} window=${resolvedSession.windowId} surface=${startupTargetDecision.request.surfaceId} presentation=${startupTargetDecision.request.presentation} targetBundle=${startupTargetDecision.request.bundleId ?? bundleConfig.bundleId}`,
       );
       void openSurface(startupTargetDecision.request)
+        .then(() => {
+          if (!waitsForCurrentWindowBundleReload) {
+            setStartupTargetPhase('ready');
+          }
+        })
         .catch(error => {
           logException('companion.startup-target.failed', error, {
             bundleId: bundleConfig.bundleId,
@@ -331,8 +341,6 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
             targetBundle:
               startupTargetDecision.request.bundleId ?? bundleConfig.bundleId,
           });
-        })
-        .finally(() => {
           setStartupTargetPhase('ready');
         });
     }, [

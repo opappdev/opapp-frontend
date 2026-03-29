@@ -2,6 +2,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {
   canOpenBundleTarget,
+  getOtaRemoteUrl,
   useCurrentWindowId,
   useOpenSurface,
 } from '@opapp/framework-windowing';
@@ -20,7 +21,13 @@ import {
   appTypography,
 } from '@opapp/ui-native-primitives';
 import {
+  parseRemoteBundleCatalogIndex,
+  resolveRemoteBundleLocalState,
+  type RemoteBundleCatalogEntry,
+} from './bundle-launcher-discovery';
+import {
   areCompanionTargetsEqual,
+  companionBundleIds,
   companionLaunchTargets,
   createCompanionOpenSurfaceRequest,
   defaultCompanionStartupTarget,
@@ -33,19 +40,130 @@ type BundleLauncherScreenProps = {
   devSmokeScenario?: string;
 };
 
+type RemoteCatalogState =
+  | {
+      status: 'loading';
+      remoteUrl: string | null;
+      entries: RemoteBundleCatalogEntry[];
+      errorMessage: string | null;
+    }
+  | {
+      status: 'ready' | 'unavailable' | 'error';
+      remoteUrl: string | null;
+      entries: RemoteBundleCatalogEntry[];
+      errorMessage: string | null;
+    };
+
+async function queryBundleAvailability(bundleIds: ReadonlyArray<string>) {
+  const uniqueBundleIds = [...new Set(bundleIds.map(bundleId => bundleId.trim()).filter(Boolean))];
+
+  if (uniqueBundleIds.length === 0) {
+    return {};
+  }
+
+  const availabilityEntries = await Promise.all(
+    uniqueBundleIds.map(async bundleId => [bundleId, await canOpenBundleTarget(bundleId)] as const),
+  );
+
+  return Object.fromEntries(availabilityEntries);
+}
+
+async function fetchRemoteBundleCatalog() {
+  const remoteUrl = await getOtaRemoteUrl();
+  if (!remoteUrl) {
+    return {
+      status: 'unavailable' as const,
+      remoteUrl: null,
+      entries: [],
+      errorMessage: null,
+    };
+  }
+
+  const normalizedRemoteUrl = remoteUrl.replace(/\/+$/, '');
+  const response = await fetch(`${normalizedRemoteUrl}/index.json`, {
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return {
+    status: 'ready' as const,
+    remoteUrl: normalizedRemoteUrl,
+    entries: parseRemoteBundleCatalogIndex(payload),
+    errorMessage: null,
+  };
+}
+
+function formatRemoteChannels(channels: Record<string, string> | null) {
+  if (!channels || Object.keys(channels).length === 0) {
+    return appI18n.bundleLauncher.remoteCatalog.channelsEmpty;
+  }
+
+  return Object.entries(channels)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([channel, version]) => `${channel}=${version}`)
+    .join(' / ');
+}
+
+function getRemoteCatalogStatusPresentation(status: RemoteCatalogState['status']) {
+  switch (status) {
+    case 'ready':
+      return {
+        label: appI18n.bundleLauncher.remoteCatalog.status.ready,
+        tone: 'support' as const,
+      };
+    case 'unavailable':
+      return {
+        label: appI18n.bundleLauncher.remoteCatalog.status.unavailable,
+        tone: 'warning' as const,
+      };
+    case 'error':
+      return {
+        label: appI18n.bundleLauncher.remoteCatalog.status.error,
+        tone: 'danger' as const,
+      };
+    default:
+      return {
+        label: appI18n.bundleLauncher.remoteCatalog.status.loading,
+        tone: 'neutral' as const,
+      };
+  }
+}
+
+function formatSavedTargetLabel(savedTarget: CompanionStartupTarget | null) {
+  if (!savedTarget) {
+    return appI18n.surfaces.launcher;
+  }
+
+  const knownTarget = findCompanionLaunchTarget(savedTarget, companionLaunchTargets);
+  if (knownTarget) {
+    return knownTarget.title;
+  }
+
+  return `${savedTarget.bundleId} · ${savedTarget.surfaceId}`;
+}
+
 export function BundleLauncherScreen({
   devSmokeScenario: _devSmokeScenario,
 }: BundleLauncherScreenProps = {}) {
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
-  const [bundleAvailability, setBundleAvailability] = useState<
-    Record<string, boolean>
-  >({});
+  const [bundleAvailability, setBundleAvailability] = useState<Record<string, boolean>>({});
   const [selectedTargetId, setSelectedTargetId] = useState(
     companionLaunchTargets[0]?.targetId ?? 'main-launcher',
   );
   const [openingTargetId, setOpeningTargetId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [remoteCatalog, setRemoteCatalog] = useState<RemoteCatalogState>({
+    status: 'loading',
+    remoteUrl: null,
+    entries: [],
+    errorMessage: null,
+  });
   const {
     startupTarget: resolvedStartupTarget,
     loading: startupTargetLoading,
@@ -53,6 +171,8 @@ export function BundleLauncherScreen({
     save: saveStartupTarget,
   } = useCompanionStartupTarget();
   const startupTargetLoaded = !startupTargetLoading;
+  const effectiveSavedStartupTarget =
+    resolvedStartupTarget ?? defaultCompanionStartupTarget;
   const availableLaunchTargets = useMemo(
     () =>
       companionLaunchTargets.filter(
@@ -68,17 +188,68 @@ export function BundleLauncherScreen({
       companionLaunchTargets[0],
     [availableLaunchTargets, selectedTargetId],
   );
-  const savedTarget = useMemo(
+  const savedKnownTarget = useMemo(
     () =>
-      findCompanionLaunchTarget(resolvedStartupTarget, availableLaunchTargets) ??
-      availableLaunchTargets[0] ??
-      companionLaunchTargets[0],
-    [availableLaunchTargets, resolvedStartupTarget],
+      findCompanionLaunchTarget(
+        effectiveSavedStartupTarget,
+        availableLaunchTargets,
+      ),
+    [availableLaunchTargets, effectiveSavedStartupTarget],
   );
-  const hasUnsavedSelection = !areCompanionTargetsEqual(
-    selectedTarget,
-    savedTarget,
+  const savedTargetOutsideChoices = Boolean(
+    resolvedStartupTarget && !savedKnownTarget,
   );
+  const hasUnsavedSelection =
+    !savedTargetOutsideChoices &&
+    !areCompanionTargetsEqual(
+      selectedTarget,
+      savedKnownTarget ?? effectiveSavedStartupTarget,
+    );
+  const savedTargetLabel = useMemo(
+    () => formatSavedTargetLabel(resolvedStartupTarget),
+    [resolvedStartupTarget],
+  );
+  const remoteCatalogStatus = useMemo(
+    () => getRemoteCatalogStatusPresentation(remoteCatalog.status),
+    [remoteCatalog.status],
+  );
+  const remoteCatalogEntries = useMemo(() => {
+    const localStateRank = {
+      bundled: 0,
+      staged: 1,
+      'remote-only': 2,
+    } as const;
+
+    return remoteCatalog.entries
+      .map(entry => {
+        const localState = resolveRemoteBundleLocalState(
+          entry.bundleId,
+          bundleAvailability[entry.bundleId],
+        );
+
+        return {
+          ...entry,
+          localState,
+          hasPublicLaunchTarget: companionLaunchTargets.some(
+            target => target.bundleId === entry.bundleId,
+          ),
+          isSavedStartupTarget: resolvedStartupTarget?.bundleId === entry.bundleId,
+        };
+      })
+      .sort((left, right) => {
+        if (left.isSavedStartupTarget !== right.isSavedStartupTarget) {
+          return left.isSavedStartupTarget ? -1 : 1;
+        }
+
+        const leftRank = localStateRank[left.localState];
+        const rightRank = localStateRank[right.localState];
+        if (leftRank !== rightRank) {
+          return leftRank - rightRank;
+        }
+
+        return left.bundleId.localeCompare(right.bundleId);
+      });
+  }, [bundleAvailability, remoteCatalog.entries, resolvedStartupTarget?.bundleId]);
 
   async function openTarget(target: typeof companionLaunchTargets[number]) {
     if (openingTargetId) {
@@ -102,16 +273,18 @@ export function BundleLauncherScreen({
 
   useEffect(() => {
     let cancelled = false;
-    const bundleIds = [...new Set(companionLaunchTargets.map(target => target.bundleId))];
 
-    void Promise.all(
-      bundleIds.map(async bundleId => [bundleId, await canOpenBundleTarget(bundleId)] as const),
-    ).then(results => {
+    void queryBundleAvailability(
+      companionLaunchTargets.map(target => target.bundleId),
+    ).then(availability => {
       if (cancelled) {
         return;
       }
 
-      setBundleAvailability(Object.fromEntries(results));
+      setBundleAvailability(previous => ({
+        ...previous,
+        ...availability,
+      }));
     });
 
     return () => {
@@ -120,10 +293,57 @@ export function BundleLauncherScreen({
   }, []);
 
   useEffect(() => {
-    if (savedTarget?.targetId) {
-      setSelectedTargetId(savedTarget.targetId);
+    let cancelled = false;
+
+    void fetchRemoteBundleCatalog()
+      .then(async nextRemoteCatalog => {
+        if (cancelled) {
+          return;
+        }
+
+        if (nextRemoteCatalog.status === 'ready') {
+          const availability = await queryBundleAvailability(
+            nextRemoteCatalog.entries.map(entry => entry.bundleId),
+          );
+          if (cancelled) {
+            return;
+          }
+
+          setBundleAvailability(previous => ({
+            ...previous,
+            ...availability,
+          }));
+        }
+
+        setRemoteCatalog(nextRemoteCatalog);
+      })
+      .catch(error => {
+        if (cancelled) {
+          return;
+        }
+
+        console.warn('Failed to fetch remote bundle catalog', error);
+        setRemoteCatalog({
+          status: 'error',
+          remoteUrl: null,
+          entries: [],
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : appI18n.bundleLauncher.remoteCatalog.errorFallback,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (savedKnownTarget?.targetId) {
+      setSelectedTargetId(savedKnownTarget.targetId);
     }
-  }, [savedTarget?.targetId]);
+  }, [savedKnownTarget?.targetId]);
 
   async function handleSaveStartupTarget() {
     if (!selectedTarget || savingStartupTarget) {
@@ -183,6 +403,106 @@ export function BundleLauncherScreen({
         </SectionCard>
 
         <SectionCard
+          title={appI18n.bundleLauncher.sections.remoteCatalogTitle}
+          description={appI18n.bundleLauncher.sections.remoteCatalogDescription}>
+          <View style={styles.remoteCatalogSummary}>
+            <View style={styles.summaryHeader}>
+              <SignalPill
+                label={remoteCatalogStatus.label}
+                tone={remoteCatalogStatus.tone}
+                size="sm"
+              />
+              <Text style={styles.remoteCatalogTitleText}>
+                {remoteCatalog.remoteUrl ?? appI18n.bundleLauncher.remoteCatalog.noRemoteUrl}
+              </Text>
+            </View>
+
+            {remoteCatalog.status === 'unavailable' ? (
+              <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyUnavailable}</MutedText>
+            ) : null}
+            {remoteCatalog.status === 'error' ? (
+              <Text style={styles.remoteCatalogError}>
+                {remoteCatalog.errorMessage ??
+                  appI18n.bundleLauncher.remoteCatalog.errorFallback}
+              </Text>
+            ) : null}
+            {remoteCatalog.status === 'ready' && remoteCatalogEntries.length === 0 ? (
+              <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyReady}</MutedText>
+            ) : null}
+          </View>
+
+          {remoteCatalog.status === 'ready' && remoteCatalogEntries.length > 0 ? (
+            <View style={styles.remoteBundleList}>
+              {remoteCatalogEntries.map(entry => (
+                <View key={entry.bundleId} style={styles.remoteBundleCard}>
+                  <View style={styles.remoteBundleHeader}>
+                    <Text style={styles.remoteBundleTitle}>
+                      {entry.bundleId === companionBundleIds.main
+                        ? appI18n.bundleLauncher.remoteCatalog.mainBundleTitle
+                        : entry.bundleId}
+                    </Text>
+                    <SignalPill
+                      label={
+                        entry.localState === 'bundled'
+                          ? appI18n.bundleLauncher.remoteCatalog.localState.bundled
+                          : entry.localState === 'staged'
+                            ? appI18n.bundleLauncher.remoteCatalog.localState.staged
+                            : appI18n.bundleLauncher.remoteCatalog.localState.remoteOnly
+                      }
+                      tone={
+                        entry.localState === 'bundled'
+                          ? 'support'
+                          : entry.localState === 'staged'
+                            ? 'warning'
+                            : 'neutral'
+                      }
+                      size="sm"
+                    />
+                  </View>
+
+                  <MutedText>
+                    {appI18n.bundleLauncher.labels.bundleId}
+                    {entry.bundleId}
+                  </MutedText>
+                  <MutedText>
+                    {appI18n.bundleLauncher.remoteCatalog.labels.latestVersion}
+                    {entry.latestVersion ??
+                      appI18n.bundleLauncher.remoteCatalog.latestVersionUnknown}
+                  </MutedText>
+                  <MutedText>
+                    {appI18n.bundleLauncher.remoteCatalog.labels.channels}
+                    {formatRemoteChannels(entry.channels)}
+                  </MutedText>
+                  {entry.rolloutPercent !== null ? (
+                    <MutedText>
+                      {appI18n.bundleLauncher.remoteCatalog.labels.rolloutPercent}
+                      {entry.rolloutPercent}%
+                    </MutedText>
+                  ) : null}
+
+                  <View style={styles.remoteBundleMetaRow}>
+                    {entry.isSavedStartupTarget ? (
+                      <SignalPill
+                        label={appI18n.bundleLauncher.remoteCatalog.savedTarget}
+                        tone="accent"
+                        size="sm"
+                      />
+                    ) : null}
+                    {!entry.hasPublicLaunchTarget ? (
+                      <SignalPill
+                        label={appI18n.bundleLauncher.remoteCatalog.noPublicLaunchTarget}
+                        tone="neutral"
+                        size="sm"
+                      />
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </SectionCard>
+
+        <SectionCard
           title={appI18n.bundleLauncher.sections.summaryTitle}
           description={appI18n.bundleLauncher.sections.summaryDescription}>
           <View style={styles.summaryCard}>
@@ -190,16 +510,20 @@ export function BundleLauncherScreen({
               <SignalPill
                 label={
                   startupTargetLoaded
-                    ? hasUnsavedSelection
-                      ? appI18n.bundleLauncher.status.pending
-                      : appI18n.bundleLauncher.status.synced
+                    ? savedTargetOutsideChoices
+                      ? appI18n.bundleLauncher.status.externalSavedTarget
+                      : hasUnsavedSelection
+                        ? appI18n.bundleLauncher.status.pending
+                        : appI18n.bundleLauncher.status.synced
                     : appI18n.bundleLauncher.status.loading
                 }
                 tone={
                   startupTargetLoaded
-                    ? hasUnsavedSelection
+                    ? savedTargetOutsideChoices
                       ? 'warning'
-                      : 'support'
+                      : hasUnsavedSelection
+                        ? 'warning'
+                        : 'support'
                     : 'neutral'
                 }
                 size="sm"
@@ -220,8 +544,21 @@ export function BundleLauncherScreen({
             </MutedText>
             <MutedText>
               {appI18n.bundleLauncher.labels.savedTarget}
-              {savedTarget?.title ?? appI18n.surfaces.launcher}
+              {savedTargetLabel}
             </MutedText>
+            <MutedText>
+              {appI18n.bundleLauncher.labels.savedBundleId}
+              {effectiveSavedStartupTarget.bundleId}
+            </MutedText>
+            <MutedText>
+              {appI18n.bundleLauncher.labels.savedSurfaceId}
+              {effectiveSavedStartupTarget.surfaceId}
+            </MutedText>
+            {savedTargetOutsideChoices ? (
+              <Text style={styles.summaryWarning}>
+                {appI18n.bundleLauncher.status.externalSavedTargetDescription}
+              </Text>
+            ) : null}
             {statusMessage ? (
               <Text style={styles.statusMessage}>{statusMessage}</Text>
             ) : null}
@@ -283,6 +620,10 @@ const styles = StyleSheet.create({
     ...appTypography.sectionTitle,
     flexShrink: 1,
   },
+  summaryWarning: {
+    color: '#b19243',
+    ...appTypography.bodyStrong,
+  },
   statusMessage: {
     color: appPalette.accent,
     ...appTypography.bodyStrong,
@@ -291,5 +632,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: appSpacing.md,
+  },
+  remoteCatalogSummary: {
+    gap: appSpacing.sm,
+  },
+  remoteCatalogTitleText: {
+    color: appPalette.inkMuted,
+    ...appTypography.caption,
+    flexShrink: 1,
+  },
+  remoteCatalogError: {
+    color: '#8c4022',
+    ...appTypography.bodyStrong,
+  },
+  remoteBundleList: {
+    gap: appSpacing.md,
+  },
+  remoteBundleCard: {
+    gap: appSpacing.sm,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: appPalette.border,
+    backgroundColor: appPalette.canvas,
+    paddingHorizontal: appSpacing.lg,
+    paddingVertical: appSpacing.md,
+  },
+  remoteBundleHeader: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: appSpacing.sm,
+  },
+  remoteBundleTitle: {
+    color: appPalette.ink,
+    ...appTypography.bodyStrong,
+    flexGrow: 1,
+    flexShrink: 1,
+  },
+  remoteBundleMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: appSpacing.sm,
   },
 });

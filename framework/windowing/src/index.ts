@@ -49,6 +49,7 @@ type NativeWindowManager = {
   focusWindow(windowId: string): Promise<void>;
   closeWindow(windowId: string): Promise<void>;
   canOpenBundle(bundleId: string): Promise<boolean>;
+  getOtaRemoteUrl(): Promise<string>;
   getCurrentWindow(): Promise<string>;
   getWindowSession(windowId: string): Promise<string>;
   getWindowPreferences(): Promise<string>;
@@ -767,6 +768,21 @@ export async function canOpenBundleTarget(bundleId: string) {
   } catch (error) {
     console.warn('Failed to query bundle availability', error);
     return true;
+  }
+}
+
+export async function getOtaRemoteUrl() {
+  const nativeWindowManager = getNativeWindowManager();
+  if (!nativeWindowManager?.getOtaRemoteUrl) {
+    return null;
+  }
+
+  try {
+    const remoteUrl = (await nativeWindowManager.getOtaRemoteUrl()).trim();
+    return remoteUrl || null;
+  } catch (error) {
+    console.warn('Failed to read OTA remote URL', error);
+    return null;
   }
 }
 

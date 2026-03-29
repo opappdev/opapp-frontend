@@ -26,9 +26,12 @@ export const zhCNApp = {
       startupTargetTitle: '启动目标',
       startupTargetDescription:
         '先选择应用启动后要进入的 surface。保存后，下次仍会先由主 Bundle 启动，再跳到这里指定的目标。',
+      remoteCatalogTitle: '动态更新服务支持的 Bundle',
+      remoteCatalogDescription:
+        '上面的启动目标只覆盖当前公开 launcher 已知的入口。这里会读取远端 index.json，并明确每个远端 bundle 在本机是内置、已 staged，还是仍只有远端声明可发现。',
       summaryTitle: '当前摘要',
       summaryDescription:
-        '这里会显示当前选择、已保存的启动目标，以及当前窗口里将要打开的 bundle/surface。',
+        '这里会显示当前选择、已保存的启动目标，以及当前窗口里将要打开的 bundle/surface。若已保存目标来自公开 launcher 之外的 bundle，也会在这里明确提示。',
     },
     actions: {
       save: '保存为启动目标',
@@ -44,6 +47,9 @@ export const zhCNApp = {
       saveFailed: '保存启动目标失败，请稍后重试。',
       opened: '目标已打开',
       openFailed: '打开目标失败，请检查当前宿主是否支持该 Bundle。',
+      externalSavedTarget: '外部 Bundle 目标',
+      externalSavedTargetDescription:
+        '当前已保存的启动目标不在公开 launcher 列表中；如果重新保存上面的选项，会覆盖这个外部 bundle 目标。',
       autoOpening: '正在按保存的启动目标自动跳转...',
       autoOpenFailed: '自动跳转失败，当前先停留在主 Bundle 启动页。',
     },
@@ -52,12 +58,41 @@ export const zhCNApp = {
       surfaceId: 'Surface：',
       windowId: '当前窗口：',
       savedTarget: '已保存启动目标：',
+      savedBundleId: '已保存 Bundle：',
+      savedSurfaceId: '已保存 Surface：',
     },
     targets: {
       mainLauncher: '停留在主 Bundle 启动页，方便再手动选择设置页、实验页或其它 Bundle。',
       settings: '直接进入主 Bundle 内的设置页，方便先改宿主和窗口偏好。',
       viewShotLab: '直接进入主 Bundle 内的 View Shot 验证页。',
       windowCaptureLab: '直接进入主 Bundle 内的 Window Capture 验证页。',
+    },
+    remoteCatalog: {
+      status: {
+        loading: '读取远端目录中',
+        ready: '远端目录已读取',
+        unavailable: '未配置远端目录',
+        error: '远端目录读取失败',
+      },
+      labels: {
+        latestVersion: '远端最新：',
+        channels: '频道：',
+        rolloutPercent: '灰度：',
+      },
+      localState: {
+        bundled: '内置主 Bundle',
+        staged: '本机已 staged',
+        remoteOnly: '仅远端可发现',
+      },
+      mainBundleTitle: '主 Bundle',
+      savedTarget: '当前启动目标',
+      noPublicLaunchTarget: '当前无公开入口',
+      noRemoteUrl: '当前宿主未配置 OTA 远端 URL',
+      emptyUnavailable: '当前宿主没有配置动态更新服务地址，所以这里只显示不到远端支持列表。',
+      emptyReady: '远端目录当前没有声明任何可下发 bundle。',
+      latestVersionUnknown: '未声明版本',
+      channelsEmpty: '未声明频道',
+      errorFallback: '读取远端 bundle 目录失败，请稍后重试。',
     },
   },
   common: {

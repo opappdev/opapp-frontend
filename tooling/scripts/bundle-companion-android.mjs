@@ -4,6 +4,7 @@ import {cp, mkdir, readFile, rm, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
+import {compileHermesBundleInPlace} from './hermes-bytecode.mjs';
 
 const resetCache = process.argv.includes('--reset-cache');
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -88,6 +89,11 @@ async function main() {
     process.exit(result.status ?? 1);
   }
 
+  await compileHermesBundleInPlace({
+    repoRoot,
+    bundlePath: bundleOutput,
+  });
+
   await cp(windowPolicyRegistrySource, windowPolicyRegistryOutput, {force: true});
 
   const bundleBytes = await readFile(bundleOutput);
@@ -108,6 +114,7 @@ async function main() {
     // No extension stripping is performed on the Android side (unlike Windows JavaScriptBundleFile).
     entryFile: 'index.android.bundle',
     surfaces: mainBundleSurfaces,
+    bundleFormat: 'hermes-bytecode',
     checksum: {algorithm: 'sha256', value: bundleChecksum},
     sourceKind: 'local-build',
   };

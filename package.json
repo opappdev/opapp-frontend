@@ -1,7 +1,7 @@
 {
   "name": "opapp-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "lint": "echo \"TODO: configure frontend lint\"",

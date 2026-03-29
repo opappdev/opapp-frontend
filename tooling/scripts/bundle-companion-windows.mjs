@@ -5,6 +5,7 @@ import {cp, mkdir, readFile, rm, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {compileHermesBundleInPlace} from './hermes-bytecode.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..', '..');
@@ -175,6 +176,7 @@ async function writeBundleManifest({
     platform: 'windows',
     entryFile,
     surfaces,
+    bundleFormat: 'hermes-bytecode',
     checksum: {algorithm: 'sha256', value: bundleChecksum},
     sourceKind: 'local-build',
   };
@@ -231,6 +233,11 @@ export async function bundleCompanionWindows({resetCache = false} = {}) {
       error.exitCode = exitCode;
       throw error;
     }
+
+    await compileHermesBundleInPlace({
+      repoRoot,
+      bundlePath: path.join(bundlePlan.outputDir, bundlePlan.bundleFile),
+    });
 
     const manifestOutput = await writeBundleManifest({
       bundleId: bundlePlan.bundleId,

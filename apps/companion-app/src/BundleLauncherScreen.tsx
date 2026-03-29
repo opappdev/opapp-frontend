@@ -112,6 +112,53 @@ async function fetchJsonWithTimeout(url: string) {
   return response.json();
 }
 
+async function attachRemoteBundleManifestSurfaceIds(
+  entries: ReadonlyArray<RemoteBundleCatalogEntry>,
+  normalizedRemoteUrl: string,
+  cachedManifests?: Record<string, Record<string, unknown>>,
+) {
+  let usedNetwork = false;
+  const hydratedEntries = await Promise.all(
+    entries.map(async entry => {
+      if (!entry.latestVersion) {
+        return entry;
+      }
+
+      const cachedManifestPayload =
+        cachedManifests?.[entry.bundleId]?.[entry.latestVersion];
+      if (cachedManifestPayload) {
+        return {
+          ...entry,
+          surfaceIds: parseRemoteBundleManifestSurfaceIds(cachedManifestPayload),
+        };
+      }
+
+      try {
+        const manifestPayload = await fetchJsonWithTimeout(
+          `${normalizedRemoteUrl}/${encodeURIComponent(entry.bundleId)}/${encodeURIComponent(entry.latestVersion)}/windows/bundle-manifest.json`,
+        );
+        usedNetwork = true;
+        return {
+          ...entry,
+          surfaceIds: parseRemoteBundleManifestSurfaceIds(manifestPayload),
+        };
+      } catch (error) {
+        console.warn('Failed to fetch remote bundle manifest', {
+          bundleId: entry.bundleId,
+          version: entry.latestVersion,
+          error,
+        });
+        return entry;
+      }
+    }),
+  );
+
+  return {
+    entries: hydratedEntries,
+    usedNetwork,
+  };
+}
+
 async function fetchRemoteBundleCatalog() {
   const remoteUrl = await getOtaRemoteUrl();
   if (!remoteUrl) {
@@ -128,60 +175,26 @@ async function fetchRemoteBundleCatalog() {
   const cachedRemoteCatalog = await getCachedOtaRemoteCatalog();
   const cachedRemoteUrl = cachedRemoteCatalog?.remoteUrl?.replace(/\/+$/, '') ?? null;
   if (cachedRemoteCatalog?.index && cachedRemoteUrl === normalizedRemoteUrl) {
-    const cachedEntries = parseRemoteBundleCatalogIndex(cachedRemoteCatalog.index).map(
-      entry => {
-        if (!entry.latestVersion) {
-          return entry;
-        }
-
-        const manifestPayload =
-          cachedRemoteCatalog.manifests[entry.bundleId]?.[entry.latestVersion];
-        if (!manifestPayload) {
-          return entry;
-        }
-
-        return {
-          ...entry,
-          surfaceIds: parseRemoteBundleManifestSurfaceIds(manifestPayload),
-        };
-      },
+    const {entries, usedNetwork} = await attachRemoteBundleManifestSurfaceIds(
+      parseRemoteBundleCatalogIndex(cachedRemoteCatalog.index),
+      normalizedRemoteUrl,
+      cachedRemoteCatalog.manifests,
     );
 
     return {
       status: 'ready' as const,
-      source: 'cache' as const,
+      source: usedNetwork ? ('network' as const) : ('cache' as const),
       remoteUrl: normalizedRemoteUrl,
-      entries: cachedEntries,
+      entries,
       errorMessage: null,
     };
   }
 
   try {
     const payload = await fetchJsonWithTimeout(`${normalizedRemoteUrl}/index.json`);
-    const catalogEntries = parseRemoteBundleCatalogIndex(payload);
-    const entries = await Promise.all(
-      catalogEntries.map(async entry => {
-        if (!entry.latestVersion) {
-          return entry;
-        }
-
-        try {
-          const manifestPayload = await fetchJsonWithTimeout(
-            `${normalizedRemoteUrl}/${encodeURIComponent(entry.bundleId)}/${encodeURIComponent(entry.latestVersion)}/windows/bundle-manifest.json`,
-          );
-          return {
-            ...entry,
-            surfaceIds: parseRemoteBundleManifestSurfaceIds(manifestPayload),
-          };
-        } catch (error) {
-          console.warn('Failed to fetch remote bundle manifest', {
-            bundleId: entry.bundleId,
-            version: entry.latestVersion,
-            error,
-          });
-          return entry;
-        }
-      }),
+    const {entries} = await attachRemoteBundleManifestSurfaceIds(
+      parseRemoteBundleCatalogIndex(payload),
+      normalizedRemoteUrl,
     );
 
     return {

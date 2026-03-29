@@ -81,6 +81,9 @@ export const zhCNApp = {
         launchTargets: '入口：',
         localVersion: '本机版本：',
         localSourceKind: '本机来源：',
+        localProvenanceKind: '落地判定：',
+        localProvenanceStatus: '最近 OTA：',
+        localProvenanceStagedAt: '最近落地：',
         channels: '频道：',
         rolloutPercent: '灰度：',
       },
@@ -95,6 +98,19 @@ export const zhCNApp = {
       sourceKind: {
         localBuild: 'local-build（本地构建）',
         siblingStaging: 'sibling-staging（宿主 staged）',
+      },
+      provenanceKind: {
+        nativeOtaApplied: 'native-ota-applied（原生 OTA 已落地）',
+        hostStagedOnly: 'host-staged-only（仅本机 staged）',
+      },
+      provenanceBadge: {
+        nativeOtaApplied: '原生 OTA',
+        hostStagedOnly: '仅本机 staged',
+      },
+      provenanceStatus: {
+        updated: 'updated（本轮已更新）',
+        upToDate: 'up-to-date（本轮已最新）',
+        failed: 'failed（本轮检查失败）',
       },
       versionStatus: {
         differs: '版本不一致',

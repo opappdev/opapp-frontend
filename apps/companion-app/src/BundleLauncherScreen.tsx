@@ -161,6 +161,56 @@ function formatStagedSourceKind(sourceKind: string | null) {
   }
 }
 
+function formatStagedProvenanceKind(provenanceKind: string | null) {
+  switch (provenanceKind) {
+    case 'native-ota-applied':
+      return appI18n.bundleLauncher.remoteCatalog.provenanceKind.nativeOtaApplied;
+    case 'host-staged-only':
+      return appI18n.bundleLauncher.remoteCatalog.provenanceKind.hostStagedOnly;
+    default:
+      return provenanceKind ?? appI18n.common.unknown;
+  }
+}
+
+function formatStagedProvenanceBadge(provenanceKind: string | null) {
+  switch (provenanceKind) {
+    case 'native-ota-applied':
+      return appI18n.bundleLauncher.remoteCatalog.provenanceBadge.nativeOtaApplied;
+    case 'host-staged-only':
+      return appI18n.bundleLauncher.remoteCatalog.provenanceBadge.hostStagedOnly;
+    default:
+      return provenanceKind ?? appI18n.common.unknown;
+  }
+}
+
+function formatStagedProvenanceStatus(status: string | null) {
+  switch (status) {
+    case 'updated':
+      return appI18n.bundleLauncher.remoteCatalog.provenanceStatus.updated;
+    case 'up-to-date':
+      return appI18n.bundleLauncher.remoteCatalog.provenanceStatus.upToDate;
+    case 'failed':
+      return appI18n.bundleLauncher.remoteCatalog.provenanceStatus.failed;
+    default:
+      return status ?? appI18n.common.unknown;
+  }
+}
+
+function formatIsoTimestamp(value: string | null) {
+  if (!value) {
+    return appI18n.common.unknown;
+  }
+
+  const match = value.match(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(?:\.\d+)?Z$/,
+  );
+  if (!match) {
+    return value;
+  }
+
+  return `${match[1]} ${match[2]} UTC`;
+}
+
 function getRemoteCatalogStatusPresentation(status: RemoteCatalogState['status']) {
   switch (status) {
     case 'ready':
@@ -579,6 +629,27 @@ export function BundleLauncherScreen({
                           {formatStagedSourceKind(entry.localSourceKind)}
                         </MutedText>
                       ) : null}
+                      {entry.localState === 'staged' &&
+                      entry.localProvenanceKind ? (
+                        <MutedText>
+                          {appI18n.bundleLauncher.remoteCatalog.labels.localProvenanceKind}
+                          {formatStagedProvenanceKind(entry.localProvenanceKind)}
+                        </MutedText>
+                      ) : null}
+                      {entry.localState === 'staged' &&
+                      entry.localProvenanceStatus ? (
+                        <MutedText>
+                          {appI18n.bundleLauncher.remoteCatalog.labels.localProvenanceStatus}
+                          {formatStagedProvenanceStatus(entry.localProvenanceStatus)}
+                        </MutedText>
+                      ) : null}
+                      {entry.localState === 'staged' &&
+                      entry.localProvenanceStagedAt ? (
+                        <MutedText>
+                          {appI18n.bundleLauncher.remoteCatalog.labels.localProvenanceStagedAt}
+                          {formatIsoTimestamp(entry.localProvenanceStagedAt)}
+                        </MutedText>
+                      ) : null}
                       {entry.rolloutPercent !== null ? (
                         <MutedText>
                           {appI18n.bundleLauncher.remoteCatalog.labels.rolloutPercent}
@@ -596,6 +667,20 @@ export function BundleLauncherScreen({
                           <SignalPill
                             label={appI18n.bundleLauncher.remoteCatalog.savedTarget}
                             tone="accent"
+                            size="sm"
+                          />
+                        ) : null}
+                        {entry.localState === 'staged' &&
+                        entry.localProvenanceKind ? (
+                          <SignalPill
+                            label={formatStagedProvenanceBadge(
+                              entry.localProvenanceKind,
+                            )}
+                            tone={
+                              entry.localProvenanceKind === 'native-ota-applied'
+                                ? 'support'
+                                : 'neutral'
+                            }
                             size="sm"
                           />
                         ) : null}

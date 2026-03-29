@@ -99,6 +99,9 @@ export type StagedBundleRecord = {
   bundleId: string;
   version: string | null;
   sourceKind: string | null;
+  provenanceKind: string | null;
+  provenanceStatus: string | null;
+  provenanceStagedAt: string | null;
 };
 
 type SurfaceWindowHostState = {
@@ -309,6 +312,15 @@ function parseStagedBundlePayload(raw: string): StagedBundleRecord[] {
         version: previous?.version ?? parseOptionalTrimmedString(record.version),
         sourceKind:
           previous?.sourceKind ?? parseOptionalTrimmedString(record.sourceKind),
+        provenanceKind:
+          previous?.provenanceKind ??
+          parseOptionalTrimmedString(record.provenanceKind),
+        provenanceStatus:
+          previous?.provenanceStatus ??
+          parseOptionalTrimmedString(record.provenanceStatus),
+        provenanceStagedAt:
+          previous?.provenanceStagedAt ??
+          parseOptionalTrimmedString(record.provenanceStagedAt),
       });
     }
 
@@ -877,6 +889,9 @@ export async function getStagedBundles() {
         bundleId,
         version: null,
         sourceKind: null,
+        provenanceKind: null,
+        provenanceStatus: null,
+        provenanceStagedAt: null,
       }),
     );
   } catch (error) {

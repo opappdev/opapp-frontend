@@ -17,6 +17,9 @@ type StagedBundleDiscoveryRecord = {
   bundleId: string;
   version: string | null;
   sourceKind: string | null;
+  provenanceKind: string | null;
+  provenanceStatus: string | null;
+  provenanceStagedAt: string | null;
 };
 
 export type BundleLauncherDiscoveryEntry = RemoteBundleCatalogEntry & {
@@ -24,6 +27,9 @@ export type BundleLauncherDiscoveryEntry = RemoteBundleCatalogEntry & {
   discoverySource: BundleLauncherDiscoverySource;
   localVersion: string | null;
   localSourceKind: string | null;
+  localProvenanceKind: string | null;
+  localProvenanceStatus: string | null;
+  localProvenanceStagedAt: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -68,6 +74,15 @@ function normalizeStagedBundles(
       version: previous?.version ?? normalizeOptionalString(bundle.version),
       sourceKind:
         previous?.sourceKind ?? normalizeOptionalString(bundle.sourceKind),
+      provenanceKind:
+        previous?.provenanceKind ??
+        normalizeOptionalString(bundle.provenanceKind),
+      provenanceStatus:
+        previous?.provenanceStatus ??
+        normalizeOptionalString(bundle.provenanceStatus),
+      provenanceStagedAt:
+        previous?.provenanceStagedAt ??
+        normalizeOptionalString(bundle.provenanceStagedAt),
     });
   }
 
@@ -189,6 +204,12 @@ export function buildBundleLauncherDiscoveryEntries({
     ...entry,
     localVersion: stagedBundleMap.get(entry.bundleId)?.version ?? null,
     localSourceKind: stagedBundleMap.get(entry.bundleId)?.sourceKind ?? null,
+    localProvenanceKind:
+      stagedBundleMap.get(entry.bundleId)?.provenanceKind ?? null,
+    localProvenanceStatus:
+      stagedBundleMap.get(entry.bundleId)?.provenanceStatus ?? null,
+    localProvenanceStagedAt:
+      stagedBundleMap.get(entry.bundleId)?.provenanceStagedAt ?? null,
     localState: resolveRemoteBundleLocalState(
       entry.bundleId,
       stagedBundleMap.has(entry.bundleId),
@@ -211,6 +232,9 @@ export function buildBundleLauncherDiscoveryEntries({
       surfaceIds: [],
       localVersion: bundle.version,
       localSourceKind: bundle.sourceKind,
+      localProvenanceKind: bundle.provenanceKind,
+      localProvenanceStatus: bundle.provenanceStatus,
+      localProvenanceStagedAt: bundle.provenanceStagedAt,
       localState: 'staged',
       discoverySource: 'local-only',
     });

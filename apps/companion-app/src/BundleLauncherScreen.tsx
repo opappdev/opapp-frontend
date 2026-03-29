@@ -1,7 +1,9 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import {logInteraction} from '@opapp/framework-diagnostics';
 import {
   canOpenBundleTarget,
+  getCachedOtaRemoteCatalog,
   getStagedBundles,
   getOtaRemoteUrl,
   type StagedBundleRecord,
@@ -48,16 +50,20 @@ type BundleLauncherScreenProps = {
 type RemoteCatalogState =
   | {
       status: 'loading';
+      source: 'pending';
       remoteUrl: string | null;
       entries: RemoteBundleCatalogEntry[];
       errorMessage: string | null;
     }
   | {
       status: 'ready' | 'unavailable' | 'error';
+      source: 'cache' | 'network' | 'unavailable' | 'error';
       remoteUrl: string | null;
       entries: RemoteBundleCatalogEntry[];
       errorMessage: string | null;
     };
+
+const remoteCatalogRequestTimeoutMs = 5_000;
 
 async function queryBundleAvailability(bundleIds: ReadonlyArray<string>) {
   const uniqueBundleIds = [...new Set(bundleIds.map(bundleId => bundleId.trim()).filter(Boolean))];
@@ -73,11 +79,45 @@ async function queryBundleAvailability(bundleIds: ReadonlyArray<string>) {
   return Object.fromEntries(availabilityEntries);
 }
 
+function formatRemoteCatalogErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return appI18n.bundleLauncher.remoteCatalog.errorFallback;
+}
+
+async function fetchJsonWithTimeout(url: string) {
+  const response = await Promise.race([
+    fetch(url, {
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    }),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(
+            `Timed out after ${remoteCatalogRequestTimeoutMs}ms while fetching ${url}`,
+          ),
+        );
+      }, remoteCatalogRequestTimeoutMs);
+    }),
+  ]);
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
 async function fetchRemoteBundleCatalog() {
   const remoteUrl = await getOtaRemoteUrl();
   if (!remoteUrl) {
     return {
       status: 'unavailable' as const,
+      source: 'unavailable' as const,
       remoteUrl: null,
       entries: [],
       errorMessage: null,
@@ -85,58 +125,81 @@ async function fetchRemoteBundleCatalog() {
   }
 
   const normalizedRemoteUrl = remoteUrl.replace(/\/+$/, '');
-  const response = await fetch(`${normalizedRemoteUrl}/index.json`, {
-    headers: {
-      'Cache-Control': 'no-cache',
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const payload = await response.json();
-  const catalogEntries = parseRemoteBundleCatalogIndex(payload);
-  const entries = await Promise.all(
-    catalogEntries.map(async entry => {
-      if (!entry.latestVersion) {
-        return entry;
-      }
-
-      try {
-        const manifestResponse = await fetch(
-          `${normalizedRemoteUrl}/${encodeURIComponent(entry.bundleId)}/${encodeURIComponent(entry.latestVersion)}/windows/bundle-manifest.json`,
-          {
-            headers: {
-              'Cache-Control': 'no-cache',
-            },
-          },
-        );
-        if (!manifestResponse.ok) {
-          throw new Error(`HTTP ${manifestResponse.status}`);
+  const cachedRemoteCatalog = await getCachedOtaRemoteCatalog();
+  const cachedRemoteUrl = cachedRemoteCatalog?.remoteUrl?.replace(/\/+$/, '') ?? null;
+  if (cachedRemoteCatalog?.index && cachedRemoteUrl === normalizedRemoteUrl) {
+    const cachedEntries = parseRemoteBundleCatalogIndex(cachedRemoteCatalog.index).map(
+      entry => {
+        if (!entry.latestVersion) {
+          return entry;
         }
 
-        const manifestPayload = await manifestResponse.json();
+        const manifestPayload =
+          cachedRemoteCatalog.manifests[entry.bundleId]?.[entry.latestVersion];
+        if (!manifestPayload) {
+          return entry;
+        }
+
         return {
           ...entry,
           surfaceIds: parseRemoteBundleManifestSurfaceIds(manifestPayload),
         };
-      } catch (error) {
-        console.warn('Failed to fetch remote bundle manifest', {
-          bundleId: entry.bundleId,
-          version: entry.latestVersion,
-          error,
-        });
-        return entry;
-      }
-    }),
-  );
+      },
+    );
 
-  return {
-    status: 'ready' as const,
-    remoteUrl: normalizedRemoteUrl,
-    entries,
-    errorMessage: null,
-  };
+    return {
+      status: 'ready' as const,
+      source: 'cache' as const,
+      remoteUrl: normalizedRemoteUrl,
+      entries: cachedEntries,
+      errorMessage: null,
+    };
+  }
+
+  try {
+    const payload = await fetchJsonWithTimeout(`${normalizedRemoteUrl}/index.json`);
+    const catalogEntries = parseRemoteBundleCatalogIndex(payload);
+    const entries = await Promise.all(
+      catalogEntries.map(async entry => {
+        if (!entry.latestVersion) {
+          return entry;
+        }
+
+        try {
+          const manifestPayload = await fetchJsonWithTimeout(
+            `${normalizedRemoteUrl}/${encodeURIComponent(entry.bundleId)}/${encodeURIComponent(entry.latestVersion)}/windows/bundle-manifest.json`,
+          );
+          return {
+            ...entry,
+            surfaceIds: parseRemoteBundleManifestSurfaceIds(manifestPayload),
+          };
+        } catch (error) {
+          console.warn('Failed to fetch remote bundle manifest', {
+            bundleId: entry.bundleId,
+            version: entry.latestVersion,
+            error,
+          });
+          return entry;
+        }
+      }),
+    );
+
+    return {
+      status: 'ready' as const,
+      source: 'network' as const,
+      remoteUrl: normalizedRemoteUrl,
+      entries,
+      errorMessage: null,
+    };
+  } catch (error) {
+    return {
+      status: 'error' as const,
+      source: 'error' as const,
+      remoteUrl: normalizedRemoteUrl,
+      entries: [],
+      errorMessage: formatRemoteCatalogErrorMessage(error),
+    };
+  }
 }
 
 function formatRemoteChannels(channels: Record<string, string> | null) {
@@ -261,8 +324,10 @@ export function BundleLauncherScreen({
   const [openingTargetId, setOpeningTargetId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [stagedBundles, setStagedBundles] = useState<StagedBundleRecord[]>([]);
+  const [stagedBundlesLoaded, setStagedBundlesLoaded] = useState(false);
   const [remoteCatalog, setRemoteCatalog] = useState<RemoteCatalogState>({
     status: 'loading',
+    source: 'pending',
     remoteUrl: null,
     entries: [],
     errorMessage: null,
@@ -273,6 +338,7 @@ export function BundleLauncherScreen({
     saving: savingStartupTarget,
     save: saveStartupTarget,
   } = useCompanionStartupTarget();
+  const lastRemoteCatalogDiagnosticsSignatureRef = useRef<string | null>(null);
   const startupTargetLoaded = !startupTargetLoading;
   const effectiveSavedStartupTarget =
     resolvedStartupTarget ?? defaultCompanionStartupTarget;
@@ -426,13 +492,29 @@ export function BundleLauncherScreen({
   useEffect(() => {
     let cancelled = false;
 
-    void getStagedBundles().then(nextBundles => {
-      if (cancelled) {
-        return;
-      }
+    void getStagedBundles()
+      .then(nextBundles => {
+        if (cancelled) {
+          return;
+        }
 
-      setStagedBundles(nextBundles);
-    });
+        setStagedBundles(nextBundles);
+      })
+      .catch(error => {
+        if (cancelled) {
+          return;
+        }
+
+        console.warn('Failed to query staged bundles', error);
+        setStagedBundles([]);
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setStagedBundlesLoaded(true);
+      });
 
     return () => {
       cancelled = true;
@@ -442,12 +524,22 @@ export function BundleLauncherScreen({
   useEffect(() => {
     let cancelled = false;
 
+    logInteraction('bundle-launcher.remote-catalog.fetch-start', {
+      timeoutMs: remoteCatalogRequestTimeoutMs,
+    });
     void fetchRemoteBundleCatalog()
       .then(nextRemoteCatalog => {
         if (cancelled) {
           return;
         }
 
+        logInteraction('bundle-launcher.remote-catalog.fetch-finished', {
+          status: nextRemoteCatalog.status,
+          source: nextRemoteCatalog.source,
+          remoteUrl: nextRemoteCatalog.remoteUrl ?? null,
+          remoteEntryCount: nextRemoteCatalog.entries.length,
+          errorMessage: nextRemoteCatalog.errorMessage ?? null,
+        });
         setRemoteCatalog(nextRemoteCatalog);
       })
       .catch(error => {
@@ -456,14 +548,15 @@ export function BundleLauncherScreen({
         }
 
         console.warn('Failed to fetch remote bundle catalog', error);
+        logInteraction('bundle-launcher.remote-catalog.fetch-failed', {
+          errorMessage: formatRemoteCatalogErrorMessage(error),
+        });
         setRemoteCatalog({
           status: 'error',
+          source: 'error',
           remoteUrl: null,
           entries: [],
-          errorMessage:
-            error instanceof Error
-              ? error.message
-              : appI18n.bundleLauncher.remoteCatalog.errorFallback,
+          errorMessage: formatRemoteCatalogErrorMessage(error),
         });
       });
 
@@ -477,6 +570,75 @@ export function BundleLauncherScreen({
       setSelectedTargetId(savedKnownTarget.targetId);
     }
   }, [savedKnownTarget?.targetId]);
+
+  useEffect(() => {
+    if (remoteCatalog.status === 'loading') {
+      return;
+    }
+
+    const diagnosticsEntries = remoteCatalogEntries.map(entry => ({
+      bundleId: entry.bundleId,
+      discoverySource: entry.discoverySource,
+      localState: entry.localState,
+      latestVersion: entry.latestVersion ?? null,
+      localVersion: entry.localVersion ?? null,
+      localSourceKind: entry.localSourceKind ?? null,
+      localProvenanceKind: entry.localProvenanceKind ?? null,
+      localProvenanceStatus: entry.localProvenanceStatus ?? null,
+      localProvenanceStagedAt: entry.localProvenanceStagedAt ?? null,
+      versionMismatch:
+        Boolean(entry.localVersion) &&
+        Boolean(entry.latestVersion) &&
+        entry.localVersion !== entry.latestVersion,
+      hasPublicLaunchTarget: entry.launchTargets.length > 0,
+      isSavedStartupTarget: entry.isSavedStartupTarget,
+      rolloutPercent: entry.rolloutPercent,
+      surfaceIds: entry.surfaceIds,
+    }));
+    const diagnosticsSummary = {
+      status: remoteCatalog.status,
+      source: remoteCatalog.source,
+      remoteUrl: remoteCatalog.remoteUrl ?? null,
+      remoteEntryCount: remoteCatalog.entries.length,
+      entryCount: diagnosticsEntries.length,
+      stagedBundleCount: stagedBundles.length,
+      stagedBundlesLoaded,
+      startupTargetLoaded,
+      savedStartupTargetBundleId: resolvedStartupTarget?.bundleId ?? null,
+      savedStartupTargetSurfaceId: resolvedStartupTarget?.surfaceId ?? null,
+    };
+    const diagnosticsSignature = JSON.stringify({
+      summary: diagnosticsSummary,
+      entries: diagnosticsEntries,
+    });
+
+    if (
+      diagnosticsSignature ===
+      lastRemoteCatalogDiagnosticsSignatureRef.current
+    ) {
+      return;
+    }
+
+    lastRemoteCatalogDiagnosticsSignatureRef.current = diagnosticsSignature;
+    logInteraction(
+      'bundle-launcher.remote-catalog.summary',
+      diagnosticsSummary,
+    );
+    for (const entry of diagnosticsEntries) {
+      logInteraction('bundle-launcher.remote-catalog.entry', entry);
+    }
+  }, [
+    remoteCatalog.entries,
+    remoteCatalog.remoteUrl,
+    remoteCatalog.source,
+    remoteCatalog.status,
+    remoteCatalogEntries,
+    resolvedStartupTarget?.bundleId,
+    resolvedStartupTarget?.surfaceId,
+    stagedBundles.length,
+    stagedBundlesLoaded,
+    startupTargetLoaded,
+  ]);
 
   async function handleSaveStartupTarget() {
     if (!selectedTarget || savingStartupTarget) {

@@ -50,6 +50,7 @@ type NativeWindowManager = {
   closeWindow(windowId: string): Promise<void>;
   canOpenBundle(bundleId: string): Promise<boolean>;
   getOtaRemoteUrl(): Promise<string>;
+  getCachedOtaRemoteCatalog?(): Promise<string>;
   getStagedBundles?(): Promise<string>;
   getStagedBundleIds?(): Promise<string>;
   getCurrentWindow(): Promise<string>;
@@ -102,6 +103,12 @@ export type StagedBundleRecord = {
   provenanceKind: string | null;
   provenanceStatus: string | null;
   provenanceStagedAt: string | null;
+};
+
+export type CachedOtaRemoteCatalogSnapshot = {
+  remoteUrl: string | null;
+  index: unknown | null;
+  manifests: Record<string, Record<string, unknown>>;
 };
 
 type SurfaceWindowHostState = {
@@ -329,6 +336,70 @@ function parseStagedBundlePayload(raw: string): StagedBundleRecord[] {
     );
   } catch {
     return [];
+  }
+}
+
+function parseCachedOtaRemoteCatalogPayload(
+  raw: string,
+): CachedOtaRemoteCatalogSnapshot {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {
+        remoteUrl: null,
+        index: null,
+        manifests: {},
+      };
+    }
+
+    const record = parsed as Record<string, unknown>;
+    const manifests: Record<string, Record<string, unknown>> = {};
+    const rawManifests =
+      record.manifests &&
+      typeof record.manifests === 'object' &&
+      !Array.isArray(record.manifests)
+        ? (record.manifests as Record<string, unknown>)
+        : {};
+
+    for (const [bundleId, versionsValue] of Object.entries(rawManifests)) {
+      if (
+        !versionsValue ||
+        typeof versionsValue !== 'object' ||
+        Array.isArray(versionsValue)
+      ) {
+        continue;
+      }
+
+      const versionEntries: Record<string, unknown> = {};
+      for (const [version, manifestValue] of Object.entries(
+        versionsValue as Record<string, unknown>,
+      )) {
+        if (
+          manifestValue &&
+          typeof manifestValue === 'object' &&
+          !Array.isArray(manifestValue)
+        ) {
+          versionEntries[version] = manifestValue;
+        }
+      }
+
+      manifests[bundleId] = versionEntries;
+    }
+
+    return {
+      remoteUrl: parseOptionalTrimmedString(record.remoteUrl),
+      index:
+        record.index && typeof record.index === 'object' && !Array.isArray(record.index)
+          ? record.index
+          : null,
+      manifests,
+    };
+  } catch {
+    return {
+      remoteUrl: null,
+      index: null,
+      manifests: {},
+    };
   }
 }
 
@@ -864,6 +935,25 @@ export async function getOtaRemoteUrl() {
     return remoteUrl || null;
   } catch (error) {
     console.warn('Failed to read OTA remote URL', error);
+    return null;
+  }
+}
+
+export async function getCachedOtaRemoteCatalog() {
+  const nativeWindowManager = getNativeWindowManager();
+  if (!nativeWindowManager?.getCachedOtaRemoteCatalog) {
+    return null;
+  }
+
+  try {
+    const payload = await nativeWindowManager.getCachedOtaRemoteCatalog();
+    if (!payload.trim()) {
+      return null;
+    }
+
+    return parseCachedOtaRemoteCatalogPayload(payload);
+  } catch (error) {
+    console.warn('Failed to read cached OTA remote catalog', error);
     return null;
   }
 }

@@ -50,6 +50,7 @@ type NativeWindowManager = {
   closeWindow(windowId: string): Promise<void>;
   canOpenBundle(bundleId: string): Promise<boolean>;
   getOtaRemoteUrl(): Promise<string>;
+  getStagedBundleIds(): Promise<string>;
   getCurrentWindow(): Promise<string>;
   getWindowSession(windowId: string): Promise<string>;
   getWindowPreferences(): Promise<string>;
@@ -248,6 +249,23 @@ function readInitialObject(
   }
 
   return undefined;
+}
+
+function parseStringArrayPayload(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map(entry => entry.trim())
+      .filter(Boolean)
+      .sort();
+  } catch {
+    return [];
+  }
 }
 
 function createInitialAutoOpenRequest(
@@ -783,6 +801,20 @@ export async function getOtaRemoteUrl() {
   } catch (error) {
     console.warn('Failed to read OTA remote URL', error);
     return null;
+  }
+}
+
+export async function getStagedBundleIds() {
+  const nativeWindowManager = getNativeWindowManager();
+  if (!nativeWindowManager?.getStagedBundleIds) {
+    return [];
+  }
+
+  try {
+    return parseStringArrayPayload(await nativeWindowManager.getStagedBundleIds());
+  } catch (error) {
+    console.warn('Failed to read staged bundle IDs', error);
+    return [];
   }
 }
 

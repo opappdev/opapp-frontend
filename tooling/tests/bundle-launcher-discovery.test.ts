@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  buildBundleLauncherDiscoveryEntries,
   parseRemoteBundleCatalogIndex,
   resolveRemoteBundleLocalState,
 } from '../../apps/companion-app/src/bundle-launcher-discovery';
@@ -71,5 +72,54 @@ export function run() {
   assert.equal(
     resolveRemoteBundleLocalState('opapp.hbr.workspace', false),
     'remote-only',
+  );
+
+  assert.deepEqual(
+    buildBundleLauncherDiscoveryEntries({
+      remoteEntries: entries,
+      stagedBundleIds: ['opapp.hbr.workspace', 'opapp.private.shadow', ''],
+    }),
+    [
+      {
+        bundleId: 'invalid',
+        latestVersion: null,
+        versions: [],
+        rolloutPercent: null,
+        channels: null,
+        localState: 'remote-only',
+        discoverySource: 'remote-catalog',
+      },
+      {
+        bundleId: 'opapp.companion.main',
+        latestVersion: '0.1.2',
+        versions: ['0.1.0', '0.1.2'],
+        rolloutPercent: null,
+        channels: {
+          stable: '0.1.2',
+        },
+        localState: 'bundled',
+        discoverySource: 'remote-catalog',
+      },
+      {
+        bundleId: 'opapp.hbr.workspace',
+        latestVersion: '0.1.2',
+        versions: ['0.1.1', '0.1.2'],
+        rolloutPercent: 25,
+        channels: {
+          nightly: '0.1.2',
+        },
+        localState: 'staged',
+        discoverySource: 'remote-catalog',
+      },
+      {
+        bundleId: 'opapp.private.shadow',
+        latestVersion: null,
+        versions: [],
+        rolloutPercent: null,
+        channels: null,
+        localState: 'staged',
+        discoverySource: 'local-only',
+      },
+    ],
   );
 }

@@ -2,6 +2,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {
   canOpenBundleTarget,
+  getStagedBundleIds,
   getOtaRemoteUrl,
   useCurrentWindowId,
   useOpenSurface,
@@ -21,8 +22,8 @@ import {
   appTypography,
 } from '@opapp/ui-native-primitives';
 import {
+  buildBundleLauncherDiscoveryEntries,
   parseRemoteBundleCatalogIndex,
-  resolveRemoteBundleLocalState,
   type RemoteBundleCatalogEntry,
 } from './bundle-launcher-discovery';
 import {
@@ -158,6 +159,7 @@ export function BundleLauncherScreen({
   );
   const [openingTargetId, setOpeningTargetId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [stagedBundleIds, setStagedBundleIds] = useState<string[]>([]);
   const [remoteCatalog, setRemoteCatalog] = useState<RemoteCatalogState>({
     status: 'loading',
     remoteUrl: null,
@@ -219,17 +221,18 @@ export function BundleLauncherScreen({
       staged: 1,
       'remote-only': 2,
     } as const;
+    const discoverySourceRank = {
+      'local-only': 0,
+      'remote-catalog': 1,
+    } as const;
 
-    return remoteCatalog.entries
+    return buildBundleLauncherDiscoveryEntries({
+      remoteEntries: remoteCatalog.entries,
+      stagedBundleIds,
+    })
       .map(entry => {
-        const localState = resolveRemoteBundleLocalState(
-          entry.bundleId,
-          bundleAvailability[entry.bundleId],
-        );
-
         return {
           ...entry,
-          localState,
           hasPublicLaunchTarget: companionLaunchTargets.some(
             target => target.bundleId === entry.bundleId,
           ),
@@ -247,9 +250,15 @@ export function BundleLauncherScreen({
           return leftRank - rightRank;
         }
 
+        const leftSourceRank = discoverySourceRank[left.discoverySource];
+        const rightSourceRank = discoverySourceRank[right.discoverySource];
+        if (leftSourceRank !== rightSourceRank) {
+          return leftSourceRank - rightSourceRank;
+        }
+
         return left.bundleId.localeCompare(right.bundleId);
       });
-  }, [bundleAvailability, remoteCatalog.entries, resolvedStartupTarget?.bundleId]);
+  }, [remoteCatalog.entries, resolvedStartupTarget?.bundleId, stagedBundleIds]);
 
   async function openTarget(target: typeof companionLaunchTargets[number]) {
     if (openingTargetId) {
@@ -287,6 +296,14 @@ export function BundleLauncherScreen({
       }));
     });
 
+    void getStagedBundleIds().then(nextBundleIds => {
+      if (cancelled) {
+        return;
+      }
+
+      setStagedBundleIds(nextBundleIds);
+    });
+
     return () => {
       cancelled = true;
     };
@@ -296,23 +313,9 @@ export function BundleLauncherScreen({
     let cancelled = false;
 
     void fetchRemoteBundleCatalog()
-      .then(async nextRemoteCatalog => {
+      .then(nextRemoteCatalog => {
         if (cancelled) {
           return;
-        }
-
-        if (nextRemoteCatalog.status === 'ready') {
-          const availability = await queryBundleAvailability(
-            nextRemoteCatalog.entries.map(entry => entry.bundleId),
-          );
-          if (cancelled) {
-            return;
-          }
-
-          setBundleAvailability(previous => ({
-            ...previous,
-            ...availability,
-          }));
         }
 
         setRemoteCatalog(nextRemoteCatalog);
@@ -418,7 +421,9 @@ export function BundleLauncherScreen({
             </View>
 
             {remoteCatalog.status === 'unavailable' ? (
-              <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyUnavailable}</MutedText>
+              remoteCatalogEntries.length === 0 ? (
+                <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyUnavailable}</MutedText>
+              ) : null
             ) : null}
             {remoteCatalog.status === 'error' ? (
               <Text style={styles.remoteCatalogError}>
@@ -431,7 +436,7 @@ export function BundleLauncherScreen({
             ) : null}
           </View>
 
-          {remoteCatalog.status === 'ready' && remoteCatalogEntries.length > 0 ? (
+          {remoteCatalogEntries.length > 0 ? (
             <View style={styles.remoteBundleList}>
               {remoteCatalogEntries.map(entry => (
                 <View key={entry.bundleId} style={styles.remoteBundleCard}>
@@ -479,12 +484,24 @@ export function BundleLauncherScreen({
                       {entry.rolloutPercent}%
                     </MutedText>
                   ) : null}
+                  {entry.discoverySource === 'local-only' ? (
+                    <MutedText>
+                      {appI18n.bundleLauncher.remoteCatalog.localOnlyDescription}
+                    </MutedText>
+                  ) : null}
 
                   <View style={styles.remoteBundleMetaRow}>
                     {entry.isSavedStartupTarget ? (
                       <SignalPill
                         label={appI18n.bundleLauncher.remoteCatalog.savedTarget}
                         tone="accent"
+                        size="sm"
+                      />
+                    ) : null}
+                    {entry.discoverySource === 'local-only' ? (
+                      <SignalPill
+                        label={appI18n.bundleLauncher.remoteCatalog.discoverySource.localOnly}
+                        tone="warning"
                         size="sm"
                       />
                     ) : null}

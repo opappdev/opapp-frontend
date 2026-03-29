@@ -25,15 +25,18 @@ import {
 import {
   buildBundleLauncherDiscoveryEntries,
   parseRemoteBundleCatalogIndex,
+  parseRemoteBundleManifestSurfaceIds,
   type RemoteBundleCatalogEntry,
 } from './bundle-launcher-discovery';
 import {
   areCompanionTargetsEqual,
+  buildDiscoveredCompanionLaunchTargets,
   companionBundleIds,
   companionLaunchTargets,
   createCompanionOpenSurfaceRequest,
   defaultCompanionStartupTarget,
   findCompanionLaunchTarget,
+  type CompanionLaunchTarget,
   type CompanionStartupTarget,
 } from './companion-runtime';
 import {useCompanionStartupTarget} from './useCompanionStartupTarget';
@@ -92,10 +95,46 @@ async function fetchRemoteBundleCatalog() {
   }
 
   const payload = await response.json();
+  const catalogEntries = parseRemoteBundleCatalogIndex(payload);
+  const entries = await Promise.all(
+    catalogEntries.map(async entry => {
+      if (!entry.latestVersion) {
+        return entry;
+      }
+
+      try {
+        const manifestResponse = await fetch(
+          `${normalizedRemoteUrl}/${encodeURIComponent(entry.bundleId)}/${encodeURIComponent(entry.latestVersion)}/windows/bundle-manifest.json`,
+          {
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
+          },
+        );
+        if (!manifestResponse.ok) {
+          throw new Error(`HTTP ${manifestResponse.status}`);
+        }
+
+        const manifestPayload = await manifestResponse.json();
+        return {
+          ...entry,
+          surfaceIds: parseRemoteBundleManifestSurfaceIds(manifestPayload),
+        };
+      } catch (error) {
+        console.warn('Failed to fetch remote bundle manifest', {
+          bundleId: entry.bundleId,
+          version: entry.latestVersion,
+          error,
+        });
+        return entry;
+      }
+    }),
+  );
+
   return {
     status: 'ready' as const,
     remoteUrl: normalizedRemoteUrl,
-    entries: parseRemoteBundleCatalogIndex(payload),
+    entries,
     errorMessage: null,
   };
 }
@@ -187,13 +226,31 @@ export function BundleLauncherScreen({
   const startupTargetLoaded = !startupTargetLoading;
   const effectiveSavedStartupTarget =
     resolvedStartupTarget ?? defaultCompanionStartupTarget;
+  const discoveredLaunchTargets = useMemo(
+    () => buildDiscoveredCompanionLaunchTargets(remoteCatalog.entries),
+    [remoteCatalog.entries],
+  );
+  const launchTargets = useMemo(
+    () => [...companionLaunchTargets, ...discoveredLaunchTargets],
+    [discoveredLaunchTargets],
+  );
   const availableLaunchTargets = useMemo(
     () =>
-      companionLaunchTargets.filter(
+      launchTargets.filter(
         target => bundleAvailability[target.bundleId] ?? true,
       ),
-    [bundleAvailability],
+    [bundleAvailability, launchTargets],
   );
+  const launchTargetsByBundleId = useMemo(() => {
+    const groupedTargets = new Map<string, CompanionLaunchTarget[]>();
+    for (const target of launchTargets) {
+      const existingTargets = groupedTargets.get(target.bundleId) ?? [];
+      existingTargets.push(target);
+      groupedTargets.set(target.bundleId, existingTargets);
+    }
+
+    return groupedTargets;
+  }, [launchTargets]);
 
   const selectedTarget = useMemo(
     () =>
@@ -245,9 +302,7 @@ export function BundleLauncherScreen({
       .map(entry => {
         return {
           ...entry,
-          hasPublicLaunchTarget: companionLaunchTargets.some(
-            target => target.bundleId === entry.bundleId,
-          ),
+          launchTargets: launchTargetsByBundleId.get(entry.bundleId) ?? [],
           isSavedStartupTarget: resolvedStartupTarget?.bundleId === entry.bundleId,
         };
       })
@@ -270,9 +325,14 @@ export function BundleLauncherScreen({
 
         return left.bundleId.localeCompare(right.bundleId);
       });
-  }, [remoteCatalog.entries, resolvedStartupTarget?.bundleId, stagedBundles]);
+  }, [
+    launchTargetsByBundleId,
+    remoteCatalog.entries,
+    resolvedStartupTarget?.bundleId,
+    stagedBundles,
+  ]);
 
-  async function openTarget(target: typeof companionLaunchTargets[number]) {
+  async function openTarget(target: CompanionLaunchTarget) {
     if (openingTargetId) {
       return;
     }
@@ -296,7 +356,7 @@ export function BundleLauncherScreen({
     let cancelled = false;
 
     void queryBundleAvailability(
-      companionLaunchTargets.map(target => target.bundleId),
+      launchTargets.map(target => target.bundleId),
     ).then(availability => {
       if (cancelled) {
         return;
@@ -307,6 +367,14 @@ export function BundleLauncherScreen({
         ...availability,
       }));
     });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [launchTargets]);
+
+  useEffect(() => {
+    let cancelled = false;
 
     void getStagedBundles().then(nextBundles => {
       if (cancelled) {
@@ -499,6 +567,12 @@ export function BundleLauncherScreen({
                         {appI18n.bundleLauncher.remoteCatalog.labels.channels}
                         {formatRemoteChannels(entry.channels)}
                       </MutedText>
+                      {entry.launchTargets.length > 0 ? (
+                        <MutedText>
+                          {appI18n.bundleLauncher.remoteCatalog.labels.launchTargets}
+                          {entry.launchTargets.map(target => target.title).join(' / ')}
+                        </MutedText>
+                      ) : null}
                       {entry.localState === 'staged' ? (
                         <MutedText>
                           {appI18n.bundleLauncher.remoteCatalog.labels.localSourceKind}
@@ -542,7 +616,7 @@ export function BundleLauncherScreen({
                             size="sm"
                           />
                         ) : null}
-                        {!entry.hasPublicLaunchTarget ? (
+                        {entry.launchTargets.length === 0 ? (
                           <SignalPill
                             label={appI18n.bundleLauncher.remoteCatalog.noPublicLaunchTarget}
                             tone="neutral"

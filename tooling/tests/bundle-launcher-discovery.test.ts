@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   buildBundleLauncherDiscoveryEntries,
   parseRemoteBundleCatalogIndex,
+  parseRemoteBundleManifestSurfaceIds,
   resolveRemoteBundleLocalState,
 } from '../../apps/companion-app/src/bundle-launcher-discovery';
 import {companionBundleIds} from '../../apps/companion-app/src/companion-runtime';
@@ -40,6 +41,7 @@ export function run() {
       versions: [],
       rolloutPercent: null,
       channels: null,
+      surfaceIds: [],
     },
     {
       bundleId: 'opapp.companion.main',
@@ -49,6 +51,7 @@ export function run() {
       channels: {
         stable: '0.1.2',
       },
+      surfaceIds: [],
     },
     {
       bundleId: 'opapp.hbr.workspace',
@@ -58,8 +61,16 @@ export function run() {
       channels: {
         nightly: '0.1.2',
       },
+      surfaceIds: [],
     },
   ]);
+
+  assert.deepEqual(
+    parseRemoteBundleManifestSurfaceIds({
+      surfaces: ['hbr.challenge-advisor', '', 'hbr.challenge-advisor'],
+    }),
+    ['hbr.challenge-advisor'],
+  );
 
   assert.equal(
     resolveRemoteBundleLocalState(companionBundleIds.main, false),
@@ -102,6 +113,7 @@ export function run() {
         versions: [],
         rolloutPercent: null,
         channels: null,
+        surfaceIds: [],
         localVersion: null,
         localSourceKind: null,
         localState: 'remote-only',
@@ -115,6 +127,7 @@ export function run() {
         channels: {
           stable: '0.1.2',
         },
+        surfaceIds: [],
         localVersion: null,
         localSourceKind: null,
         localState: 'bundled',
@@ -128,6 +141,7 @@ export function run() {
         channels: {
           nightly: '0.1.2',
         },
+        surfaceIds: [],
         localVersion: '0.1.1',
         localSourceKind: 'sibling-staging',
         localState: 'staged',
@@ -139,6 +153,7 @@ export function run() {
         versions: [],
         rolloutPercent: null,
         channels: null,
+        surfaceIds: [],
         localVersion: null,
         localSourceKind: 'local-build',
         localState: 'staged',

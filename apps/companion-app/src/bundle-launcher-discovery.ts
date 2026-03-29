@@ -6,6 +6,7 @@ export type RemoteBundleCatalogEntry = {
   versions: string[];
   rolloutPercent: number | null;
   channels: Record<string, string> | null;
+  surfaceIds: string[];
 };
 
 export type RemoteBundleLocalState = 'bundled' | 'staged' | 'remote-only';
@@ -146,9 +147,18 @@ export function parseRemoteBundleCatalogIndex(
         versions,
         rolloutPercent: normalizeRolloutPercent(normalizedInfo.rolloutPercent),
         channels: normalizeChannels(normalizedInfo.channels, versions),
+        surfaceIds: [],
       };
     })
     .sort((left, right) => left.bundleId.localeCompare(right.bundleId));
+}
+
+export function parseRemoteBundleManifestSurfaceIds(raw: unknown) {
+  if (!isRecord(raw)) {
+    return [];
+  }
+
+  return [...new Set(normalizeStringArray(raw.surfaces))];
 }
 
 export function resolveRemoteBundleLocalState(
@@ -198,6 +208,7 @@ export function buildBundleLauncherDiscoveryEntries({
       versions: [],
       rolloutPercent: null,
       channels: null,
+      surfaceIds: [],
       localVersion: bundle.version,
       localSourceKind: bundle.sourceKind,
       localState: 'staged',

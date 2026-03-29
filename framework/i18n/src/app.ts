@@ -66,6 +66,8 @@ export const zhCNApp = {
       settings: '直接进入主 Bundle 内的设置页，方便先改宿主和窗口偏好。',
       viewShotLab: '直接进入主 Bundle 内的 View Shot 验证页。',
       windowCaptureLab: '直接进入主 Bundle 内的 Window Capture 验证页。',
+      discoveredBundle:
+        '这是从远端 bundle-manifest.json 里发现的入口；当本机已具备这个 bundle 时，保存后启动会直接切到对应 child bundle。',
     },
     remoteCatalog: {
       status: {
@@ -76,6 +78,7 @@ export const zhCNApp = {
       },
       labels: {
         latestVersion: '远端最新：',
+        launchTargets: '入口：',
         localVersion: '本机版本：',
         localSourceKind: '本机来源：',
         channels: '频道：',

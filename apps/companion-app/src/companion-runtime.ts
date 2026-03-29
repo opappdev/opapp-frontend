@@ -60,6 +60,11 @@ export type CompanionStartupTargetMigrationDecision =
       target: CompanionStartupTarget;
     };
 
+type CompanionDiscoveredBundleTargetRecord = {
+  bundleId: string;
+  surfaceIds: ReadonlyArray<string>;
+};
+
 const runtimeBundleList = runtimeBundles.bundles as CompanionRuntimeBundle[];
 const allowedStartupPresentations = new Set<SurfacePresentation>([
   'current-window',
@@ -117,6 +122,49 @@ export const companionLaunchTargets: CompanionLaunchTarget[] = [
     presentation: 'current-window',
   },
 ];
+
+export function buildDiscoveredCompanionLaunchTargets(
+  bundles: ReadonlyArray<CompanionDiscoveredBundleTargetRecord>,
+) {
+  const discoveredTargets: CompanionLaunchTarget[] = [];
+  const seenTargets = new Set(
+    companionLaunchTargets.map(target => `${target.bundleId}::${target.surfaceId}`),
+  );
+
+  for (const bundle of bundles) {
+    const bundleId = bundle.bundleId.trim();
+    if (!bundleId || bundleId === companionBundleIds.main) {
+      continue;
+    }
+
+    const surfaceIds = [...new Set(bundle.surfaceIds.map(surfaceId => surfaceId.trim()).filter(Boolean))].sort();
+    for (const surfaceId of surfaceIds) {
+      const targetKey = `${bundleId}::${surfaceId}`;
+      if (seenTargets.has(targetKey)) {
+        continue;
+      }
+
+      seenTargets.add(targetKey);
+      discoveredTargets.push({
+        targetId: `discovered:${bundleId}:${surfaceId}`,
+        title: surfaceId,
+        description: appI18n.bundleLauncher.targets.discoveredBundle,
+        surfaceId,
+        bundleId,
+        policy: 'main',
+        presentation: 'current-window',
+      });
+    }
+  }
+
+  return discoveredTargets.sort((left, right) => {
+    if (left.bundleId !== right.bundleId) {
+      return left.bundleId.localeCompare(right.bundleId);
+    }
+
+    return left.surfaceId.localeCompare(right.surfaceId);
+  });
+}
 
 export function getCompanionRuntimeBundle(bundleId: CompanionBundleId) {
   return (

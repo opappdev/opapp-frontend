@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   areCompanionTargetsEqual,
+  buildDiscoveredCompanionLaunchTargets,
   companionBundleIds,
   defaultCompanionStartupTarget,
   isCompanionSurfaceRequestAlreadyActive,
@@ -102,6 +103,30 @@ export function run() {
   assert.equal(
     areCompanionTargetsEqual(privateTarget, defaultCompanionStartupTarget),
     false,
+  );
+  assert.deepEqual(
+    buildDiscoveredCompanionLaunchTargets([
+      {
+        bundleId: privateBundleId,
+        surfaceIds: [privateSurfaceId, '', privateSurfaceId],
+      },
+      {
+        bundleId: companionBundleIds.main,
+        surfaceIds: ['companion.main'],
+      },
+    ]),
+    [
+      {
+        targetId: `discovered:${privateBundleId}:${privateSurfaceId}`,
+        title: privateSurfaceId,
+        description:
+          '这是从远端 bundle-manifest.json 里发现的入口；当本机已具备这个 bundle 时，保存后启动会直接切到对应 child bundle。',
+        surfaceId: privateSurfaceId,
+        bundleId: privateBundleId,
+        policy: 'main',
+        presentation: 'current-window',
+      },
+    ],
   );
   assert.deepEqual(
     parseCompanionStartupTarget(JSON.stringify(privateTarget)),

@@ -1,0 +1,14 @@
+opapp-frontend
+Copyright (c) 2026 OPApp Contributors
+
+Unless otherwise noted, the source code in this repository is made available
+under the Mozilla Public License, v. 2.0. See LICENSE for the full text.
+
+This public repository intentionally excludes optional local extension
+directories such as `apps/companion-app/.private-*`, workstation-local helper
+artifacts, and personal environment files. Those materials are not required to
+exercise, modify, or redistribute the public source tree.
+
+Any trademarks, logos, game names, platform names, and product names referenced
+by the code or documentation remain the property of their respective owners.
+This repository does not grant trademark rights beyond what MPL-2.0 requires.

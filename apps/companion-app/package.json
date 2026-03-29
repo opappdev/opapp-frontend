@@ -40,5 +40,15 @@
     "react": "19.1.1",
     "react-native": "0.82.0",
     "react-native-windows": "0.82.0"
-  }
+  },
+  "license": "MPL-2.0",
+  "description": "Public companion app entry for the OPApp frontend workspace",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opappdev/opapp-frontend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/opappdev/opapp-frontend/issues"
+  },
+  "homepage": "https://github.com/opappdev/opapp-frontend#readme"
 }

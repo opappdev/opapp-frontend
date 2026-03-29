@@ -11,5 +11,6 @@
   "peerDependencies": {
     "react": "^19.1.1",
     "react-native": "0.82.0"
-  }
+  },
+  "license": "MPL-2.0"
 }

@@ -7,6 +7,9 @@ coverage/
 .dist/
 .DS_Store
 *.log
+.env
+.env.local
+.env.*.local
 .bundle/
 .tmp/
 apps/companion-app/.private-*/

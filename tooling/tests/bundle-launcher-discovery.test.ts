@@ -77,7 +77,23 @@ export function run() {
   assert.deepEqual(
     buildBundleLauncherDiscoveryEntries({
       remoteEntries: entries,
-      stagedBundleIds: ['opapp.hbr.workspace', 'opapp.private.shadow', ''],
+      stagedBundles: [
+        {
+          bundleId: 'opapp.hbr.workspace',
+          version: '0.1.1',
+          sourceKind: 'sibling-staging',
+        },
+        {
+          bundleId: 'opapp.private.shadow',
+          version: null,
+          sourceKind: 'local-build',
+        },
+        {
+          bundleId: '',
+          version: '0.0.1',
+          sourceKind: 'ignored',
+        },
+      ],
     }),
     [
       {
@@ -86,6 +102,8 @@ export function run() {
         versions: [],
         rolloutPercent: null,
         channels: null,
+        localVersion: null,
+        localSourceKind: null,
         localState: 'remote-only',
         discoverySource: 'remote-catalog',
       },
@@ -97,6 +115,8 @@ export function run() {
         channels: {
           stable: '0.1.2',
         },
+        localVersion: null,
+        localSourceKind: null,
         localState: 'bundled',
         discoverySource: 'remote-catalog',
       },
@@ -108,6 +128,8 @@ export function run() {
         channels: {
           nightly: '0.1.2',
         },
+        localVersion: '0.1.1',
+        localSourceKind: 'sibling-staging',
         localState: 'staged',
         discoverySource: 'remote-catalog',
       },
@@ -117,6 +139,8 @@ export function run() {
         versions: [],
         rolloutPercent: null,
         channels: null,
+        localVersion: null,
+        localSourceKind: 'local-build',
         localState: 'staged',
         discoverySource: 'local-only',
       },

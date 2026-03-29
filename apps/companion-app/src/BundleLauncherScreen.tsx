@@ -1,9 +1,10 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {
   canOpenBundleTarget,
-  getStagedBundleIds,
+  getStagedBundles,
   getOtaRemoteUrl,
+  type StagedBundleRecord,
   useCurrentWindowId,
   useOpenSurface,
 } from '@opapp/framework-windowing';
@@ -110,6 +111,17 @@ function formatRemoteChannels(channels: Record<string, string> | null) {
     .join(' / ');
 }
 
+function formatStagedSourceKind(sourceKind: string | null) {
+  switch (sourceKind) {
+    case 'local-build':
+      return appI18n.bundleLauncher.remoteCatalog.sourceKind.localBuild;
+    case 'sibling-staging':
+      return appI18n.bundleLauncher.remoteCatalog.sourceKind.siblingStaging;
+    default:
+      return sourceKind ?? appI18n.common.unknown;
+  }
+}
+
 function getRemoteCatalogStatusPresentation(status: RemoteCatalogState['status']) {
   switch (status) {
     case 'ready':
@@ -159,7 +171,7 @@ export function BundleLauncherScreen({
   );
   const [openingTargetId, setOpeningTargetId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [stagedBundleIds, setStagedBundleIds] = useState<string[]>([]);
+  const [stagedBundles, setStagedBundles] = useState<StagedBundleRecord[]>([]);
   const [remoteCatalog, setRemoteCatalog] = useState<RemoteCatalogState>({
     status: 'loading',
     remoteUrl: null,
@@ -228,7 +240,7 @@ export function BundleLauncherScreen({
 
     return buildBundleLauncherDiscoveryEntries({
       remoteEntries: remoteCatalog.entries,
-      stagedBundleIds,
+      stagedBundles,
     })
       .map(entry => {
         return {
@@ -258,7 +270,7 @@ export function BundleLauncherScreen({
 
         return left.bundleId.localeCompare(right.bundleId);
       });
-  }, [remoteCatalog.entries, resolvedStartupTarget?.bundleId, stagedBundleIds]);
+  }, [remoteCatalog.entries, resolvedStartupTarget?.bundleId, stagedBundles]);
 
   async function openTarget(target: typeof companionLaunchTargets[number]) {
     if (openingTargetId) {
@@ -296,12 +308,12 @@ export function BundleLauncherScreen({
       }));
     });
 
-    void getStagedBundleIds().then(nextBundleIds => {
+    void getStagedBundles().then(nextBundles => {
       if (cancelled) {
         return;
       }
 
-      setStagedBundleIds(nextBundleIds);
+      setStagedBundles(nextBundles);
     });
 
     return () => {
@@ -379,239 +391,279 @@ export function BundleLauncherScreen({
   }
 
   return (
-    <AppFrame
-      eyebrow={appI18n.bundleLauncher.frame.eyebrow}
-      title={appI18n.bundleLauncher.frame.title}
-      description={appI18n.bundleLauncher.frame.description}>
-      <Stack>
-        <SectionCard
-          title={appI18n.bundleLauncher.sections.startupTargetTitle}
-          description={appI18n.bundleLauncher.sections.startupTargetDescription}>
-          <View style={styles.choiceGrid}>
-            {availableLaunchTargets.map(target => (
-              <ChoiceChip
-                key={target.targetId}
-                label={target.title}
-                detail={target.description}
-                active={selectedTarget?.targetId === target.targetId}
-                activeBadgeLabel={appI18n.common.choiceStatus.selected}
-                inactiveBadgeLabel={appI18n.common.choiceStatus.available}
-                onPress={() => {
-                  setSelectedTargetId(target.targetId);
-                  setStatusMessage(null);
-                }}
-              />
-            ))}
-          </View>
-        </SectionCard>
+    <View style={styles.screen}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <AppFrame
+          eyebrow={appI18n.bundleLauncher.frame.eyebrow}
+          title={appI18n.bundleLauncher.frame.title}
+          description={appI18n.bundleLauncher.frame.description}>
+          <Stack>
+            <SectionCard
+              title={appI18n.bundleLauncher.sections.startupTargetTitle}
+              description={appI18n.bundleLauncher.sections.startupTargetDescription}>
+              <View style={styles.choiceGrid}>
+                {availableLaunchTargets.map(target => (
+                  <ChoiceChip
+                    key={target.targetId}
+                    label={target.title}
+                    detail={target.description}
+                    active={selectedTarget?.targetId === target.targetId}
+                    activeBadgeLabel={appI18n.common.choiceStatus.selected}
+                    inactiveBadgeLabel={appI18n.common.choiceStatus.available}
+                    onPress={() => {
+                      setSelectedTargetId(target.targetId);
+                      setStatusMessage(null);
+                    }}
+                  />
+                ))}
+              </View>
+            </SectionCard>
 
-        <SectionCard
-          title={appI18n.bundleLauncher.sections.remoteCatalogTitle}
-          description={appI18n.bundleLauncher.sections.remoteCatalogDescription}>
-          <View style={styles.remoteCatalogSummary}>
-            <View style={styles.summaryHeader}>
-              <SignalPill
-                label={remoteCatalogStatus.label}
-                tone={remoteCatalogStatus.tone}
-                size="sm"
-              />
-              <Text style={styles.remoteCatalogTitleText}>
-                {remoteCatalog.remoteUrl ?? appI18n.bundleLauncher.remoteCatalog.noRemoteUrl}
-              </Text>
-            </View>
-
-            {remoteCatalog.status === 'unavailable' ? (
-              remoteCatalogEntries.length === 0 ? (
-                <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyUnavailable}</MutedText>
-              ) : null
-            ) : null}
-            {remoteCatalog.status === 'error' ? (
-              <Text style={styles.remoteCatalogError}>
-                {remoteCatalog.errorMessage ??
-                  appI18n.bundleLauncher.remoteCatalog.errorFallback}
-              </Text>
-            ) : null}
-            {remoteCatalog.status === 'ready' && remoteCatalogEntries.length === 0 ? (
-              <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyReady}</MutedText>
-            ) : null}
-          </View>
-
-          {remoteCatalogEntries.length > 0 ? (
-            <View style={styles.remoteBundleList}>
-              {remoteCatalogEntries.map(entry => (
-                <View key={entry.bundleId} style={styles.remoteBundleCard}>
-                  <View style={styles.remoteBundleHeader}>
-                    <Text style={styles.remoteBundleTitle}>
-                      {entry.bundleId === companionBundleIds.main
-                        ? appI18n.bundleLauncher.remoteCatalog.mainBundleTitle
-                        : entry.bundleId}
-                    </Text>
-                    <SignalPill
-                      label={
-                        entry.localState === 'bundled'
-                          ? appI18n.bundleLauncher.remoteCatalog.localState.bundled
-                          : entry.localState === 'staged'
-                            ? appI18n.bundleLauncher.remoteCatalog.localState.staged
-                            : appI18n.bundleLauncher.remoteCatalog.localState.remoteOnly
-                      }
-                      tone={
-                        entry.localState === 'bundled'
-                          ? 'support'
-                          : entry.localState === 'staged'
-                            ? 'warning'
-                            : 'neutral'
-                      }
-                      size="sm"
-                    />
-                  </View>
-
-                  <MutedText>
-                    {appI18n.bundleLauncher.labels.bundleId}
-                    {entry.bundleId}
-                  </MutedText>
-                  <MutedText>
-                    {appI18n.bundleLauncher.remoteCatalog.labels.latestVersion}
-                    {entry.latestVersion ??
-                      appI18n.bundleLauncher.remoteCatalog.latestVersionUnknown}
-                  </MutedText>
-                  <MutedText>
-                    {appI18n.bundleLauncher.remoteCatalog.labels.channels}
-                    {formatRemoteChannels(entry.channels)}
-                  </MutedText>
-                  {entry.rolloutPercent !== null ? (
-                    <MutedText>
-                      {appI18n.bundleLauncher.remoteCatalog.labels.rolloutPercent}
-                      {entry.rolloutPercent}%
-                    </MutedText>
-                  ) : null}
-                  {entry.discoverySource === 'local-only' ? (
-                    <MutedText>
-                      {appI18n.bundleLauncher.remoteCatalog.localOnlyDescription}
-                    </MutedText>
-                  ) : null}
-
-                  <View style={styles.remoteBundleMetaRow}>
-                    {entry.isSavedStartupTarget ? (
-                      <SignalPill
-                        label={appI18n.bundleLauncher.remoteCatalog.savedTarget}
-                        tone="accent"
-                        size="sm"
-                      />
-                    ) : null}
-                    {entry.discoverySource === 'local-only' ? (
-                      <SignalPill
-                        label={appI18n.bundleLauncher.remoteCatalog.discoverySource.localOnly}
-                        tone="warning"
-                        size="sm"
-                      />
-                    ) : null}
-                    {!entry.hasPublicLaunchTarget ? (
-                      <SignalPill
-                        label={appI18n.bundleLauncher.remoteCatalog.noPublicLaunchTarget}
-                        tone="neutral"
-                        size="sm"
-                      />
-                    ) : null}
-                  </View>
+            <SectionCard
+              title={appI18n.bundleLauncher.sections.remoteCatalogTitle}
+              description={appI18n.bundleLauncher.sections.remoteCatalogDescription}>
+              <View style={styles.remoteCatalogSummary}>
+                <View style={styles.summaryHeader}>
+                  <SignalPill
+                    label={remoteCatalogStatus.label}
+                    tone={remoteCatalogStatus.tone}
+                    size="sm"
+                  />
+                  <Text style={styles.remoteCatalogTitleText}>
+                    {remoteCatalog.remoteUrl ??
+                      appI18n.bundleLauncher.remoteCatalog.noRemoteUrl}
+                  </Text>
                 </View>
-              ))}
-            </View>
-          ) : null}
-        </SectionCard>
 
-        <SectionCard
-          title={appI18n.bundleLauncher.sections.summaryTitle}
-          description={appI18n.bundleLauncher.sections.summaryDescription}>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <SignalPill
-                label={
-                  startupTargetLoaded
-                    ? savedTargetOutsideChoices
-                      ? appI18n.bundleLauncher.status.externalSavedTarget
-                      : hasUnsavedSelection
-                        ? appI18n.bundleLauncher.status.pending
-                        : appI18n.bundleLauncher.status.synced
-                    : appI18n.bundleLauncher.status.loading
-                }
-                tone={
-                  startupTargetLoaded
-                    ? savedTargetOutsideChoices
-                      ? 'warning'
-                      : hasUnsavedSelection
-                        ? 'warning'
-                        : 'support'
-                    : 'neutral'
-                }
-                size="sm"
-              />
-              <Text style={styles.summaryTitleText}>{selectedTarget?.title}</Text>
-            </View>
-            <MutedText>
-              {appI18n.bundleLauncher.labels.bundleId}
-              {selectedTarget?.bundleId ?? defaultCompanionStartupTarget.bundleId}
-            </MutedText>
-            <MutedText>
-              {appI18n.bundleLauncher.labels.surfaceId}
-              {selectedTarget?.surfaceId ?? defaultCompanionStartupTarget.surfaceId}
-            </MutedText>
-            <MutedText>
-              {appI18n.bundleLauncher.labels.windowId}
-              {currentWindowId ?? appI18n.common.unknown}
-            </MutedText>
-            <MutedText>
-              {appI18n.bundleLauncher.labels.savedTarget}
-              {savedTargetLabel}
-            </MutedText>
-            <MutedText>
-              {appI18n.bundleLauncher.labels.savedBundleId}
-              {effectiveSavedStartupTarget.bundleId}
-            </MutedText>
-            <MutedText>
-              {appI18n.bundleLauncher.labels.savedSurfaceId}
-              {effectiveSavedStartupTarget.surfaceId}
-            </MutedText>
-            {savedTargetOutsideChoices ? (
-              <Text style={styles.summaryWarning}>
-                {appI18n.bundleLauncher.status.externalSavedTargetDescription}
-              </Text>
-            ) : null}
-            {statusMessage ? (
-              <Text style={styles.statusMessage}>{statusMessage}</Text>
-            ) : null}
-          </View>
-          <View style={styles.actionRow}>
-            <ActionButton
-              label={
-                savingStartupTarget
-                  ? appI18n.bundleLauncher.actions.saveBusy
-                  : appI18n.bundleLauncher.actions.save
-              }
-              onPress={() => {
-                void handleSaveStartupTarget();
-              }}
-              disabled={!startupTargetLoaded || savingStartupTarget || !selectedTarget}
-              tone="ghost"
-            />
-            <ActionButton
-              label={
-                openingTargetId === selectedTarget?.targetId
-                  ? appI18n.bundleLauncher.actions.openBusy
-                  : appI18n.bundleLauncher.actions.open
-              }
-              onPress={() => {
-                void handleOpenSelectedTarget();
-              }}
-              disabled={!selectedTarget || openingTargetId !== null}
-            />
-          </View>
-        </SectionCard>
-      </Stack>
-    </AppFrame>
+                {remoteCatalog.status === 'unavailable' ? (
+                  remoteCatalogEntries.length === 0 ? (
+                    <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyUnavailable}</MutedText>
+                  ) : null
+                ) : null}
+                {remoteCatalog.status === 'error' ? (
+                  <Text style={styles.remoteCatalogError}>
+                    {remoteCatalog.errorMessage ??
+                      appI18n.bundleLauncher.remoteCatalog.errorFallback}
+                  </Text>
+                ) : null}
+                {remoteCatalog.status === 'ready' && remoteCatalogEntries.length === 0 ? (
+                  <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyReady}</MutedText>
+                ) : null}
+              </View>
+
+              {remoteCatalogEntries.length > 0 ? (
+                <View style={styles.remoteBundleList}>
+                  {remoteCatalogEntries.map(entry => (
+                    <View key={entry.bundleId} style={styles.remoteBundleCard}>
+                      <View style={styles.remoteBundleHeader}>
+                        <Text style={styles.remoteBundleTitle}>
+                          {entry.bundleId === companionBundleIds.main
+                            ? appI18n.bundleLauncher.remoteCatalog.mainBundleTitle
+                            : entry.bundleId}
+                        </Text>
+                        <SignalPill
+                          label={
+                            entry.localState === 'bundled'
+                              ? appI18n.bundleLauncher.remoteCatalog.localState.bundled
+                              : entry.localState === 'staged'
+                                ? appI18n.bundleLauncher.remoteCatalog.localState.staged
+                                : appI18n.bundleLauncher.remoteCatalog.localState.remoteOnly
+                          }
+                          tone={
+                            entry.localState === 'bundled'
+                              ? 'support'
+                              : entry.localState === 'staged'
+                                ? 'warning'
+                                : 'neutral'
+                          }
+                          size="sm"
+                        />
+                      </View>
+
+                      <MutedText>
+                        {appI18n.bundleLauncher.labels.bundleId}
+                        {entry.bundleId}
+                      </MutedText>
+                      <MutedText>
+                        {appI18n.bundleLauncher.remoteCatalog.labels.latestVersion}
+                        {entry.latestVersion ??
+                          appI18n.bundleLauncher.remoteCatalog.latestVersionUnknown}
+                      </MutedText>
+                      {entry.localState === 'staged' ? (
+                        <MutedText>
+                          {appI18n.bundleLauncher.remoteCatalog.labels.localVersion}
+                          {entry.localVersion ?? appI18n.common.unknown}
+                        </MutedText>
+                      ) : null}
+                      <MutedText>
+                        {appI18n.bundleLauncher.remoteCatalog.labels.channels}
+                        {formatRemoteChannels(entry.channels)}
+                      </MutedText>
+                      {entry.localState === 'staged' ? (
+                        <MutedText>
+                          {appI18n.bundleLauncher.remoteCatalog.labels.localSourceKind}
+                          {formatStagedSourceKind(entry.localSourceKind)}
+                        </MutedText>
+                      ) : null}
+                      {entry.rolloutPercent !== null ? (
+                        <MutedText>
+                          {appI18n.bundleLauncher.remoteCatalog.labels.rolloutPercent}
+                          {entry.rolloutPercent}%
+                        </MutedText>
+                      ) : null}
+                      {entry.discoverySource === 'local-only' ? (
+                        <MutedText>
+                          {appI18n.bundleLauncher.remoteCatalog.localOnlyDescription}
+                        </MutedText>
+                      ) : null}
+
+                      <View style={styles.remoteBundleMetaRow}>
+                        {entry.isSavedStartupTarget ? (
+                          <SignalPill
+                            label={appI18n.bundleLauncher.remoteCatalog.savedTarget}
+                            tone="accent"
+                            size="sm"
+                          />
+                        ) : null}
+                        {entry.localState === 'staged' &&
+                        entry.localVersion &&
+                        entry.latestVersion &&
+                        entry.localVersion !== entry.latestVersion ? (
+                          <SignalPill
+                            label={appI18n.bundleLauncher.remoteCatalog.versionStatus.differs}
+                            tone="warning"
+                            size="sm"
+                          />
+                        ) : null}
+                        {entry.discoverySource === 'local-only' ? (
+                          <SignalPill
+                            label={appI18n.bundleLauncher.remoteCatalog.discoverySource.localOnly}
+                            tone="warning"
+                            size="sm"
+                          />
+                        ) : null}
+                        {!entry.hasPublicLaunchTarget ? (
+                          <SignalPill
+                            label={appI18n.bundleLauncher.remoteCatalog.noPublicLaunchTarget}
+                            tone="neutral"
+                            size="sm"
+                          />
+                        ) : null}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </SectionCard>
+
+            <SectionCard
+              title={appI18n.bundleLauncher.sections.summaryTitle}
+              description={appI18n.bundleLauncher.sections.summaryDescription}>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryHeader}>
+                  <SignalPill
+                    label={
+                      startupTargetLoaded
+                        ? savedTargetOutsideChoices
+                          ? appI18n.bundleLauncher.status.externalSavedTarget
+                          : hasUnsavedSelection
+                            ? appI18n.bundleLauncher.status.pending
+                            : appI18n.bundleLauncher.status.synced
+                        : appI18n.bundleLauncher.status.loading
+                    }
+                    tone={
+                      startupTargetLoaded
+                        ? savedTargetOutsideChoices
+                          ? 'warning'
+                          : hasUnsavedSelection
+                            ? 'warning'
+                            : 'support'
+                        : 'neutral'
+                    }
+                    size="sm"
+                  />
+                  <Text style={styles.summaryTitleText}>{selectedTarget?.title}</Text>
+                </View>
+                <MutedText>
+                  {appI18n.bundleLauncher.labels.bundleId}
+                  {selectedTarget?.bundleId ?? defaultCompanionStartupTarget.bundleId}
+                </MutedText>
+                <MutedText>
+                  {appI18n.bundleLauncher.labels.surfaceId}
+                  {selectedTarget?.surfaceId ?? defaultCompanionStartupTarget.surfaceId}
+                </MutedText>
+                <MutedText>
+                  {appI18n.bundleLauncher.labels.windowId}
+                  {currentWindowId ?? appI18n.common.unknown}
+                </MutedText>
+                <MutedText>
+                  {appI18n.bundleLauncher.labels.savedTarget}
+                  {savedTargetLabel}
+                </MutedText>
+                <MutedText>
+                  {appI18n.bundleLauncher.labels.savedBundleId}
+                  {effectiveSavedStartupTarget.bundleId}
+                </MutedText>
+                <MutedText>
+                  {appI18n.bundleLauncher.labels.savedSurfaceId}
+                  {effectiveSavedStartupTarget.surfaceId}
+                </MutedText>
+                {savedTargetOutsideChoices ? (
+                  <Text style={styles.summaryWarning}>
+                    {appI18n.bundleLauncher.status.externalSavedTargetDescription}
+                  </Text>
+                ) : null}
+                {statusMessage ? (
+                  <Text style={styles.statusMessage}>{statusMessage}</Text>
+                ) : null}
+              </View>
+              <View style={styles.actionRow}>
+                <ActionButton
+                  label={
+                    savingStartupTarget
+                      ? appI18n.bundleLauncher.actions.saveBusy
+                      : appI18n.bundleLauncher.actions.save
+                  }
+                  onPress={() => {
+                    void handleSaveStartupTarget();
+                  }}
+                  disabled={
+                    !startupTargetLoaded || savingStartupTarget || !selectedTarget
+                  }
+                  tone="ghost"
+                />
+                <ActionButton
+                  label={
+                    openingTargetId === selectedTarget?.targetId
+                      ? appI18n.bundleLauncher.actions.openBusy
+                      : appI18n.bundleLauncher.actions.open
+                  }
+                  onPress={() => {
+                    void handleOpenSelectedTarget();
+                  }}
+                  disabled={!selectedTarget || openingTargetId !== null}
+                />
+              </View>
+            </SectionCard>
+          </Stack>
+        </AppFrame>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: appPalette.canvas,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    paddingBottom: appSpacing.xl,
+  },
   choiceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

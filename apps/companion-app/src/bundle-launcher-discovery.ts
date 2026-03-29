@@ -12,9 +12,17 @@ export type RemoteBundleLocalState = 'bundled' | 'staged' | 'remote-only';
 
 export type BundleLauncherDiscoverySource = 'remote-catalog' | 'local-only';
 
+type StagedBundleDiscoveryRecord = {
+  bundleId: string;
+  version: string | null;
+  sourceKind: string | null;
+};
+
 export type BundleLauncherDiscoveryEntry = RemoteBundleCatalogEntry & {
   localState: RemoteBundleLocalState;
   discoverySource: BundleLauncherDiscoverySource;
+  localVersion: string | null;
+  localSourceKind: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -31,6 +39,40 @@ function normalizeStringArray(value: unknown) {
     .map(entry => entry.trim())
     .filter(Boolean)
     .sort();
+}
+
+function normalizeOptionalString(value: unknown) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+function normalizeStagedBundles(
+  stagedBundles: ReadonlyArray<StagedBundleDiscoveryRecord>,
+) {
+  const normalizedEntries = new Map<string, StagedBundleDiscoveryRecord>();
+
+  for (const bundle of stagedBundles) {
+    const bundleId = normalizeOptionalString(bundle.bundleId);
+    if (!bundleId || bundleId === companionBundleIds.main) {
+      continue;
+    }
+
+    const previous = normalizedEntries.get(bundleId);
+    normalizedEntries.set(bundleId, {
+      bundleId,
+      version: previous?.version ?? normalizeOptionalString(bundle.version),
+      sourceKind:
+        previous?.sourceKind ?? normalizeOptionalString(bundle.sourceKind),
+    });
+  }
+
+  return [...normalizedEntries.values()].sort((left, right) =>
+    left.bundleId.localeCompare(right.bundleId),
+  );
 }
 
 function normalizeChannels(
@@ -122,27 +164,30 @@ export function resolveRemoteBundleLocalState(
 
 export function buildBundleLauncherDiscoveryEntries({
   remoteEntries,
-  stagedBundleIds,
+  stagedBundles,
 }: {
   remoteEntries: ReadonlyArray<RemoteBundleCatalogEntry>;
-  stagedBundleIds: ReadonlyArray<string>;
+  stagedBundles: ReadonlyArray<StagedBundleDiscoveryRecord>;
 }): BundleLauncherDiscoveryEntry[] {
-  const normalizedStagedBundleIds = normalizeStringArray(stagedBundleIds).filter(
-    bundleId => bundleId !== companionBundleIds.main,
+  const normalizedStagedBundles = normalizeStagedBundles(stagedBundles);
+  const stagedBundleMap = new Map(
+    normalizedStagedBundles.map(bundle => [bundle.bundleId, bundle] as const),
   );
-  const stagedBundleIdSet = new Set(normalizedStagedBundleIds);
   const remoteBundleIdSet = new Set(remoteEntries.map(entry => entry.bundleId));
 
   const entries: BundleLauncherDiscoveryEntry[] = remoteEntries.map(entry => ({
     ...entry,
+    localVersion: stagedBundleMap.get(entry.bundleId)?.version ?? null,
+    localSourceKind: stagedBundleMap.get(entry.bundleId)?.sourceKind ?? null,
     localState: resolveRemoteBundleLocalState(
       entry.bundleId,
-      stagedBundleIdSet.has(entry.bundleId),
+      stagedBundleMap.has(entry.bundleId),
     ),
     discoverySource: 'remote-catalog' as const,
   }));
 
-  for (const bundleId of normalizedStagedBundleIds) {
+  for (const bundle of normalizedStagedBundles) {
+    const {bundleId} = bundle;
     if (remoteBundleIdSet.has(bundleId)) {
       continue;
     }
@@ -153,6 +198,8 @@ export function buildBundleLauncherDiscoveryEntries({
       versions: [],
       rolloutPercent: null,
       channels: null,
+      localVersion: bundle.version,
+      localSourceKind: bundle.sourceKind,
       localState: 'staged',
       discoverySource: 'local-only',
     });

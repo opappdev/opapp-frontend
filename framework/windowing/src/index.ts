@@ -50,7 +50,8 @@ type NativeWindowManager = {
   closeWindow(windowId: string): Promise<void>;
   canOpenBundle(bundleId: string): Promise<boolean>;
   getOtaRemoteUrl(): Promise<string>;
-  getStagedBundleIds(): Promise<string>;
+  getStagedBundles?(): Promise<string>;
+  getStagedBundleIds?(): Promise<string>;
   getCurrentWindow(): Promise<string>;
   getWindowSession(windowId: string): Promise<string>;
   getWindowPreferences(): Promise<string>;
@@ -92,6 +93,12 @@ type CurrentWindowController = {
 export type OpenWindowRequest = {
   surfaceId: SurfaceId;
   policy?: WindowPolicyId;
+};
+
+export type StagedBundleRecord = {
+  bundleId: string;
+  version: string | null;
+  sourceKind: string | null;
 };
 
 type SurfaceWindowHostState = {
@@ -263,6 +270,51 @@ function parseStringArrayPayload(raw: string) {
       .map(entry => entry.trim())
       .filter(Boolean)
       .sort();
+  } catch {
+    return [];
+  }
+}
+
+function parseOptionalTrimmedString(value: unknown) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+function parseStagedBundlePayload(raw: string): StagedBundleRecord[] {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const bundles = new Map<string, StagedBundleRecord>();
+    for (const entry of parsed) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        continue;
+      }
+
+      const record = entry as Record<string, unknown>;
+      const bundleId = parseOptionalTrimmedString(record.bundleId);
+      if (!bundleId) {
+        continue;
+      }
+
+      const previous = bundles.get(bundleId);
+      bundles.set(bundleId, {
+        bundleId,
+        version: previous?.version ?? parseOptionalTrimmedString(record.version),
+        sourceKind:
+          previous?.sourceKind ?? parseOptionalTrimmedString(record.sourceKind),
+      });
+    }
+
+    return [...bundles.values()].sort((left, right) =>
+      left.bundleId.localeCompare(right.bundleId),
+    );
   } catch {
     return [];
   }
@@ -804,18 +856,38 @@ export async function getOtaRemoteUrl() {
   }
 }
 
-export async function getStagedBundleIds() {
+export async function getStagedBundles() {
   const nativeWindowManager = getNativeWindowManager();
+  if (nativeWindowManager?.getStagedBundles) {
+    try {
+      return parseStagedBundlePayload(await nativeWindowManager.getStagedBundles());
+    } catch (error) {
+      console.warn('Failed to read staged bundles', error);
+      return [];
+    }
+  }
+
   if (!nativeWindowManager?.getStagedBundleIds) {
     return [];
   }
 
   try {
-    return parseStringArrayPayload(await nativeWindowManager.getStagedBundleIds());
+    return parseStringArrayPayload(await nativeWindowManager.getStagedBundleIds()).map(
+      bundleId => ({
+        bundleId,
+        version: null,
+        sourceKind: null,
+      }),
+    );
   } catch (error) {
     console.warn('Failed to read staged bundle IDs', error);
     return [];
   }
+}
+
+export async function getStagedBundleIds() {
+  const stagedBundles = await getStagedBundles();
+  return stagedBundles.map(bundle => bundle.bundleId);
 }
 
 export async function getWindowPreferences({

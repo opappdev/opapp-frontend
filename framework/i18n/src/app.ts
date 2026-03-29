@@ -76,6 +76,8 @@ export const zhCNApp = {
       },
       labels: {
         latestVersion: '远端最新：',
+        localVersion: '本机版本：',
+        localSourceKind: '本机来源：',
         channels: '频道：',
         rolloutPercent: '灰度：',
       },
@@ -86,6 +88,13 @@ export const zhCNApp = {
       },
       discoverySource: {
         localOnly: '远端未声明',
+      },
+      sourceKind: {
+        localBuild: 'local-build（本地构建）',
+        siblingStaging: 'sibling-staging（宿主 staged）',
+      },
+      versionStatus: {
+        differs: '版本不一致',
       },
       mainBundleTitle: '主 Bundle',
       savedTarget: '当前启动目标',

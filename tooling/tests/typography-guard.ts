@@ -4,14 +4,11 @@ import path from 'node:path';
 import ts from 'typescript';
 
 const TRIPLET_KEYS = ['fontSize', 'lineHeight', 'fontWeight'] as const;
-const DEFAULT_DESIGN_SPEC_PATH = 'ui/native-primitives/docs/design-spec-v1.md';
-const DESIGN_SPEC_SECTION_TITLE = '## 5. Typography Exceptions';
 
 type TypographyGuardConfig = {
   registryName: string;
   targetFilePath: string;
   targetLabel: string;
-  designSpecPath?: string;
 };
 
 function resolveRepoRoot(): string {
@@ -27,18 +24,28 @@ function resolveRepoRoot(): string {
       continue;
     }
 
-    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as {name?: string};
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as {
+      name?: string;
+    };
     if (pkg.name === 'opapp-frontend') {
       return candidate;
     }
   }
 
-  throw new Error('unable to resolve opapp-frontend repo root for typography guard');
+  throw new Error(
+    'unable to resolve opapp-frontend repo root for typography guard',
+  );
 }
 
 function readSourceFile(filePath: string): ts.SourceFile {
   const sourceText = fs.readFileSync(filePath, 'utf8');
-  return ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  return ts.createSourceFile(
+    filePath,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
 }
 
 function unwrapExpression(expression: ts.Expression): ts.Expression {
@@ -50,7 +57,11 @@ function unwrapExpression(expression: ts.Expression): ts.Expression {
 }
 
 function getPropertyName(name: ts.PropertyName): string | null {
-  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+  if (
+    ts.isIdentifier(name) ||
+    ts.isStringLiteral(name) ||
+    ts.isNumericLiteral(name)
+  ) {
     return name.text;
   }
   return null;
@@ -67,17 +78,24 @@ function hasTypographyTriplet(node: ts.ObjectLiteralExpression): boolean {
       keys.add(propertyName);
     }
   }
-  return TRIPLET_KEYS.every(key => keys.has(key));
+  return TRIPLET_KEYS.every((key) => keys.has(key));
 }
 
-function findRegistryObject(sourceFile: ts.SourceFile, registryName: string): ts.ObjectLiteralExpression {
+function findRegistryObject(
+  sourceFile: ts.SourceFile,
+  registryName: string,
+): ts.ObjectLiteralExpression {
   let registryObject: ts.ObjectLiteralExpression | null = null;
 
   function visit(node: ts.Node) {
     if (registryObject) {
       return;
     }
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === registryName) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === registryName
+    ) {
       if (node.initializer) {
         const initializer = unwrapExpression(node.initializer);
         if (ts.isObjectLiteralExpression(initializer)) {
@@ -90,7 +108,10 @@ function findRegistryObject(sourceFile: ts.SourceFile, registryName: string): ts
   }
 
   visit(sourceFile);
-  assert.ok(registryObject, `${registryName} registry must exist in ${path.basename(sourceFile.fileName)}.`);
+  assert.ok(
+    registryObject,
+    `${registryName} registry must exist in ${path.basename(sourceFile.fileName)}.`,
+  );
   return registryObject;
 }
 
@@ -105,7 +126,9 @@ function isDescendant(node: ts.Node, ancestor: ts.Node): boolean {
   return false;
 }
 
-function collectTypographyTriplets(sourceFile: ts.SourceFile): ts.ObjectLiteralExpression[] {
+function collectTypographyTriplets(
+  sourceFile: ts.SourceFile,
+): ts.ObjectLiteralExpression[] {
   const triplets: ts.ObjectLiteralExpression[] = [];
 
   function visit(node: ts.Node) {
@@ -134,14 +157,18 @@ function collectRegistryKeys(
     }
     const initializer = unwrapExpression(property.initializer);
     assert.ok(
-      ts.isObjectLiteralExpression(initializer) && hasTypographyTriplet(initializer),
+      ts.isObjectLiteralExpression(initializer) &&
+        hasTypographyTriplet(initializer),
       `registry entry '${name ?? 'unknown'}' in ${registryName} must define fontSize/lineHeight/fontWeight triplet`,
     );
   }
   return keys;
 }
 
-function collectRegistryUsageKeys(sourceFile: ts.SourceFile, registryName: string): Set<string> {
+function collectRegistryUsageKeys(
+  sourceFile: ts.SourceFile,
+  registryName: string,
+): Set<string> {
   const usageKeys = new Set<string>();
 
   function visit(node: ts.Node) {
@@ -167,14 +194,16 @@ function toAbsolutePath(repoRoot: string, relativePath: string): string {
 export function runTypographyGuard(config: TypographyGuardConfig) {
   const repoRoot = resolveRepoRoot();
   const sourcePath = toAbsolutePath(repoRoot, config.targetFilePath);
-  const designSpecPath = toAbsolutePath(repoRoot, config.designSpecPath ?? DEFAULT_DESIGN_SPEC_PATH);
 
   const sourceFile = readSourceFile(sourcePath);
   const registryObject = findRegistryObject(sourceFile, config.registryName);
   const registryKeys = collectRegistryKeys(registryObject, config.registryName);
   const usageKeys = collectRegistryUsageKeys(sourceFile, config.registryName);
 
-  assert.ok(registryKeys.size > 0, `${config.registryName} must include at least one entry.`);
+  assert.ok(
+    registryKeys.size > 0,
+    `${config.registryName} must include at least one entry.`,
+  );
 
   for (const triplet of collectTypographyTriplets(sourceFile)) {
     assert.ok(
@@ -184,23 +213,16 @@ export function runTypographyGuard(config: TypographyGuardConfig) {
   }
 
   for (const key of usageKeys) {
-    assert.ok(registryKeys.has(key), `unknown ${config.registryName} entry referenced: ${key}`);
+    assert.ok(
+      registryKeys.has(key),
+      `unknown ${config.registryName} entry referenced: ${key}`,
+    );
   }
-
-  for (const key of registryKeys) {
-    assert.ok(usageKeys.has(key), `unused ${config.registryName} entry: ${key}`);
-  }
-
-  const designSpec = fs.readFileSync(designSpecPath, 'utf8');
-  assert.ok(
-    designSpec.includes(DESIGN_SPEC_SECTION_TITLE),
-    `design-spec-v1.md must include "${DESIGN_SPEC_SECTION_TITLE.replace('## ', '')}" section`,
-  );
 
   for (const key of registryKeys) {
     assert.ok(
-      designSpec.includes(`\`${key}\``),
-      `design-spec-v1.md must register typography exception: ${key}`,
+      usageKeys.has(key),
+      `unused ${config.registryName} entry: ${key}`,
     );
   }
 }

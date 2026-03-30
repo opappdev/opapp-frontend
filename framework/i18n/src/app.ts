@@ -62,7 +62,8 @@ export const zhCNApp = {
       savedSurfaceId: '已保存 Surface：',
     },
     targets: {
-      mainLauncher: '停留在主 Bundle 启动页，方便再手动选择设置页、实验页或其它 Bundle。',
+      mainLauncher:
+        '停留在主 Bundle 启动页，方便再手动选择设置页、实验页或其它 Bundle。',
       settings: '直接进入主 Bundle 内的设置页，方便先改宿主和窗口偏好。',
       viewShotLab: '直接进入主 Bundle 内的 View Shot 验证页。',
       windowCaptureLab: '直接进入主 Bundle 内的 Window Capture 验证页。',
@@ -119,9 +120,11 @@ export const zhCNApp = {
       savedTarget: '当前启动目标',
       noPublicLaunchTarget: '当前无公开入口',
       noRemoteUrl: '当前宿主未配置 OTA 远端 URL',
-      emptyUnavailable: '当前宿主没有配置动态更新服务地址，所以这里只显示不到远端支持列表。',
+      emptyUnavailable:
+        '当前宿主没有配置动态更新服务地址，所以这里只显示不到远端支持列表。',
       emptyReady: '远端目录当前没有声明任何可下发 bundle。',
-      localOnlyDescription: '这个 bundle 仍存在于本机 staged 目录，但当前远端 index.json 已不再声明它。',
+      localOnlyDescription:
+        '这个 bundle 仍存在于本机 staged 目录，但当前远端 index.json 已不再声明它。',
       latestVersionUnknown: '未声明版本',
       channelsEmpty: '未声明频道',
       errorFallback: '读取远端 bundle 目录失败，请稍后重试。',
@@ -234,11 +237,14 @@ export const zhCNApp = {
       rosterStatusFilterTitle: '按纳入状态查看',
       rosterAssignmentFilterTitle: '按双队位置查看',
       rosterEmptyTitle: '当前筛选没有可显示的角色',
-      rosterEmptyDescription: '试试切回“全部”或其他部队筛选，再继续整理当前盒子。',
+      rosterEmptyDescription:
+        '试试切回“全部”或其他部队筛选，再继续整理当前盒子。',
       rosterFocusCandidatesTitleSuffix: ' · 补位候选',
       rosterFocusAssignedTitleSuffix: ' · 当前编组',
-      rosterFocusCandidatesDescription: '当前只显示已纳入但尚未排入双队的角色，并按这战的职责、属性与武器适配排序。',
-      rosterFocusAssignedDescription: '当前聚焦这战已排入的角色，方便你核对编位、职责与练度。',
+      rosterFocusCandidatesDescription:
+        '当前只显示已纳入但尚未排入双队的角色，并按这战的职责、属性与武器适配排序。',
+      rosterFocusAssignedDescription:
+        '当前聚焦这战已排入的角色，方便你核对编位、职责与练度。',
       rosterFocusNeedPrefix: '优先补：',
       rosterFocusElementPrefix: '属性偏好：',
       rosterFocusWeaponPrefix: '武器偏好：',
@@ -270,13 +276,17 @@ export const zhCNApp = {
       chapterEvidenceCheckedOnLabel: '核对日期：',
       chapterEvidenceRefLabel: '链接/引用：',
       chapterEvidenceNoteLabel: '备注：',
-      chapterEvidenceEmpty: '当前没有可展示的来源条目，请先补证据后再固化章节结论。',
+      chapterEvidenceEmpty:
+        '当前没有可展示的来源条目，请先补证据后再固化章节结论。',
       chapterEvidenceRiskTitle: '来源风险',
       chapterEvidenceRiskByCode: {
-        'verification-partially-verified': '当前 encounter 仅部分验证，机制结论需继续补证后再固化。',
-        'verification-unverified': '当前 encounter 未验证，机制结论仅可用于占位和流程演示。',
+        'verification-partially-verified':
+          '当前 encounter 仅部分验证，机制结论需继续补证后再固化。',
+        'verification-unverified':
+          '当前 encounter 未验证，机制结论仅可用于占位和流程演示。',
         'only-user-notes': '当前证据仅用户口述，建议补实机截图后再固化结论。',
-        'only-unsourced-sample': '当前证据仍是无来源 sample，占位机制只可用于演示流程。',
+        'only-unsourced-sample':
+          '当前证据仍是无来源 sample，占位机制只可用于演示流程。',
         'conflict-missing-evidence-items':
           '来源记录缺少 evidenceItems（legacy evidenceRef 也为空），请先补证据条目。',
         'conflict-unsourced-sample-verified':
@@ -341,15 +351,18 @@ export const zhCNApp = {
       projectedTurnsSuffix: ' 回合通关',
       battleVacancyPrefix: '当前还空 ',
       battleVacancySuffix: ' 个位置',
-      battleGuidanceReady: '当前 6 人骨架已经成队，接下来优先把更贴合奖励、弱点和武器轴的未排入角色换上。',
+      battleGuidanceReady:
+        '当前 6 人骨架已经成队，接下来优先把更贴合奖励、弱点和武器轴的未排入角色换上。',
       battleCoverageRolesPrefix: '已成型职责：',
       battleCoverageElementsPrefix: '当前属性面：',
       battleCoverageWeaponsPrefix: '当前武器面：',
-      battleCandidateEmpty: '当前没有未排入的已纳入角色可补；要么先补盒子，要么重新拆两队。',
+      battleCandidateEmpty:
+        '当前没有未排入的已纳入角色可补；要么先补盒子，要么重新拆两队。',
       trainingOverviewEmpty: '当前筛选里还没有纳入角色',
       slotTrainingPrefix: '当前练度：',
       slotTrainingVacant: '当前练度：待补位',
-      slotVacantNote: '当前这个位置还没有可上场角色，先补位后再细调排轴与分工。',
+      slotVacantNote:
+        '当前这个位置还没有可上场角色，先补位后再细调排轴与分工。',
       slotVacantMetaPrefix: '建议补 ',
       slotVacantMetaSuffix: ' 位，先凑齐独立 6 人编组',
       battleKickerTurnsInfix: ' · 预计 ',
@@ -385,19 +398,24 @@ export const zhCNApp = {
     frame: {
       eyebrow: '应用设置',
       title: '窗口行为与宿主偏好',
-      description: '这里先集中管理窗口尺寸、设置页打开方式和宿主层行为。默认语言先固定为简体中文，后面再扩展多语言。',
+      description:
+        '这里先集中管理窗口尺寸、设置页打开方式和宿主层行为。默认语言先固定为简体中文，后面再扩展多语言。',
     },
     sections: {
       windowSizingTitle: '默认窗口尺寸',
-      windowSizingDescription: '这些偏好属于宿主级默认值。新窗口与下次启动都应该稳定使用它们。',
+      windowSizingDescription:
+        '这些偏好属于宿主级默认值。新窗口与下次启动都应该稳定使用它们。',
       mainWindow: '主作战窗口',
       detachedSettingsWindow: '独立设置窗口',
       settingsPresentationTitle: '默认设置打开方式',
-      settingsPresentationDescription: '当入口没有显式强制开新窗口时，这里决定设置页默认怎样承载。',
+      settingsPresentationDescription:
+        '当入口没有显式强制开新窗口时，这里决定设置页默认怎样承载。',
       applyPreviewTitle: '保存与预览',
-      applyPreviewDescription: '底部操作栏会固定在窗口底部，方便你在查看宿主状态时随时保存。',
+      applyPreviewDescription:
+        '底部操作栏会固定在窗口底部，方便你在查看宿主状态时随时保存。',
       windowActionsTitle: '窗口操作',
-      windowActionsDescription: '这些动作现在都来自宿主桥接，而不是只靠导航含义。',
+      windowActionsDescription:
+        '这些动作现在都来自宿主桥接，而不是只靠导航含义。',
       footerEyebrow: '设置草稿',
     },
     actions: {
@@ -438,8 +456,7 @@ export const zhCNApp = {
       immediateApply: {
         settings:
           '你当前正在独立设置窗口里编辑。保存后会立即作用到这个设置窗口；主作战窗口会在下次打开时使用新默认值。',
-        main:
-          '你当前正在主作战窗口里编辑。保存后会立即作用到这个主窗口；独立设置窗口会在下次打开时使用新默认值。',
+        main: '你当前正在主作战窗口里编辑。保存后会立即作用到这个主窗口；独立设置窗口会在下次打开时使用新默认值。',
         generic:
           '保存后会立即更新命中的当前宿主窗口；其他窗口类型会在下次打开时使用新的默认值。',
       },
@@ -528,7 +545,8 @@ export const zhCNApp = {
       detachedOpened: '已在工具窗口打开一份新的实验台副本。',
     },
     notes: {
-      visiblePixels: 'Windows 当前实现抓的是桌面上可见的窗口像素，不是离屏 React 视图导出。',
+      visiblePixels:
+        'Windows 当前实现抓的是桌面上可见的窗口像素，不是离屏 React 视图导出。',
       focusedWindow: 'captureScreen 会抓当前聚焦的 OPApp 窗口 client area。',
       measuredRegion:
         'captureRef / ViewShot.capture 依赖 measureInWindow 量到的目标区域，再由宿主换算 DPI 后截取。',
@@ -597,7 +615,8 @@ export const zhCNApp = {
       latestCaptureSize: '最近尺寸',
       latestUpdatedAt: '最近更新',
       candidateHint: '点击任一候选卡片，会把它的 handle 回填到 selector。',
-      candidateEmpty: '当前 selector 还没有命中窗口。先刷新，或放宽条件后再试。',
+      candidateEmpty:
+        '当前 selector 还没有命中窗口。先刷新，或放宽条件后再试。',
       candidatePinned: '已 pin',
       candidateDefault: '默认首项',
       candidateCaptured: '最近截图',
@@ -612,7 +631,8 @@ export const zhCNApp = {
       },
       manual: {
         label: '仅手动条件',
-        detail: '关闭 foreground，让句柄、进程名、标题或类名去匹配其它可见窗口。',
+        detail:
+          '关闭 foreground，让句柄、进程名、标题或类名去匹配其它可见窗口。',
       },
     },
     fields: {
@@ -671,4 +691,3 @@ export const zhCNApp = {
     },
   },
 } as const;
-

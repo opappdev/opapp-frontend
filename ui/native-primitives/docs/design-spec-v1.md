@@ -5,17 +5,31 @@
 ## 1. Token Baseline
 
 - Color:
-  - 核心调色板：`appPalette`（含 `errorRed` 语义色）
-  - tone 语义调色板：`appTonePalette`
+  - Light 调色板：`lightPalette`（canonical，含 `errorRed` 语义色）
+  - Dark 调色板：`darkPalette`（experience-first，从零设计）
+  - High Contrast 调色板：`highContrastPalette`（映射到 Windows HC 系统关键字）
+  - 向后兼容别名：`appPalette = lightPalette`
+  - tone 语义调色板：`lightTonePalette` / `darkTonePalette`（向后兼容别名 `appTonePalette = lightTonePalette`）
   - 战术规划语义色板：`tacticalSurfacePaletteV1`
+- Theme:
+  - `ThemeProvider`：通过 `colorScheme` + `density` 属性注入主题上下文
+  - `useTheme()` hook：在组件内获取当前 palette / tonePalette / spacing
+  - 预构建主题对象：`lightTheme` / `darkTheme`
+  - 所有组件已迁移到 `useTheme()` 消费 palette/spacing，不再硬编码 token
 - Radius: `appRadius`
-- Spacing: `appSpacing`（`xxs`=4 / `xs`=6 / `sm`=8 / `md`=10 / `sm2`=12 / `lg`=14 / `lg2`=16 / `xl`=18 / `xl2`=20 / `xxl`=22）
+- Spacing:
+  - Standard 密度：`appSpacing`（`xxs`=4 / `xs`=6 / `sm`=8 / `md`=10 / `sm2`=12 / `lg`=14 / `lg2`=16 / `xl`=18 / `xl2`=20 / `xxl`=22）
+  - Compact 密度：`appSpacingCompact`（所有值 -2px）
+  - 密度映射：`appDensitySpacing` (`standard` / `compact`)
 - Typography: `appTypography`（`label` / `labelTight` / `labelTightBold` / `caption` / `captionStrong` / `captionBold` / `captionBody` / `captionTight` / `body` / `bodyStrong` / `bodyTight` / `bodyTightBold` / `subheading` / `sectionTitle` / `title` / `headline`）
+- Font Stack: `appFontFamily`（Windows: Segoe UI Variable Text, macOS: SF Pro Text, 其他: system default）
 - Letter Spacing: `appLetterSpacing`（`tight` / `normal` / `wide` / `wider` / `widest`）
 
 ## 2. Interactive States
 
-- 状态集合固定为 `default / hover / pressed / disabled`（见 `appInteractionStates`）。
+- 状态集合固定为 `rest / hover / focus-visible / pressed / selected / disabled`（见 `appInteractionStates`）。
+- 所有交互组件均已配置 `focusable` + `enableFocusRing: true`（Windows 焦点环）。
+- 所有交互组件均已配置 `cursor: 'pointer'`（Windows 桌面光标）。
 - 组件态规范：
   - `ChoiceChip`: `idle/active + pressed + emphasized` 组合态
   - `FilterChip`: `idle/active + pressed`
@@ -50,16 +64,9 @@
 - 若 typography 只服务单一 capability 的展示层级，默认保留为 capability 层局部例外，不继续膨胀全局 token 面。
 - 局部例外必须同时满足：
   - 语义范围清晰，能用样式名说明用途
-  - 已集中定义在 capability 内，而不是散落匿名三元组
-  - 已在规范或 handoff 中登记，便于后续复核是否升级为 token
-- `战术规划界面` 当前登记的 typography 例外：
-  - `heroHeading` = `32/36/800`：遭遇战 hero 标题
-  - `battleTitle` = `28/32/800`：分队战斗卡片标题
-  - `turnBoardValue` = `18/22/800`：预计回合数主数值
-  - `sectionSummaryValue` = `16/21/800`：章节摘要主数值
-  - `priorityTitle` = `14/19/800`：优先行动标题
-- `settings` 当前登记的 typography 例外：
-  - `footerStatus` = `13/20/600`：设置页页脚保存状态文本
+  - 已集中定义在 capability 内的命名 registry 中，而不是散落匿名三元组
+  - typography-guard 测试会自动校验 registry 的完整性和引用正确性
+- 局部例外由各 capability 自行管理，不在本规范逐项登记；只有满足升级门槛后才提升为全局 token。
 
 ## 6. Governance
 

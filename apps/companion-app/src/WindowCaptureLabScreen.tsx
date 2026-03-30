@@ -344,6 +344,7 @@ export function WindowCaptureLabScreen({
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectorEditorReady, setSelectorEditorReady] = useState(false);
   const selectorSummary = formatSelectorSummary(selectorDraft);
   const pinnedHandle = trimSelectorValue(selectorDraft.handle);
   const targetWindow = resolveTargetWindow(
@@ -355,6 +356,13 @@ export function WindowCaptureLabScreen({
   useEffect(() => {
     busyActionRef.current = busyAction;
   }, [busyAction]);
+
+  useEffect(() => {
+    // Defer RNW TextInput creation until after the first commit. Mounting this
+    // screen directly via current-window auto-open can otherwise stall before
+    // the companion mounted/dev-smoke markers are emitted.
+    setSelectorEditorReady(true);
+  }, []);
 
   async function refreshForegroundWindow(
     options: RunOptions & {selector?: WindowCaptureSelector} = {},
@@ -797,109 +805,113 @@ export function WindowCaptureLabScreen({
                     }}
                   />
                 </View>
-                <View style={styles.selectorGrid}>
-                  <View style={styles.selectorField}>
-                    <Text style={styles.selectorLabel}>
-                      {appI18n.windowCaptureLab.fields.handle.label}
-                    </Text>
-                    <TextInput
-                      value={selectorDraft.handle}
-                      onChangeText={value => {
-                        setSelectorDraft(current => ({
-                          ...current,
-                          handle: value,
-                        }));
-                      }}
-                      placeholder={appI18n.windowCaptureLab.fields.handle.placeholder}
-                      placeholderTextColor={appPalette.inkSoft}
-                      style={styles.selectorInput}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
+                {selectorEditorReady ? (
+                  <View style={styles.selectorGrid}>
+                    <View style={styles.selectorField}>
+                      <Text style={styles.selectorLabel}>
+                        {appI18n.windowCaptureLab.fields.handle.label}
+                      </Text>
+                      <TextInput
+                        value={selectorDraft.handle}
+                        onChangeText={value => {
+                          setSelectorDraft(current => ({
+                            ...current,
+                            handle: value,
+                          }));
+                        }}
+                        placeholder={
+                          appI18n.windowCaptureLab.fields.handle.placeholder
+                        }
+                        placeholderTextColor={appPalette.inkSoft}
+                        style={styles.selectorInput}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
+                    <View style={styles.selectorField}>
+                      <Text style={styles.selectorLabel}>
+                        {appI18n.windowCaptureLab.fields.processName.label}
+                      </Text>
+                      <TextInput
+                        value={selectorDraft.processName}
+                        onChangeText={value => {
+                          setSelectorDraft(current => ({
+                            ...current,
+                            processName: value,
+                          }));
+                        }}
+                        placeholder={
+                          appI18n.windowCaptureLab.fields.processName.placeholder
+                        }
+                        placeholderTextColor={appPalette.inkSoft}
+                        style={styles.selectorInput}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
+                    <View style={styles.selectorField}>
+                      <Text style={styles.selectorLabel}>
+                        {appI18n.windowCaptureLab.fields.titleContains.label}
+                      </Text>
+                      <TextInput
+                        value={selectorDraft.titleContains}
+                        onChangeText={value => {
+                          setSelectorDraft(current => ({
+                            ...current,
+                            titleContains: value,
+                          }));
+                        }}
+                        placeholder={
+                          appI18n.windowCaptureLab.fields.titleContains.placeholder
+                        }
+                        placeholderTextColor={appPalette.inkSoft}
+                        style={styles.selectorInput}
+                        autoCorrect={false}
+                      />
+                    </View>
+                    <View style={styles.selectorField}>
+                      <Text style={styles.selectorLabel}>
+                        {appI18n.windowCaptureLab.fields.titleExact.label}
+                      </Text>
+                      <TextInput
+                        value={selectorDraft.titleExact}
+                        onChangeText={value => {
+                          setSelectorDraft(current => ({
+                            ...current,
+                            titleExact: value,
+                          }));
+                        }}
+                        placeholder={
+                          appI18n.windowCaptureLab.fields.titleExact.placeholder
+                        }
+                        placeholderTextColor={appPalette.inkSoft}
+                        style={styles.selectorInput}
+                        autoCorrect={false}
+                      />
+                    </View>
+                    <View style={styles.selectorField}>
+                      <Text style={styles.selectorLabel}>
+                        {appI18n.windowCaptureLab.fields.className.label}
+                      </Text>
+                      <TextInput
+                        value={selectorDraft.className}
+                        onChangeText={value => {
+                          setSelectorDraft(current => ({
+                            ...current,
+                            className: value,
+                          }));
+                        }}
+                        placeholder={
+                          appI18n.windowCaptureLab.fields.className.placeholder
+                        }
+                        placeholderTextColor={appPalette.inkSoft}
+                        style={styles.selectorInput}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
                   </View>
-                  <View style={styles.selectorField}>
-                    <Text style={styles.selectorLabel}>
-                      {appI18n.windowCaptureLab.fields.processName.label}
-                    </Text>
-                    <TextInput
-                      value={selectorDraft.processName}
-                      onChangeText={value => {
-                        setSelectorDraft(current => ({
-                          ...current,
-                          processName: value,
-                        }));
-                      }}
-                      placeholder={
-                        appI18n.windowCaptureLab.fields.processName.placeholder
-                      }
-                      placeholderTextColor={appPalette.inkSoft}
-                      style={styles.selectorInput}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-                  <View style={styles.selectorField}>
-                    <Text style={styles.selectorLabel}>
-                      {appI18n.windowCaptureLab.fields.titleContains.label}
-                    </Text>
-                    <TextInput
-                      value={selectorDraft.titleContains}
-                      onChangeText={value => {
-                        setSelectorDraft(current => ({
-                          ...current,
-                          titleContains: value,
-                        }));
-                      }}
-                      placeholder={
-                        appI18n.windowCaptureLab.fields.titleContains.placeholder
-                      }
-                      placeholderTextColor={appPalette.inkSoft}
-                      style={styles.selectorInput}
-                      autoCorrect={false}
-                    />
-                  </View>
-                  <View style={styles.selectorField}>
-                    <Text style={styles.selectorLabel}>
-                      {appI18n.windowCaptureLab.fields.titleExact.label}
-                    </Text>
-                    <TextInput
-                      value={selectorDraft.titleExact}
-                      onChangeText={value => {
-                        setSelectorDraft(current => ({
-                          ...current,
-                          titleExact: value,
-                        }));
-                      }}
-                      placeholder={
-                        appI18n.windowCaptureLab.fields.titleExact.placeholder
-                      }
-                      placeholderTextColor={appPalette.inkSoft}
-                      style={styles.selectorInput}
-                      autoCorrect={false}
-                    />
-                  </View>
-                  <View style={styles.selectorField}>
-                    <Text style={styles.selectorLabel}>
-                      {appI18n.windowCaptureLab.fields.className.label}
-                    </Text>
-                    <TextInput
-                      value={selectorDraft.className}
-                      onChangeText={value => {
-                        setSelectorDraft(current => ({
-                          ...current,
-                          className: value,
-                        }));
-                      }}
-                      placeholder={
-                        appI18n.windowCaptureLab.fields.className.placeholder
-                      }
-                      placeholderTextColor={appPalette.inkSoft}
-                      style={styles.selectorInput}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-                </View>
+                ) : null}
                 <View style={styles.statusBlock}>
                   <MutedText>
                     {appI18n.windowCaptureLab.status.selectorSummary}：

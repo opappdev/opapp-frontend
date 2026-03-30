@@ -22,6 +22,7 @@ import {
 import {
   companionBundleIds,
   isCompanionSurfaceRequestAlreadyActive,
+  resolveCompanionRestoredSessionAutoOpen,
   resolveCompanionStartupTargetAutoOpen,
   shouldCompanionStartupTargetWaitForBundleReload,
 } from './companion-runtime';
@@ -161,6 +162,7 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
       loading: startupTargetLoading,
     } = useCompanionStartupTarget();
     const startupTargetLoaded = !startupTargetLoading;
+    const activeSurfacePolicy = activeTab.policy;
     const startupTargetAutoOpenEnabled =
       bundleConfig.bundleId === companionBundleIds.main &&
       resolvedSession.windowId === 'window.main' &&
@@ -185,10 +187,30 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
         resolvedStartupTarget,
       ],
     );
+    const restoredSessionDecision = useMemo(
+      () =>
+        resolveCompanionRestoredSessionAutoOpen({
+          runtimeBundleId: bundleConfig.bundleId,
+          windowId: resolvedSession.windowId,
+          activeSurfaceId: activeTab.surfaceId,
+          activeBundleId: activeTab.bundleId,
+          activePolicy: activeSurfacePolicy,
+          startupTarget: resolvedStartupTarget,
+          launchConfigAutoOpenRequested,
+        }),
+      [
+        activeSurfacePolicy,
+        activeTab.bundleId,
+        activeTab.surfaceId,
+        bundleConfig.bundleId,
+        launchConfigAutoOpenRequested,
+        resolvedSession.windowId,
+        resolvedStartupTarget,
+      ],
+    );
     const [startupTargetPhase, setStartupTargetPhase] = useState<
       'booting' | 'pending' | 'ready'
     >(() => (startupTargetAutoOpenEnabled ? 'booting' : 'ready'));
-    const activeSurfacePolicy = activeTab.policy;
     const fallbackSurfaceId =
       bundleConfig.surfaceRegistry.get(activeTab.surfaceId) === undefined
         ? bundleConfig.defaultSurfaceId
@@ -314,6 +336,38 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
             `[frontend-companion] startup-target-skipped bundle=${bundleConfig.bundleId} window=${resolvedSession.windowId} surface=${activeTab.surfaceId} reason=already-active`,
           );
         }
+
+        if (restoredSessionDecision.kind === 'open') {
+          setStartupTargetPhase('pending');
+          const waitsForCurrentWindowBundleReload =
+            shouldCompanionStartupTargetWaitForBundleReload({
+              runtimeBundleId: bundleConfig.bundleId,
+              targetBundleId: restoredSessionDecision.request.bundleId,
+              presentation: restoredSessionDecision.request.presentation,
+            });
+          console.log(
+            `[frontend-companion] restored-session-auto-open bundle=${bundleConfig.bundleId} window=${resolvedSession.windowId} surface=${restoredSessionDecision.request.surfaceId} presentation=${restoredSessionDecision.request.presentation} targetBundle=${restoredSessionDecision.request.bundleId ?? bundleConfig.bundleId}`,
+          );
+          void openSurface(restoredSessionDecision.request)
+            .then(() => {
+              if (!waitsForCurrentWindowBundleReload) {
+                setStartupTargetPhase('ready');
+              }
+            })
+            .catch(error => {
+              logException('companion.restored-session.failed', error, {
+                bundleId: bundleConfig.bundleId,
+                windowId: resolvedSession.windowId,
+                surfaceId: restoredSessionDecision.request.surfaceId,
+                presentation: restoredSessionDecision.request.presentation,
+                targetBundle:
+                  restoredSessionDecision.request.bundleId ?? bundleConfig.bundleId,
+              });
+              setStartupTargetPhase('ready');
+            });
+          return;
+        }
+
         setStartupTargetPhase('ready');
         return;
       }
@@ -349,6 +403,7 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
       activeTab.surfaceId,
       bundleConfig.bundleId,
       resolvedSession.windowId,
+      restoredSessionDecision,
       startupTargetAutoOpenEnabled,
       startupTargetDecision,
       startupTargetLoaded,

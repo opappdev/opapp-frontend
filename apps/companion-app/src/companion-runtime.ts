@@ -48,6 +48,21 @@ export type CompanionStartupAutoOpenDecision =
       request: OpenSurfaceRequest;
     };
 
+export type CompanionRestoredSessionAutoOpenDecision =
+  | {
+      kind: 'skip';
+      reason:
+        | 'not-main-bundle'
+        | 'not-main-window'
+        | 'launch-config'
+        | 'startup-target'
+        | 'not-cross-bundle-session';
+    }
+  | {
+      kind: 'open';
+      request: OpenSurfaceRequest;
+    };
+
 export type CompanionStartupTargetMigrationDecision =
   | {
       kind: 'noop';
@@ -366,5 +381,72 @@ export function resolveCompanionStartupTargetAutoOpen({
   return {
     kind: 'open',
     request: createCompanionOpenSurfaceRequest(startupTarget),
+  };
+}
+
+export function resolveCompanionRestoredSessionAutoOpen({
+  runtimeBundleId,
+  windowId,
+  activeSurfaceId,
+  activeBundleId,
+  activePolicy,
+  startupTarget,
+  launchConfigAutoOpenRequested,
+}: {
+  runtimeBundleId: string;
+  windowId: string;
+  activeSurfaceId: string;
+  activeBundleId?: string | null;
+  activePolicy?: WindowPolicyId;
+  startupTarget: CompanionStartupTarget | null;
+  launchConfigAutoOpenRequested: boolean;
+}): CompanionRestoredSessionAutoOpenDecision {
+  if (runtimeBundleId !== companionBundleIds.main) {
+    return {
+      kind: 'skip',
+      reason: 'not-main-bundle',
+    };
+  }
+
+  if (windowId !== 'window.main') {
+    return {
+      kind: 'skip',
+      reason: 'not-main-window',
+    };
+  }
+
+  if (launchConfigAutoOpenRequested) {
+    return {
+      kind: 'skip',
+      reason: 'launch-config',
+    };
+  }
+
+  if (startupTarget) {
+    return {
+      kind: 'skip',
+      reason: 'startup-target',
+    };
+  }
+
+  if (
+    typeof activeBundleId !== 'string' ||
+    !activeBundleId ||
+    activeBundleId === runtimeBundleId
+  ) {
+    return {
+      kind: 'skip',
+      reason: 'not-cross-bundle-session',
+    };
+  }
+
+  return {
+    kind: 'open',
+    request: {
+      surfaceId: activeSurfaceId,
+      bundleId: activeBundleId,
+      policy: activePolicy ?? 'main',
+      presentation: 'current-window',
+    },
   };
 }

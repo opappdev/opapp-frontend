@@ -83,6 +83,7 @@ type CurrentWindowDescriptor = {
   windowId: string;
   activeSurfaceId: SurfaceId;
   windowPolicy: WindowPolicyId | null;
+  runtimeBundleId?: string | null;
 };
 
 type CurrentWindowController = {
@@ -635,6 +636,7 @@ export function useManagedSurfaceWindowSession(
           windowId: resolvedSession.windowId,
           activeSurfaceId: resolvedSession.activeTab.surfaceId,
           windowPolicy: hostState.windowPolicy,
+          runtimeBundleId: props.bundleId ?? null,
         };
       },
       getWindowSession(windowId) {
@@ -1162,11 +1164,12 @@ async function switchCurrentWindowBundle(
   }
 
   const activeSessionTab = getActiveSessionTab(currentSession);
-  const currentBundleId = activeSessionTab.bundleId ?? undefined;
+  const currentRuntimeBundleId =
+    currentWindow.runtimeBundleId ?? activeSessionTab.bundleId ?? undefined;
 
   if (
     normalizedRequest.presentation !== 'current-window' ||
-    currentBundleId === normalizedRequest.bundleId
+    currentRuntimeBundleId === normalizedRequest.bundleId
   ) {
     return false;
   }

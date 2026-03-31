@@ -43,6 +43,7 @@ export type BundleLibraryEntry = {
   displayName: string;
   subtitle: string;
   monogram: string;
+  iconTone: BundleLibraryTone;
   group: BundleLibraryGroupId;
   state: BundleLibraryEntryState;
   stateLabel: string;
@@ -361,6 +362,7 @@ export function buildBundleLibraryEntries({
         presentation.displayName,
         entry.bundleId,
       ),
+      iconTone: presentation.iconTone ?? 'neutral',
       group,
       state,
       stateLabel: resolveEntryStateLabel(state),

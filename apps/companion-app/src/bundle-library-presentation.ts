@@ -5,6 +5,7 @@ export type BundleLibraryPresentation = {
   displayName: string;
   subtitle: string;
   iconKey?: string;
+  iconTone?: 'accent' | 'support' | 'warning' | 'neutral' | 'danger';
   defaultOpenTargetId?: string;
 };
 
@@ -16,6 +17,7 @@ const knownBundlePresentations = new Map<string, BundleLibraryPresentation>([
       displayName: 'OPApp 主页',
       subtitle: '设置、实验页和其它应用入口都从这里开始。',
       iconKey: 'opapp-home',
+      iconTone: 'support' as const,
       defaultOpenTargetId: 'main-launcher',
     },
   ],
@@ -26,6 +28,7 @@ const knownBundlePresentations = new Map<string, BundleLibraryPresentation>([
       displayName: 'HBR 作战空间',
       subtitle: '面向 Heaven Burns Red 的作战分析与扩展入口。',
       iconKey: 'hbr-workspace',
+      iconTone: 'accent' as const,
     },
   ],
 ]);

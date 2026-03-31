@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,6 +35,7 @@ import {
   appSpacing,
   appTonePalette,
   appTypography,
+  type AppTone,
 } from '@opapp/ui-native-primitives';
 import {
   buildBundleLauncherDiscoveryEntries,
@@ -894,6 +896,8 @@ export function BundleLauncherScreen({
                             ? bundleAvailability[entry.defaultOpenTarget.bundleId] ?? true
                             : false;
 
+                          const iconTone = entry.iconTone as AppTone;
+                          const iconToneTokens = appTonePalette[iconTone].soft;
                           return (
                             <Pressable
                               key={entry.bundleId}
@@ -906,8 +910,12 @@ export function BundleLauncherScreen({
                                 rowSelected ? styles.appRowSelected : null,
                               ]}>
                               <View style={styles.appRowIdentity}>
-                                <View style={styles.appIcon}>
-                                  <Text style={styles.appIconLabel}>{entry.monogram}</Text>
+                                <View style={[styles.appIcon, {backgroundColor: iconToneTokens.container.backgroundColor}]}>
+                                  {rowBusy || rowOpenBusy ? (
+                                    <ActivityIndicator size="small" color={iconToneTokens.label.color as string} />
+                                  ) : (
+                                    <Text style={[styles.appIconLabel, {color: iconToneTokens.label.color as string}]}>{entry.monogram}</Text>
+                                  )}
                                 </View>
                                 <View style={styles.appMeta}>
                                   <View style={styles.appMetaHeader}>
@@ -1306,10 +1314,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: appPalette.accentSoft,
   },
   appIconLabel: {
-    color: appTonePalette.accent.soft.label.color as string,
     ...appTypography.bodyStrong,
   },
   appMeta: {

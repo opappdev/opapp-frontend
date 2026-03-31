@@ -1,6 +1,7 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -553,6 +554,55 @@ export function BundleLauncherScreen({
     () => groupBundleLibraryEntries(libraryEntries),
     [libraryEntries],
   );
+  const flatBundleIds = useMemo(
+    () => groupedLibraryEntries.flatMap(section => section.entries.map(e => e.bundleId)),
+    [groupedLibraryEntries],
+  );
+  const rowRefs = useRef(new Map<string, View>());
+  const arrowKeyEvents = useMemo(
+    () =>
+      Platform.OS === 'windows'
+        ? [{ code: 'ArrowDown' }, { code: 'ArrowUp' }]
+        : undefined,
+    [],
+  );
+  const handleRowKeyDown = useCallback(
+    (bundleId: string, e: { nativeEvent: { key: string } }) => {
+      const key = e.nativeEvent.key;
+      if (key !== 'ArrowDown' && key !== 'ArrowUp') {
+        return;
+      }
+
+      const currentIndex = flatBundleIds.indexOf(bundleId);
+      if (currentIndex === -1) {
+        return;
+      }
+
+      const nextIndex =
+        key === 'ArrowDown'
+          ? Math.min(currentIndex + 1, flatBundleIds.length - 1)
+          : Math.max(currentIndex - 1, 0);
+      if (nextIndex === currentIndex) {
+        return;
+      }
+
+      const nextBundleId = flatBundleIds[nextIndex];
+      const nextRef = rowRefs.current.get(nextBundleId);
+      if (nextRef && typeof (nextRef as any).focus === 'function') {
+        (nextRef as any).focus();
+      }
+      setSelectedBundleId(nextBundleId);
+      setStatusMessage(null);
+    },
+    [flatBundleIds],
+  );
+  const setRowRef = useCallback((bundleId: string, ref: View | null) => {
+    if (ref) {
+      rowRefs.current.set(bundleId, ref);
+    } else {
+      rowRefs.current.delete(bundleId);
+    }
+  }, []);
   const selectedEntry = useMemo(
     () =>
       libraryEntries.find(entry => entry.bundleId === selectedBundleId) ??
@@ -905,6 +955,10 @@ export function BundleLauncherScreen({
                           return (
                             <Pressable
                               key={entry.bundleId}
+                              ref={(ref: any) => setRowRef(entry.bundleId, ref)}
+                              focusable
+                              {...(arrowKeyEvents ? { keyDownEvents: arrowKeyEvents } as any : {})}
+                              onKeyDown={(e: any) => handleRowKeyDown(entry.bundleId, e)}
                               onPress={() => {
                                 setSelectedBundleId(entry.bundleId);
                                 setStatusMessage(null);

@@ -16,7 +16,9 @@ import {
 import {
   SurfaceSessionChrome,
   ThemeProvider,
+  DensityPreferenceProvider,
   useTheme,
+  useDensityPreference,
   appPalette,
   type AppColorScheme,
 } from '@opapp/ui-native-primitives';
@@ -451,6 +453,18 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
     );
   }
 
+  function DensityAwareTheme({
+    colorScheme,
+    children,
+  }: React.PropsWithChildren<{ colorScheme: AppColorScheme }>) {
+    const { density } = useDensityPreference();
+    return (
+      <ThemeProvider colorScheme={colorScheme} density={density}>
+        {children}
+      </ThemeProvider>
+    );
+  }
+
   return function CompanionApp(props: SurfaceLaunchProps) {
     const resolvedColorScheme = useResolvedColorScheme();
     const launchProps = useMemo(
@@ -482,11 +496,13 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
     }, [bootstrapSurfaceId, launchProps.windowId]);
 
     return (
-      <ThemeProvider colorScheme={resolvedColorScheme}>
-        <RootErrorBoundary>
-          <RootContent {...launchProps} />
-        </RootErrorBoundary>
-      </ThemeProvider>
+      <DensityPreferenceProvider>
+        <DensityAwareTheme colorScheme={resolvedColorScheme}>
+          <RootErrorBoundary>
+            <RootContent {...launchProps} />
+          </RootErrorBoundary>
+        </DensityAwareTheme>
+      </DensityPreferenceProvider>
     );
   };
 }

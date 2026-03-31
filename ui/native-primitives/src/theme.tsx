@@ -2,6 +2,8 @@ import React, {
   createContext,
   useContext,
   useMemo,
+  useState,
+  useCallback,
   PropsWithChildren,
 } from 'react';
 import {
@@ -79,6 +81,38 @@ const ThemeContext = createContext<AppTheme>(lightTheme);
 
 export function useTheme(): AppTheme {
   return useContext(ThemeContext);
+}
+
+// ---------------------------------------------------------------------------
+//  Density preference (read/write density independent of ThemeProvider)
+// ---------------------------------------------------------------------------
+
+export interface DensityPreference {
+  density: AppDensity;
+  setDensity: (density: AppDensity) => void;
+}
+
+const DensityPreferenceContext = createContext<DensityPreference>({
+  density: 'standard',
+  setDensity: () => {},
+});
+
+export function useDensityPreference(): DensityPreference {
+  return useContext(DensityPreferenceContext);
+}
+
+export function DensityPreferenceProvider({
+  children,
+}: PropsWithChildren) {
+  const [density, setDensityRaw] = useState<AppDensity>('standard');
+  const setDensity = useCallback((d: AppDensity) => setDensityRaw(d), []);
+  const value = useMemo(() => ({ density, setDensity }), [density, setDensity]);
+
+  return (
+    <DensityPreferenceContext.Provider value={value}>
+      {children}
+    </DensityPreferenceContext.Provider>
+  );
 }
 
 // ---------------------------------------------------------------------------

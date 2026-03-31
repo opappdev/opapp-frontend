@@ -28,11 +28,12 @@ import {
   SignalPill,
   Stack,
   useTheme,
+  useDensityPreference,
   appRadius,
   appSpacing,
   appTypography,
 } from '@opapp/ui-native-primitives';
-import type { AppPalette } from '@opapp/ui-native-primitives';
+import type { AppDensity, AppPalette } from '@opapp/ui-native-primitives';
 import {appI18n} from '@opapp/framework-i18n';
 
 const windowModeOptions: {
@@ -81,6 +82,23 @@ const settingsTypographyExceptions = {
     fontWeight: '600',
   },
 } as const;
+
+const densityOptions: {
+  mode: AppDensity;
+  label: string;
+  detail: string;
+}[] = [
+  {
+    mode: 'standard',
+    label: appI18n.settings.densityModes.standard.label,
+    detail: appI18n.settings.densityModes.standard.detail,
+  },
+  {
+    mode: 'compact',
+    label: appI18n.settings.densityModes.compact.label,
+    detail: appI18n.settings.densityModes.compact.detail,
+  },
+];
 
 type SettingsScreenProps = Record<string, unknown> & {
   smokeSaveMainWindowMode?: WindowSizeMode;
@@ -194,6 +212,7 @@ function buildSaveNotice(
 
 export function SettingsScreen(props: SettingsScreenProps = {}) {
   const { palette } = useTheme();
+  const { density, setDensity } = useDensityPreference();
   const styles = useMemo(() => createScreenStyles(palette), [palette]);
   const [openingDetachedWindow, setOpeningDetachedWindow] = useState(false);
   const [returningInline, setReturningInline] = useState(false);
@@ -482,6 +501,26 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
           title={appI18n.settings.frame.title}
           description={appI18n.settings.frame.description}>
           <Stack>
+            <SectionCard
+              title={appI18n.settings.sections.displayDensityTitle}
+              description={appI18n.settings.sections.displayDensityDescription}>
+              <View style={styles.choiceRow}>
+                {densityOptions.map(option => (
+                  <ChoiceChip
+                    key={`density-${option.mode}`}
+                    label={option.label}
+                    detail={option.detail}
+                    active={density === option.mode}
+                    activeBadgeLabel={appI18n.common.choiceStatus.current}
+                    inactiveBadgeLabel={appI18n.common.choiceStatus.switchTo}
+                    onPress={() => {
+                      setDensity(option.mode);
+                    }}
+                  />
+                ))}
+              </View>
+            </SectionCard>
+
             <SectionCard
               title={appI18n.settings.sections.windowSizingTitle}
               description={appI18n.settings.sections.windowSizingDescription}>

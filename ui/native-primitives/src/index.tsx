@@ -36,13 +36,15 @@ export type {
 // theme
 export {
   ThemeProvider,
+  DensityPreferenceProvider,
   useTheme,
+  useDensityPreference,
   lightTheme,
   darkTheme,
   highContrastTheme,
 } from './theme';
 
-export type { AppColorScheme, AppTheme } from './theme';
+export type { AppColorScheme, AppTheme, DensityPreference } from './theme';
 
 // components
 export {

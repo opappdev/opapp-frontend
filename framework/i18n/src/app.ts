@@ -391,6 +391,16 @@ export const zhCNApp = {
     },
   },
   settings: {
+    densityModes: {
+      standard: {
+        label: '标准',
+        detail: '默认间距，适合一般浏览。',
+      },
+      compact: {
+        label: '紧凑',
+        detail: '缩减留白，同屏显示更多内容。',
+      },
+    },
     windowModes: {
       balanced: {
         label: '均衡',
@@ -422,6 +432,9 @@ export const zhCNApp = {
         '这里先集中管理窗口尺寸、设置页打开方式和宿主层行为。默认语言先固定为简体中文，后面再扩展多语言。',
     },
     sections: {
+      displayDensityTitle: '显示密度',
+      displayDensityDescription:
+        '影响所有界面的间距和留白。切换后立即生效，不需要重启。',
       windowSizingTitle: '默认窗口尺寸',
       windowSizingDescription:
         '这些偏好属于宿主级默认值。新窗口与下次启动都应该稳定使用它们。',

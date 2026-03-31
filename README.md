@@ -29,6 +29,11 @@ only carries the shared frontend code, contracts, and supporting tooling.
 Before committing frontend changes, run `corepack pnpm commit:check`. That
 covers the repo's default `typecheck` plus the fast frontend test suite.
 
+Windows dev / prod preview remains owned by `opapp-desktop`. When you need to
+see the current Windows effect, run `npm run dev:windows`,
+`npm run verify:windows:dev`, or `npm run verify:windows` from the sibling
+desktop repo instead of adding frontend-local Windows entrypoints.
+
 Keep frontend commits scoped to this repo and use the existing commit subject
 style: `frontend: ...`.
 

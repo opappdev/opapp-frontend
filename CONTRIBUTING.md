@@ -12,8 +12,11 @@ explicitly says otherwise.
 
 1. Install Node.js 24 and enable Corepack.
 2. Run `corepack pnpm install`.
-3. Use `corepack pnpm start:companion:windows` for the Metro-backed inner loop
-   when you need interactive Windows iteration.
+3. Use the sibling `opapp-desktop` repo's `npm run dev:windows` for the
+   Metro-backed Windows inner loop.
+4. Use `npm run verify:windows:dev` or `npm run verify:windows` from
+   `opapp-desktop` when you want the fast dev check or packaged/prod-like
+   Windows result.
 
 ## Before opening a pull request
 

@@ -30,11 +30,11 @@ import {
   MutedText,
   SignalPill,
   Stack,
-  appPalette,
+  useTheme,
   appRadius,
   appSpacing,
-  appTonePalette,
   appTypography,
+  type AppPalette,
   type AppTone,
 } from '@opapp/ui-native-primitives';
 import {
@@ -410,12 +410,13 @@ function DisclosureSection({
   expanded: boolean;
   onToggle: () => void;
 }>) {
+  const {palette} = useTheme();
   return (
-    <View style={styles.disclosureShell}>
-      <Pressable onPress={onToggle} style={styles.disclosureHeader}>
-        <View style={styles.disclosureHeaderCopy}>
-          <Text style={styles.disclosureTitle}>{title}</Text>
-          <Text style={styles.disclosureDescription}>{description}</Text>
+    <View style={{gap: appSpacing.sm, borderTopWidth: 1, borderTopColor: palette.border, paddingTop: appSpacing.md}}>
+      <Pressable onPress={onToggle} style={{flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: appSpacing.md}}>
+        <View style={{flex: 1, gap: appSpacing.xs}}>
+          <Text style={{color: palette.ink, ...appTypography.bodyStrong}}>{title}</Text>
+          <Text style={{color: palette.inkMuted, ...appTypography.caption}}>{description}</Text>
         </View>
         <SignalPill
           label={
@@ -427,7 +428,7 @@ function DisclosureSection({
           size="sm"
         />
       </Pressable>
-      {expanded ? <View style={styles.disclosureBody}>{children}</View> : null}
+      {expanded ? <View style={{gap: appSpacing.md}}>{children}</View> : null}
     </View>
   );
 }
@@ -439,10 +440,11 @@ function DetailField({
   label: string;
   value: string;
 }) {
+  const {palette} = useTheme();
   return (
-    <View style={styles.detailField}>
-      <Text style={styles.detailFieldLabel}>{label}</Text>
-      <Text style={styles.detailFieldValue}>{value}</Text>
+    <View style={{flexGrow: 1, minWidth: 180, gap: appSpacing.xs, borderRadius: appRadius.control, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.canvas, paddingHorizontal: appSpacing.md, paddingVertical: appSpacing.sm}}>
+      <Text style={{color: palette.inkSoft, ...appTypography.captionStrong}}>{label}</Text>
+      <Text style={{color: palette.ink, ...appTypography.body}}>{value}</Text>
     </View>
   );
 }
@@ -453,6 +455,8 @@ export function BundleLauncherScreen({
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
   const {width} = useWindowDimensions();
+  const {palette, tonePalette} = useTheme();
+  const styles = useMemo(() => createScreenStyles(palette, tonePalette), [palette, tonePalette]);
   const supportsBundleUpdates = canManageBundleUpdates();
   const isCompactLayout = width < 1180;
 
@@ -897,7 +901,7 @@ export function BundleLauncherScreen({
                             : false;
 
                           const iconTone = entry.iconTone as AppTone;
-                          const iconToneTokens = appTonePalette[iconTone].soft;
+                          const iconToneTokens = tonePalette[iconTone].soft;
                           return (
                             <Pressable
                               key={entry.bundleId}
@@ -1185,10 +1189,13 @@ export function BundleLauncherScreen({
   );
 }
 
-const styles = StyleSheet.create({
+type ScreenTonePalette = Record<string, Record<string, {container: {backgroundColor: string; borderColor: string}; label: {color: string}}>>;
+
+function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette) {
+  return StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: appPalette.canvas,
+    backgroundColor: palette.canvas,
   },
   scroll: {
     flex: 1,
@@ -1208,8 +1215,8 @@ const styles = StyleSheet.create({
     gap: appSpacing.lg,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.panel,
+    borderColor: palette.border,
+    backgroundColor: palette.panel,
     paddingHorizontal: appSpacing.lg,
     paddingVertical: appSpacing.md,
   },
@@ -1218,11 +1225,11 @@ const styles = StyleSheet.create({
     gap: appSpacing.xs,
   },
   serviceLabel: {
-    color: appPalette.inkSoft,
+    color: palette.inkSoft,
     ...appTypography.captionStrong,
   },
   serviceValue: {
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.body,
   },
   serviceActions: {
@@ -1244,8 +1251,8 @@ const styles = StyleSheet.create({
     gap: appSpacing.md,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.panel,
+    borderColor: palette.border,
+    backgroundColor: palette.panel,
     paddingHorizontal: appSpacing.lg,
     paddingVertical: appSpacing.lg,
   },
@@ -1257,8 +1264,8 @@ const styles = StyleSheet.create({
     gap: appSpacing.md,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.panel,
+    borderColor: palette.border,
+    backgroundColor: palette.panel,
     paddingHorizontal: appSpacing.lg,
     paddingVertical: appSpacing.lg,
   },
@@ -1266,18 +1273,18 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   paneTitle: {
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.sectionTitle,
   },
   paneDescription: {
-    color: appPalette.inkMuted,
+    color: palette.inkMuted,
     ...appTypography.body,
   },
   groupSection: {
     gap: appSpacing.sm,
   },
   groupTitle: {
-    color: appPalette.inkSoft,
+    color: palette.inkSoft,
     ...appTypography.captionStrong,
   },
   groupList: {
@@ -1289,14 +1296,14 @@ const styles = StyleSheet.create({
     gap: appSpacing.md,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.canvas,
+    borderColor: palette.border,
+    backgroundColor: palette.canvas,
     paddingHorizontal: appSpacing.md,
     paddingVertical: appSpacing.md,
   },
   appRowSelected: {
-    borderColor: appPalette.accent,
-    backgroundColor: appPalette.accentSoft,
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoft,
   },
   appRowIdentity: {
     flex: 1,
@@ -1330,11 +1337,11 @@ const styles = StyleSheet.create({
   },
   appName: {
     flexShrink: 1,
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.bodyStrong,
   },
   appSubtitle: {
-    color: appPalette.inkMuted,
+    color: palette.inkMuted,
     ...appTypography.caption,
   },
   appRowSummary: {
@@ -1345,24 +1352,24 @@ const styles = StyleSheet.create({
     gap: appSpacing.sm,
   },
   appVersionSummary: {
-    color: appPalette.inkSoft,
+    color: palette.inkSoft,
     ...appTypography.caption,
   },
   emptyState: {
     gap: appSpacing.sm,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.canvas,
+    borderColor: palette.border,
+    backgroundColor: palette.canvas,
     paddingHorizontal: appSpacing.lg,
     paddingVertical: appSpacing.lg,
   },
   emptyStateTitle: {
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.bodyStrong,
   },
   emptyStateDescription: {
-    color: appPalette.inkMuted,
+    color: palette.inkMuted,
     ...appTypography.body,
   },
   detailCard: {
@@ -1380,11 +1387,11 @@ const styles = StyleSheet.create({
     gap: appSpacing.xs,
   },
   detailTitle: {
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.title,
   },
   detailSubtitle: {
-    color: appPalette.inkMuted,
+    color: palette.inkMuted,
     ...appTypography.body,
   },
   detailHighlights: {
@@ -1392,74 +1399,27 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: appSpacing.md,
   },
-  detailField: {
-    flexGrow: 1,
-    minWidth: 180,
-    gap: appSpacing.xs,
-    borderRadius: appRadius.control,
-    borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.canvas,
-    paddingHorizontal: appSpacing.md,
-    paddingVertical: appSpacing.sm,
-  },
-  detailFieldLabel: {
-    color: appPalette.inkSoft,
-    ...appTypography.captionStrong,
-  },
-  detailFieldValue: {
-    color: appPalette.ink,
-    ...appTypography.body,
-  },
   detailNote: {
-    color: appTonePalette.warning.soft.label.color as string,
+    color: tonePalette.warning.soft.label.color as string,
     ...appTypography.bodyStrong,
   },
   statusMessage: {
-    color: appPalette.accent,
+    color: palette.accent,
     ...appTypography.bodyStrong,
   },
   statusMessageSuccess: {
-    color: appPalette.support,
+    color: palette.support,
   },
   statusMessageError: {
-    color: appPalette.errorRed,
+    color: palette.errorRed,
   },
   loadingHint: {
-    color: appPalette.inkSoft,
+    color: palette.inkSoft,
     ...appTypography.caption,
   },
   detailActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: appSpacing.md,
-  },
-  disclosureShell: {
-    gap: appSpacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: appPalette.border,
-    paddingTop: appSpacing.md,
-  },
-  disclosureHeader: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: appSpacing.md,
-  },
-  disclosureHeaderCopy: {
-    flex: 1,
-    gap: appSpacing.xs,
-  },
-  disclosureTitle: {
-    color: appPalette.ink,
-    ...appTypography.bodyStrong,
-  },
-  disclosureDescription: {
-    color: appPalette.inkMuted,
-    ...appTypography.caption,
-  },
-  disclosureBody: {
     gap: appSpacing.md,
   },
   choiceGrid: {
@@ -1472,4 +1432,5 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: appSpacing.md,
   },
-});
+  });
+}

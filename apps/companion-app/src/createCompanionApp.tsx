@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {StatusBar, StyleSheet, Text, View} from 'react-native';
+import {StatusBar, StyleSheet, Text, View, useColorScheme} from 'react-native';
 import type {SurfaceLaunchProps} from '@opapp/contracts-windowing';
 import {describeSurfaceSession} from '@opapp/framework-surfaces';
 import {
@@ -13,7 +13,13 @@ import {
   logDiagnostic,
   logException,
 } from '@opapp/framework-diagnostics';
-import {SurfaceSessionChrome, appPalette} from '@opapp/ui-native-primitives';
+import {
+  SurfaceSessionChrome,
+  ThemeProvider,
+  useTheme,
+  appPalette,
+  type AppColorScheme,
+} from '@opapp/ui-native-primitives';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   registerCompanionBundleRegistry,
@@ -27,6 +33,11 @@ import {
   shouldCompanionStartupTargetWaitForBundleReload,
 } from './companion-runtime';
 import {useCompanionStartupTarget} from './useCompanionStartupTarget';
+
+function useResolvedColorScheme(): AppColorScheme {
+  const rnScheme = useColorScheme();
+  return rnScheme === 'dark' ? 'dark' : 'light';
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -125,6 +136,7 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
   registerCompanionBundleRegistry(bundleConfig);
 
   function RootContent(props: SurfaceLaunchProps) {
+    const theme = useTheme();
     const launchProps = useMemo(
       () => ({
         ...props,
@@ -412,8 +424,8 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
 
     if (shouldHoldInitialRender) {
       return (
-        <View style={styles.container}>
-          <StatusBar barStyle="dark-content" />
+        <View style={[styles.container, {backgroundColor: theme.palette.canvas}]}>
+          <StatusBar barStyle={theme.colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         </View>
       );
     }
@@ -423,8 +435,8 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
     );
 
     return (
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.container, {backgroundColor: theme.palette.canvas}]}>
+        <StatusBar barStyle={theme.colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <CurrentWindowProvider
           windowId={resolvedSession.windowId}
           windowPolicy={windowPolicy}>
@@ -440,6 +452,7 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
   }
 
   return function CompanionApp(props: SurfaceLaunchProps) {
+    const resolvedColorScheme = useResolvedColorScheme();
     const launchProps = useMemo(
       () => ({
         ...props,
@@ -469,9 +482,11 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
     }, [bootstrapSurfaceId, launchProps.windowId]);
 
     return (
-      <RootErrorBoundary>
-        <RootContent {...launchProps} />
-      </RootErrorBoundary>
+      <ThemeProvider colorScheme={resolvedColorScheme}>
+        <RootErrorBoundary>
+          <RootContent {...launchProps} />
+        </RootErrorBoundary>
+      </ThemeProvider>
     );
   };
 }

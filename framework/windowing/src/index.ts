@@ -52,6 +52,8 @@ type NativeWindowManager = {
   getOtaRemoteUrl(): Promise<string>;
   getCachedOtaRemoteCatalog?(): Promise<string>;
   getStagedBundles?(): Promise<string>;
+  getBundleUpdateStatuses?(bundleIdsPayload?: string): Promise<string>;
+  runBundleUpdate?(bundleId: string): Promise<string>;
   getStagedBundleIds?(): Promise<string>;
   getCurrentWindow(): Promise<string>;
   getWindowSession(windowId: string): Promise<string>;
@@ -111,6 +113,26 @@ export type CachedOtaRemoteCatalogSnapshot = {
   index: unknown | null;
   manifests: Record<string, Record<string, unknown>>;
 };
+
+export type BundleUpdateStatus = {
+  bundleId: string;
+  remoteUrl: string | null;
+  channel: string | null;
+  currentVersion: string | null;
+  latestVersion: string | null;
+  version: string | null;
+  previousVersion: string | null;
+  hasUpdate: boolean | null;
+  inRollout: boolean | null;
+  rolloutPercent: number | null;
+  status: string;
+  stagedAt: string | null;
+  recordedAt: string | null;
+  channels: Record<string, string> | null;
+  errorMessage: string | null;
+};
+
+export type BundleUpdateRunResult = BundleUpdateStatus;
 
 type SurfaceWindowHostState = {
   session: WindowSessionDescriptor;
@@ -401,6 +423,107 @@ function parseCachedOtaRemoteCatalogPayload(
       index: null,
       manifests: {},
     };
+  }
+}
+
+function parseOptionalBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : null;
+}
+
+function parseOptionalRoundedNumber(value: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.round(value);
+}
+
+function parseBundleUpdateChannels(
+  value: unknown,
+): Record<string, string> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const channels = Object.entries(value)
+    .flatMap(([channel, version]) => {
+      const normalizedChannel = channel.trim();
+      const normalizedVersion = parseOptionalTrimmedString(version);
+      if (!normalizedChannel || !normalizedVersion) {
+        return [];
+      }
+
+      return [[normalizedChannel, normalizedVersion] as const];
+    })
+    .sort(([left], [right]) => left.localeCompare(right));
+
+  return channels.length > 0 ? Object.fromEntries(channels) : null;
+}
+
+function parseBundleUpdateStatusRecord(
+  value: unknown,
+): BundleUpdateStatus | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const bundleId = parseOptionalTrimmedString(record.bundleId);
+  const status = parseOptionalTrimmedString(record.status);
+  if (!bundleId || !status) {
+    return null;
+  }
+
+  return {
+    bundleId,
+    remoteUrl: parseOptionalTrimmedString(record.remoteUrl),
+    channel: parseOptionalTrimmedString(record.channel),
+    currentVersion: parseOptionalTrimmedString(record.currentVersion),
+    latestVersion: parseOptionalTrimmedString(record.latestVersion),
+    version: parseOptionalTrimmedString(record.version),
+    previousVersion: parseOptionalTrimmedString(record.previousVersion),
+    hasUpdate: parseOptionalBoolean(record.hasUpdate),
+    inRollout: parseOptionalBoolean(record.inRollout),
+    rolloutPercent: parseOptionalRoundedNumber(record.rolloutPercent),
+    status,
+    stagedAt: parseOptionalTrimmedString(record.stagedAt),
+    recordedAt: parseOptionalTrimmedString(record.recordedAt),
+    channels: parseBundleUpdateChannels(record.channels),
+    errorMessage: parseOptionalTrimmedString(record.errorMessage),
+  };
+}
+
+function parseBundleUpdateStatusesPayload(raw: string): BundleUpdateStatus[] {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const statuses = new Map<string, BundleUpdateStatus>();
+    for (const entry of parsed) {
+      const status = parseBundleUpdateStatusRecord(entry);
+      if (!status) {
+        continue;
+      }
+
+      statuses.set(status.bundleId, status);
+    }
+
+    return [...statuses.values()].sort((left, right) =>
+      left.bundleId.localeCompare(right.bundleId),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function parseBundleUpdateStatusPayload(raw: string): BundleUpdateStatus | null {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parseBundleUpdateStatusRecord(parsed);
+  } catch {
+    return null;
   }
 }
 
@@ -907,6 +1030,14 @@ export function canOpenNativeWindows() {
   return getNativeWindowManager() !== null;
 }
 
+export function canManageBundleUpdates() {
+  const nativeWindowManager = getNativeWindowManager();
+  return Boolean(
+    nativeWindowManager?.getBundleUpdateStatuses &&
+      nativeWindowManager?.runBundleUpdate,
+  );
+}
+
 export async function canOpenBundleTarget(bundleId: string) {
   const normalizedBundleId = bundleId.trim();
   if (!normalizedBundleId) {
@@ -995,6 +1126,44 @@ export async function getStagedBundles() {
 export async function getStagedBundleIds() {
   const stagedBundles = await getStagedBundles();
   return stagedBundles.map(bundle => bundle.bundleId);
+}
+
+export async function getBundleUpdateStatuses(bundleIds?: string[]) {
+  const nativeWindowManager = getNativeWindowManager();
+  if (!nativeWindowManager?.getBundleUpdateStatuses) {
+    return [];
+  }
+
+  try {
+    return parseBundleUpdateStatusesPayload(
+      await nativeWindowManager.getBundleUpdateStatuses(
+        JSON.stringify(bundleIds ?? []),
+      ),
+    );
+  } catch (error) {
+    console.warn('Failed to read bundle update statuses', error);
+    return [];
+  }
+}
+
+export async function runBundleUpdate(bundleId: string) {
+  const normalizedBundleId = bundleId.trim();
+  if (!normalizedBundleId) {
+    throw new Error('Bundle ID is required.');
+  }
+
+  const nativeWindowManager = getNativeWindowManager();
+  if (!nativeWindowManager?.runBundleUpdate) {
+    throw new Error('Native window manager does not support bundle updates.');
+  }
+
+  const payload = await nativeWindowManager.runBundleUpdate(normalizedBundleId);
+  const parsed = parseBundleUpdateStatusPayload(payload);
+  if (!parsed) {
+    throw new Error('Native window manager returned an invalid bundle update payload.');
+  }
+
+  return parsed;
 }
 
 export async function getWindowPreferences({

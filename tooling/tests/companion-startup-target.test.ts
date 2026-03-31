@@ -120,7 +120,7 @@ export function run() {
         targetId: `discovered:${privateBundleId}:${privateSurfaceId}`,
         title: privateSurfaceId,
         description:
-          '这是从远端 bundle-manifest.json 里发现的入口；当本机已具备这个 bundle 时，保存后启动会直接切到对应 child bundle。',
+          '这是从远端应用清单里发现的入口；当本机已经具备这个应用时，可以把它设为默认启动。',
         surfaceId: privateSurfaceId,
         bundleId: privateBundleId,
         policy: 'main',

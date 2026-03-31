@@ -1,11 +1,22 @@
-import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import React, {useEffect, useMemo, useState} from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import {logInteraction} from '@opapp/framework-diagnostics';
 import {
+  canManageBundleUpdates,
   canOpenBundleTarget,
+  getBundleUpdateStatuses,
   getCachedOtaRemoteCatalog,
-  getStagedBundles,
   getOtaRemoteUrl,
+  getStagedBundles,
+  runBundleUpdate,
+  type BundleUpdateStatus,
   type StagedBundleRecord,
   useCurrentWindowId,
   useOpenSurface,
@@ -16,7 +27,6 @@ import {
   AppFrame,
   ChoiceChip,
   MutedText,
-  SectionCard,
   SignalPill,
   Stack,
   appPalette,
@@ -31,13 +41,16 @@ import {
   type RemoteBundleCatalogEntry,
 } from './bundle-launcher-discovery';
 import {
-  areCompanionTargetsEqual,
+  buildBundleLibraryEntries,
+  type BundleLibraryEntry,
+  type BundleLibraryGroupId,
+} from './bundle-library-model';
+import {humanizeSurfaceId} from './bundle-library-presentation';
+import {
   buildDiscoveredCompanionLaunchTargets,
   companionBundleIds,
   companionLaunchTargets,
   createCompanionOpenSurfaceRequest,
-  defaultCompanionStartupTarget,
-  findCompanionLaunchTarget,
   type CompanionLaunchTarget,
   type CompanionStartupTarget,
 } from './companion-runtime';
@@ -63,6 +76,12 @@ type RemoteCatalogState =
       errorMessage: string | null;
     };
 
+type ServicePresentation = {
+  label: string;
+  tone: 'support' | 'warning' | 'neutral' | 'danger';
+  detail: string;
+};
+
 const remoteCatalogRequestTimeoutMs = 5_000;
 
 async function queryBundleAvailability(bundleIds: ReadonlyArray<string>) {
@@ -84,7 +103,7 @@ function formatRemoteCatalogErrorMessage(error: unknown) {
     return error.message.trim();
   }
 
-  return appI18n.bundleLauncher.remoteCatalog.errorFallback;
+  return appI18n.bundleLauncher.service.errorFallback;
 }
 
 async function fetchJsonWithTimeout(url: string) {
@@ -116,6 +135,7 @@ async function attachRemoteBundleManifestSurfaceIds(
   entries: ReadonlyArray<RemoteBundleCatalogEntry>,
   normalizedRemoteUrl: string,
   cachedManifests?: Record<string, Record<string, unknown>>,
+  preferNetwork = false,
 ) {
   let usedNetwork = false;
   const hydratedEntries = await Promise.all(
@@ -126,7 +146,7 @@ async function attachRemoteBundleManifestSurfaceIds(
 
       const cachedManifestPayload =
         cachedManifests?.[entry.bundleId]?.[entry.latestVersion];
-      if (cachedManifestPayload) {
+      if (cachedManifestPayload && !preferNetwork) {
         return {
           ...entry,
           surfaceIds: parseRemoteBundleManifestSurfaceIds(cachedManifestPayload),
@@ -148,7 +168,12 @@ async function attachRemoteBundleManifestSurfaceIds(
           version: entry.latestVersion,
           error,
         });
-        return entry;
+        return cachedManifestPayload
+          ? {
+              ...entry,
+              surfaceIds: parseRemoteBundleManifestSurfaceIds(cachedManifestPayload),
+            }
+          : entry;
       }
     }),
   );
@@ -159,7 +184,11 @@ async function attachRemoteBundleManifestSurfaceIds(
   };
 }
 
-async function fetchRemoteBundleCatalog() {
+async function fetchRemoteBundleCatalog({
+  preferNetwork = false,
+}: {
+  preferNetwork?: boolean;
+} = {}) {
   const remoteUrl = await getOtaRemoteUrl();
   if (!remoteUrl) {
     return {
@@ -174,7 +203,7 @@ async function fetchRemoteBundleCatalog() {
   const normalizedRemoteUrl = remoteUrl.replace(/\/+$/, '');
   const cachedRemoteCatalog = await getCachedOtaRemoteCatalog();
   const cachedRemoteUrl = cachedRemoteCatalog?.remoteUrl?.replace(/\/+$/, '') ?? null;
-  if (cachedRemoteCatalog?.index && cachedRemoteUrl === normalizedRemoteUrl) {
+  if (!preferNetwork && cachedRemoteCatalog?.index && cachedRemoteUrl === normalizedRemoteUrl) {
     const {entries, usedNetwork} = await attachRemoteBundleManifestSurfaceIds(
       parseRemoteBundleCatalogIndex(cachedRemoteCatalog.index),
       normalizedRemoteUrl,
@@ -195,6 +224,8 @@ async function fetchRemoteBundleCatalog() {
     const {entries} = await attachRemoteBundleManifestSurfaceIds(
       parseRemoteBundleCatalogIndex(payload),
       normalizedRemoteUrl,
+      cachedRemoteCatalog?.manifests,
+      true,
     );
 
     return {
@@ -215,63 +246,6 @@ async function fetchRemoteBundleCatalog() {
   }
 }
 
-function formatRemoteChannels(channels: Record<string, string> | null) {
-  if (!channels || Object.keys(channels).length === 0) {
-    return appI18n.bundleLauncher.remoteCatalog.channelsEmpty;
-  }
-
-  return Object.entries(channels)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([channel, version]) => `${channel}=${version}`)
-    .join(' / ');
-}
-
-function formatStagedSourceKind(sourceKind: string | null) {
-  switch (sourceKind) {
-    case 'local-build':
-      return appI18n.bundleLauncher.remoteCatalog.sourceKind.localBuild;
-    case 'sibling-staging':
-      return appI18n.bundleLauncher.remoteCatalog.sourceKind.siblingStaging;
-    default:
-      return sourceKind ?? appI18n.common.unknown;
-  }
-}
-
-function formatStagedProvenanceKind(provenanceKind: string | null) {
-  switch (provenanceKind) {
-    case 'native-ota-applied':
-      return appI18n.bundleLauncher.remoteCatalog.provenanceKind.nativeOtaApplied;
-    case 'host-staged-only':
-      return appI18n.bundleLauncher.remoteCatalog.provenanceKind.hostStagedOnly;
-    default:
-      return provenanceKind ?? appI18n.common.unknown;
-  }
-}
-
-function formatStagedProvenanceBadge(provenanceKind: string | null) {
-  switch (provenanceKind) {
-    case 'native-ota-applied':
-      return appI18n.bundleLauncher.remoteCatalog.provenanceBadge.nativeOtaApplied;
-    case 'host-staged-only':
-      return appI18n.bundleLauncher.remoteCatalog.provenanceBadge.hostStagedOnly;
-    default:
-      return provenanceKind ?? appI18n.common.unknown;
-  }
-}
-
-function formatStagedProvenanceStatus(status: string | null) {
-  switch (status) {
-    case 'updated':
-      return appI18n.bundleLauncher.remoteCatalog.provenanceStatus.updated;
-    case 'up-to-date':
-      return appI18n.bundleLauncher.remoteCatalog.provenanceStatus.upToDate;
-    case 'failed':
-      return appI18n.bundleLauncher.remoteCatalog.provenanceStatus.failed;
-    default:
-      return status ?? appI18n.common.unknown;
-  }
-}
-
 function formatIsoTimestamp(value: string | null) {
   if (!value) {
     return appI18n.common.unknown;
@@ -287,42 +261,187 @@ function formatIsoTimestamp(value: string | null) {
   return `${match[1]} ${match[2]} UTC`;
 }
 
-function getRemoteCatalogStatusPresentation(status: RemoteCatalogState['status']) {
+function formatChannels(channels: Record<string, string> | null) {
+  if (!channels || Object.keys(channels).length === 0) {
+    return appI18n.bundleLauncher.details.values.none;
+  }
+
+  return Object.entries(channels)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([channel, version]) => `${channel}=${version}`)
+    .join(' / ');
+}
+
+function formatSourceKind(sourceKind: string | null) {
+  switch (sourceKind) {
+    case 'local-build':
+      return appI18n.bundleLauncher.details.values.localBuild;
+    case 'sibling-staging':
+      return appI18n.bundleLauncher.details.values.hostStaged;
+    default:
+      return sourceKind ?? appI18n.common.unknown;
+  }
+}
+
+function formatProvenanceKind(provenanceKind: string | null) {
+  switch (provenanceKind) {
+    case 'native-ota-applied':
+      return appI18n.bundleLauncher.details.values.nativeOtaApplied;
+    case 'host-staged-only':
+      return appI18n.bundleLauncher.details.values.hostStagedOnly;
+    default:
+      return provenanceKind ?? appI18n.common.unknown;
+  }
+}
+
+function formatProvenanceStatus(status: string | null) {
   switch (status) {
+    case 'updated':
+      return appI18n.bundleLauncher.details.values.updated;
+    case 'up-to-date':
+      return appI18n.bundleLauncher.details.values.upToDate;
+    case 'failed':
+      return appI18n.bundleLauncher.details.values.failed;
+    default:
+      return status ?? appI18n.common.unknown;
+  }
+}
+
+function formatLaunchTargetTitle(target: CompanionLaunchTarget) {
+  return target.title === target.surfaceId
+    ? humanizeSurfaceId(target.surfaceId)
+    : target.title;
+}
+
+function buildServicePresentation(
+  remoteCatalog: RemoteCatalogState,
+  checkingForUpdates: boolean,
+): ServicePresentation {
+  if (checkingForUpdates) {
+    return {
+      label: appI18n.bundleLauncher.service.status.checking,
+      tone: 'neutral',
+      detail:
+        remoteCatalog.remoteUrl ??
+        appI18n.bundleLauncher.service.unavailableDescription,
+    };
+  }
+
+  switch (remoteCatalog.status) {
     case 'ready':
       return {
-        label: appI18n.bundleLauncher.remoteCatalog.status.ready,
-        tone: 'support' as const,
-      };
-    case 'unavailable':
-      return {
-        label: appI18n.bundleLauncher.remoteCatalog.status.unavailable,
-        tone: 'warning' as const,
+        label: appI18n.bundleLauncher.service.status.ready,
+        tone: 'support',
+        detail:
+          remoteCatalog.remoteUrl ??
+          appI18n.bundleLauncher.service.unavailableDescription,
       };
     case 'error':
       return {
-        label: appI18n.bundleLauncher.remoteCatalog.status.error,
-        tone: 'danger' as const,
+        label: appI18n.bundleLauncher.service.status.error,
+        tone: 'danger',
+        detail:
+          remoteCatalog.errorMessage ??
+          appI18n.bundleLauncher.service.errorFallback,
+      };
+    case 'unavailable':
+      return {
+        label: appI18n.bundleLauncher.service.status.unavailable,
+        tone: 'warning',
+        detail: appI18n.bundleLauncher.service.unavailableDescription,
       };
     default:
       return {
-        label: appI18n.bundleLauncher.remoteCatalog.status.loading,
-        tone: 'neutral' as const,
+        label: appI18n.bundleLauncher.service.status.loading,
+        tone: 'neutral',
+        detail: appI18n.bundleLauncher.service.loadingDescription,
       };
   }
 }
 
-function formatSavedTargetLabel(savedTarget: CompanionStartupTarget | null) {
-  if (!savedTarget) {
-    return appI18n.surfaces.launcher;
-  }
+function groupBundleLibraryEntries(entries: ReadonlyArray<BundleLibraryEntry>) {
+  const sectionOrder: BundleLibraryGroupId[] = [
+    'updates',
+    'installed',
+    'available',
+    'local',
+  ];
+  const sectionTitles: Record<BundleLibraryGroupId, string> = {
+    updates: appI18n.bundleLauncher.groups.updates,
+    installed: appI18n.bundleLauncher.groups.installed,
+    available: appI18n.bundleLauncher.groups.available,
+    local: appI18n.bundleLauncher.groups.local,
+  };
 
-  const knownTarget = findCompanionLaunchTarget(savedTarget, companionLaunchTargets);
-  if (knownTarget) {
-    return knownTarget.title;
-  }
+  return sectionOrder
+    .map(groupId => ({
+      groupId,
+      title: sectionTitles[groupId],
+      entries: entries.filter(entry => entry.group === groupId),
+    }))
+    .filter(section => section.entries.length > 0);
+}
 
-  return `${savedTarget.bundleId} · ${savedTarget.surfaceId}`;
+function buildMainBundleRemoteEntry(): RemoteBundleCatalogEntry {
+  return {
+    bundleId: companionBundleIds.main,
+    latestVersion: null,
+    versions: [],
+    rolloutPercent: null,
+    channels: null,
+    surfaceIds: companionLaunchTargets
+      .filter(target => target.bundleId === companionBundleIds.main)
+      .map(target => target.surfaceId),
+  };
+}
+
+function DisclosureSection({
+  title,
+  description,
+  expanded,
+  onToggle,
+  children,
+}: React.PropsWithChildren<{
+  title: string;
+  description: string;
+  expanded: boolean;
+  onToggle: () => void;
+}>) {
+  return (
+    <View style={styles.disclosureShell}>
+      <Pressable onPress={onToggle} style={styles.disclosureHeader}>
+        <View style={styles.disclosureHeaderCopy}>
+          <Text style={styles.disclosureTitle}>{title}</Text>
+          <Text style={styles.disclosureDescription}>{description}</Text>
+        </View>
+        <SignalPill
+          label={
+            expanded
+              ? appI18n.bundleLauncher.details.actions.collapse
+              : appI18n.bundleLauncher.details.actions.expand
+          }
+          tone={expanded ? 'accent' : 'neutral'}
+          size="sm"
+        />
+      </Pressable>
+      {expanded ? <View style={styles.disclosureBody}>{children}</View> : null}
+    </View>
+  );
+}
+
+function DetailField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.detailField}>
+      <Text style={styles.detailFieldLabel}>{label}</Text>
+      <Text style={styles.detailFieldValue}>{value}</Text>
+    </View>
+  );
 }
 
 export function BundleLauncherScreen({
@@ -330,14 +449,23 @@ export function BundleLauncherScreen({
 }: BundleLauncherScreenProps = {}) {
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
+  const {width} = useWindowDimensions();
+  const supportsBundleUpdates = canManageBundleUpdates();
+  const isCompactLayout = width < 1180;
+
   const [bundleAvailability, setBundleAvailability] = useState<Record<string, boolean>>({});
-  const [selectedTargetId, setSelectedTargetId] = useState(
-    companionLaunchTargets[0]?.targetId ?? 'main-launcher',
-  );
+  const [startupTargetSelections, setStartupTargetSelections] = useState<
+    Record<string, string | undefined>
+  >({});
   const [openingTargetId, setOpeningTargetId] = useState<string | null>(null);
+  const [actingBundleId, setActingBundleId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [checkingForUpdates, setCheckingForUpdates] = useState(false);
   const [stagedBundles, setStagedBundles] = useState<StagedBundleRecord[]>([]);
-  const [stagedBundlesLoaded, setStagedBundlesLoaded] = useState(false);
+  const [updateStatuses, setUpdateStatuses] = useState<BundleUpdateStatus[]>([]);
+  const [selectedBundleId, setSelectedBundleId] = useState<string | null>(null);
+  const [startupPreferencesExpanded, setStartupPreferencesExpanded] = useState(false);
+  const [advancedDetailsExpanded, setAdvancedDetailsExpanded] = useState(false);
   const [remoteCatalog, setRemoteCatalog] = useState<RemoteCatalogState>({
     status: 'loading',
     source: 'pending',
@@ -347,28 +475,25 @@ export function BundleLauncherScreen({
   });
   const {
     startupTarget: resolvedStartupTarget,
-    loading: startupTargetLoading,
     saving: savingStartupTarget,
     save: saveStartupTarget,
   } = useCompanionStartupTarget();
-  const lastRemoteCatalogDiagnosticsSignatureRef = useRef<string | null>(null);
-  const startupTargetLoaded = !startupTargetLoading;
-  const effectiveSavedStartupTarget =
-    resolvedStartupTarget ?? defaultCompanionStartupTarget;
+
+  const syntheticRemoteEntries = useMemo(() => {
+    if (remoteCatalog.entries.some(entry => entry.bundleId === companionBundleIds.main)) {
+      return remoteCatalog.entries;
+    }
+
+    return [buildMainBundleRemoteEntry(), ...remoteCatalog.entries];
+  }, [remoteCatalog.entries]);
+
   const discoveredLaunchTargets = useMemo(
-    () => buildDiscoveredCompanionLaunchTargets(remoteCatalog.entries),
-    [remoteCatalog.entries],
+    () => buildDiscoveredCompanionLaunchTargets(syntheticRemoteEntries),
+    [syntheticRemoteEntries],
   );
   const launchTargets = useMemo(
     () => [...companionLaunchTargets, ...discoveredLaunchTargets],
     [discoveredLaunchTargets],
-  );
-  const availableLaunchTargets = useMemo(
-    () =>
-      launchTargets.filter(
-        target => bundleAvailability[target.bundleId] ?? true,
-      ),
-    [bundleAvailability, launchTargets],
   );
   const launchTargetsByBundleId = useMemo(() => {
     const groupedTargets = new Map<string, CompanionLaunchTarget[]>();
@@ -381,112 +506,102 @@ export function BundleLauncherScreen({
     return groupedTargets;
   }, [launchTargets]);
 
-  const selectedTarget = useMemo(
+  const discoveryEntries = useMemo(
     () =>
-      availableLaunchTargets.find(target => target.targetId === selectedTargetId) ??
-      availableLaunchTargets[0] ??
-      companionLaunchTargets[0],
-    [availableLaunchTargets, selectedTargetId],
+      buildBundleLauncherDiscoveryEntries({
+        remoteEntries: syntheticRemoteEntries,
+        stagedBundles,
+      }),
+    [stagedBundles, syntheticRemoteEntries],
   );
-  const savedKnownTarget = useMemo(
+  const serviceRemoteUrl =
+    remoteCatalog.remoteUrl ??
+    updateStatuses.find(status => status.remoteUrl)?.remoteUrl ??
+    null;
+  const libraryEntries = useMemo(
     () =>
-      findCompanionLaunchTarget(
-        effectiveSavedStartupTarget,
-        availableLaunchTargets,
-      ),
-    [availableLaunchTargets, effectiveSavedStartupTarget],
+      buildBundleLibraryEntries({
+        discoveryEntries,
+        launchTargetsByBundleId,
+        updateStatuses,
+        savedStartupTarget: resolvedStartupTarget,
+        startupTargetSelections,
+        hasConnectedUpdateService: Boolean(serviceRemoteUrl),
+        canManageUpdates: supportsBundleUpdates,
+        busyBundleId: actingBundleId,
+      }),
+    [
+      actingBundleId,
+      discoveryEntries,
+      launchTargetsByBundleId,
+      resolvedStartupTarget,
+      serviceRemoteUrl,
+      startupTargetSelections,
+      supportsBundleUpdates,
+      updateStatuses,
+    ],
   );
-  const savedTargetOutsideChoices = Boolean(
-    resolvedStartupTarget && !savedKnownTarget,
+  const groupedLibraryEntries = useMemo(
+    () => groupBundleLibraryEntries(libraryEntries),
+    [libraryEntries],
   );
-  const hasUnsavedSelection =
-    !savedTargetOutsideChoices &&
-    !areCompanionTargetsEqual(
-      selectedTarget,
-      savedKnownTarget ?? effectiveSavedStartupTarget,
-    );
-  const savedTargetLabel = useMemo(
-    () => formatSavedTargetLabel(resolvedStartupTarget),
-    [resolvedStartupTarget],
+  const selectedEntry = useMemo(
+    () =>
+      libraryEntries.find(entry => entry.bundleId === selectedBundleId) ??
+      libraryEntries[0] ??
+      null,
+    [libraryEntries, selectedBundleId],
   );
-  const remoteCatalogStatus = useMemo(
-    () => getRemoteCatalogStatusPresentation(remoteCatalog.status),
-    [remoteCatalog.status],
+  const servicePresentation = useMemo(
+    () => buildServicePresentation(remoteCatalog, checkingForUpdates),
+    [checkingForUpdates, remoteCatalog],
   );
-  const remoteCatalogEntries = useMemo(() => {
-    const localStateRank = {
-      bundled: 0,
-      staged: 1,
-      'remote-only': 2,
-    } as const;
-    const discoverySourceRank = {
-      'local-only': 0,
-      'remote-catalog': 1,
-    } as const;
+  const availableLaunchTargetBundleIds = useMemo(
+    () => launchTargets.map(target => target.bundleId),
+    [launchTargets],
+  );
 
-    return buildBundleLauncherDiscoveryEntries({
-      remoteEntries: remoteCatalog.entries,
-      stagedBundles,
-    })
-      .map(entry => {
-        return {
-          ...entry,
-          launchTargets: launchTargetsByBundleId.get(entry.bundleId) ?? [],
-          isSavedStartupTarget: resolvedStartupTarget?.bundleId === entry.bundleId,
-        };
-      })
-      .sort((left, right) => {
-        if (left.isSavedStartupTarget !== right.isSavedStartupTarget) {
-          return left.isSavedStartupTarget ? -1 : 1;
-        }
-
-        const leftRank = localStateRank[left.localState];
-        const rightRank = localStateRank[right.localState];
-        if (leftRank !== rightRank) {
-          return leftRank - rightRank;
-        }
-
-        const leftSourceRank = discoverySourceRank[left.discoverySource];
-        const rightSourceRank = discoverySourceRank[right.discoverySource];
-        if (leftSourceRank !== rightSourceRank) {
-          return leftSourceRank - rightSourceRank;
-        }
-
-        return left.bundleId.localeCompare(right.bundleId);
-      });
-  }, [
-    launchTargetsByBundleId,
-    remoteCatalog.entries,
-    resolvedStartupTarget?.bundleId,
-    stagedBundles,
-  ]);
-
-  async function openTarget(target: CompanionLaunchTarget) {
-    if (openingTargetId) {
+  useEffect(() => {
+    if (!selectedEntry) {
+      setSelectedBundleId(null);
       return;
     }
 
-    setOpeningTargetId(target.targetId);
-    setStatusMessage(null);
-
-    try {
-      await openSurface(createCompanionOpenSurfaceRequest(target));
-      setStatusMessage(appI18n.bundleLauncher.status.opened);
-    } catch (error) {
-      console.error('Failed to open startup target', error);
-      setStatusMessage(appI18n.bundleLauncher.status.openFailed);
-      throw error;
-    } finally {
-      setOpeningTargetId(null);
+    if (selectedBundleId !== selectedEntry.bundleId) {
+      setSelectedBundleId(selectedEntry.bundleId);
     }
-  }
+  }, [selectedBundleId, selectedEntry]);
+
+  useEffect(() => {
+    const matchedSavedTarget = launchTargets.find(
+      target =>
+        target.bundleId === resolvedStartupTarget?.bundleId &&
+        target.surfaceId === resolvedStartupTarget?.surfaceId,
+    );
+    if (!matchedSavedTarget) {
+      return;
+    }
+
+    setStartupTargetSelections(previous => {
+      if (previous[matchedSavedTarget.bundleId] === matchedSavedTarget.targetId) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        [matchedSavedTarget.bundleId]: matchedSavedTarget.targetId,
+      };
+    });
+  }, [
+    launchTargets,
+    resolvedStartupTarget?.bundleId,
+    resolvedStartupTarget?.surfaceId,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
 
-    void queryBundleAvailability(
-      launchTargets.map(target => target.bundleId),
-    ).then(availability => {
+    void queryBundleAvailability(availableLaunchTargetBundleIds).then(availability => {
       if (cancelled) {
         return;
       }
@@ -500,161 +615,167 @@ export function BundleLauncherScreen({
     return () => {
       cancelled = true;
     };
-  }, [launchTargets]);
+  }, [availableLaunchTargetBundleIds]);
 
   useEffect(() => {
     let cancelled = false;
 
-    void getStagedBundles()
-      .then(nextBundles => {
-        if (cancelled) {
-          return;
-        }
+    async function loadInitialData() {
+      logInteraction('bundle-library.load-start', {
+        supportsBundleUpdates,
+      });
 
-        setStagedBundles(nextBundles);
-      })
-      .catch(error => {
-        if (cancelled) {
-          return;
-        }
+      const [nextRemoteCatalog, nextStagedBundles, nextUpdateStatuses] = await Promise.all([
+        fetchRemoteBundleCatalog(),
+        getStagedBundles().catch(error => {
+          console.warn('Failed to query staged bundles', error);
+          return [];
+        }),
+        supportsBundleUpdates
+          ? getBundleUpdateStatuses().catch(error => {
+              console.warn('Failed to query bundle update statuses', error);
+              return [];
+            })
+          : Promise.resolve([]),
+      ]);
 
+      if (cancelled) {
+        return;
+      }
+
+      setRemoteCatalog(nextRemoteCatalog);
+      setStagedBundles(nextStagedBundles);
+      setUpdateStatuses(nextUpdateStatuses);
+      logInteraction('bundle-library.load-finished', {
+        remoteStatus: nextRemoteCatalog.status,
+        remoteEntryCount: nextRemoteCatalog.entries.length,
+        stagedBundleCount: nextStagedBundles.length,
+        updateStatusCount: nextUpdateStatuses.length,
+      });
+    }
+
+    void loadInitialData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supportsBundleUpdates]);
+
+  async function refreshLibraryData({
+    preferNetwork = false,
+  }: {
+    preferNetwork?: boolean;
+  } = {}) {
+    const [nextRemoteCatalog, nextStagedBundles, nextUpdateStatuses] = await Promise.all([
+      fetchRemoteBundleCatalog({preferNetwork}),
+      getStagedBundles().catch(error => {
         console.warn('Failed to query staged bundles', error);
-        setStagedBundles([]);
-      })
-      .finally(() => {
-        if (cancelled) {
-          return;
-        }
+        return [];
+      }),
+      supportsBundleUpdates
+        ? getBundleUpdateStatuses().catch(error => {
+            console.warn('Failed to query bundle update statuses', error);
+            return [];
+          })
+        : Promise.resolve([]),
+    ]);
 
-        setStagedBundlesLoaded(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    logInteraction('bundle-launcher.remote-catalog.fetch-start', {
-      timeoutMs: remoteCatalogRequestTimeoutMs,
-    });
-    void fetchRemoteBundleCatalog()
-      .then(nextRemoteCatalog => {
-        if (cancelled) {
-          return;
-        }
-
-        logInteraction('bundle-launcher.remote-catalog.fetch-finished', {
-          status: nextRemoteCatalog.status,
-          source: nextRemoteCatalog.source,
-          remoteUrl: nextRemoteCatalog.remoteUrl ?? null,
-          remoteEntryCount: nextRemoteCatalog.entries.length,
-          errorMessage: nextRemoteCatalog.errorMessage ?? null,
-        });
-        setRemoteCatalog(nextRemoteCatalog);
-      })
-      .catch(error => {
-        if (cancelled) {
-          return;
-        }
-
-        console.warn('Failed to fetch remote bundle catalog', error);
-        logInteraction('bundle-launcher.remote-catalog.fetch-failed', {
-          errorMessage: formatRemoteCatalogErrorMessage(error),
-        });
-        setRemoteCatalog({
-          status: 'error',
-          source: 'error',
-          remoteUrl: null,
-          entries: [],
-          errorMessage: formatRemoteCatalogErrorMessage(error),
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (savedKnownTarget?.targetId) {
-      setSelectedTargetId(savedKnownTarget.targetId);
-    }
-  }, [savedKnownTarget?.targetId]);
-
-  useEffect(() => {
-    if (remoteCatalog.status === 'loading') {
-      return;
-    }
-
-    const diagnosticsEntries = remoteCatalogEntries.map(entry => ({
-      bundleId: entry.bundleId,
-      discoverySource: entry.discoverySource,
-      localState: entry.localState,
-      latestVersion: entry.latestVersion ?? null,
-      localVersion: entry.localVersion ?? null,
-      localSourceKind: entry.localSourceKind ?? null,
-      localProvenanceKind: entry.localProvenanceKind ?? null,
-      localProvenanceStatus: entry.localProvenanceStatus ?? null,
-      localProvenanceStagedAt: entry.localProvenanceStagedAt ?? null,
-      versionMismatch:
-        Boolean(entry.localVersion) &&
-        Boolean(entry.latestVersion) &&
-        entry.localVersion !== entry.latestVersion,
-      hasPublicLaunchTarget: entry.launchTargets.length > 0,
-      isSavedStartupTarget: entry.isSavedStartupTarget,
-      rolloutPercent: entry.rolloutPercent,
-      surfaceIds: entry.surfaceIds,
+    setRemoteCatalog(nextRemoteCatalog);
+    setStagedBundles(nextStagedBundles);
+    setUpdateStatuses(nextUpdateStatuses);
+    const availability = await queryBundleAvailability(availableLaunchTargetBundleIds);
+    setBundleAvailability(previous => ({
+      ...previous,
+      ...availability,
     }));
-    const diagnosticsSummary = {
-      status: remoteCatalog.status,
-      source: remoteCatalog.source,
-      remoteUrl: remoteCatalog.remoteUrl ?? null,
-      remoteEntryCount: remoteCatalog.entries.length,
-      entryCount: diagnosticsEntries.length,
-      stagedBundleCount: stagedBundles.length,
-      stagedBundlesLoaded,
-      startupTargetLoaded,
-      savedStartupTargetBundleId: resolvedStartupTarget?.bundleId ?? null,
-      savedStartupTargetSurfaceId: resolvedStartupTarget?.surfaceId ?? null,
-    };
-    const diagnosticsSignature = JSON.stringify({
-      summary: diagnosticsSummary,
-      entries: diagnosticsEntries,
-    });
+  }
 
-    if (
-      diagnosticsSignature ===
-      lastRemoteCatalogDiagnosticsSignatureRef.current
-    ) {
+  async function openLaunchTarget(target: CompanionLaunchTarget) {
+    if (openingTargetId) {
       return;
     }
 
-    lastRemoteCatalogDiagnosticsSignatureRef.current = diagnosticsSignature;
-    logInteraction(
-      'bundle-launcher.remote-catalog.summary',
-      diagnosticsSummary,
-    );
-    for (const entry of diagnosticsEntries) {
-      logInteraction('bundle-launcher.remote-catalog.entry', entry);
+    setOpeningTargetId(target.targetId);
+    setStatusMessage(null);
+
+    try {
+      await openSurface(createCompanionOpenSurfaceRequest(target));
+      setStatusMessage(appI18n.bundleLauncher.feedback.opened);
+    } catch (error) {
+      console.error('Failed to open launch target', error);
+      setStatusMessage(appI18n.bundleLauncher.feedback.openFailed);
+      throw error;
+    } finally {
+      setOpeningTargetId(null);
     }
-  }, [
-    remoteCatalog.entries,
-    remoteCatalog.remoteUrl,
-    remoteCatalog.source,
-    remoteCatalog.status,
-    remoteCatalogEntries,
-    resolvedStartupTarget?.bundleId,
-    resolvedStartupTarget?.surfaceId,
-    stagedBundles.length,
-    stagedBundlesLoaded,
-    startupTargetLoaded,
-  ]);
+  }
+
+  async function handleCheckUpdates() {
+    if (!supportsBundleUpdates || checkingForUpdates) {
+      return;
+    }
+
+    setCheckingForUpdates(true);
+    setStatusMessage(null);
+
+    try {
+      await refreshLibraryData({preferNetwork: true});
+      setStatusMessage(appI18n.bundleLauncher.feedback.checked);
+    } catch (error) {
+      console.error('Failed to refresh bundle library', error);
+      setStatusMessage(appI18n.bundleLauncher.feedback.checkFailed);
+    } finally {
+      setCheckingForUpdates(false);
+    }
+  }
+
+  async function handlePrimaryAction(entry: BundleLibraryEntry) {
+    if (entry.primaryActionKind === 'none') {
+      return;
+    }
+
+    if (entry.primaryActionKind === 'open') {
+      if (!entry.defaultOpenTarget) {
+        return;
+      }
+
+      await openLaunchTarget(entry.defaultOpenTarget);
+      return;
+    }
+
+    if (!supportsBundleUpdates) {
+      return;
+    }
+
+    setActingBundleId(entry.bundleId);
+    setStatusMessage(null);
+
+    try {
+      const result = await runBundleUpdate(entry.bundleId);
+      await refreshLibraryData();
+      if (result.status === 'updated') {
+        setStatusMessage(
+          entry.primaryActionKind === 'install'
+            ? appI18n.bundleLauncher.feedback.installed
+            : appI18n.bundleLauncher.feedback.updated,
+        );
+      } else if (result.status === 'failed') {
+        setStatusMessage(
+          result.errorMessage ?? appI18n.bundleLauncher.feedback.updateFailed,
+        );
+      } else {
+        setStatusMessage(appI18n.bundleLauncher.feedback.checked);
+      }
+    } catch (error) {
+      console.error('Failed to run bundle update', error);
+      setStatusMessage(appI18n.bundleLauncher.feedback.updateFailed);
+    } finally {
+      setActingBundleId(null);
+    }
+  }
 
   async function handleSaveStartupTarget() {
-    if (!selectedTarget || savingStartupTarget) {
+    if (!selectedEntry?.selectedStartupTarget || savingStartupTarget) {
       return;
     }
 
@@ -662,26 +783,25 @@ export function BundleLauncherScreen({
 
     try {
       const nextStartupTarget: CompanionStartupTarget = {
-        surfaceId: selectedTarget.surfaceId,
-        bundleId: selectedTarget.bundleId,
-        policy: selectedTarget.policy,
-        presentation: selectedTarget.presentation,
+        surfaceId: selectedEntry.selectedStartupTarget.surfaceId,
+        bundleId: selectedEntry.selectedStartupTarget.bundleId,
+        policy: selectedEntry.selectedStartupTarget.policy,
+        presentation: selectedEntry.selectedStartupTarget.presentation,
       };
       await saveStartupTarget(nextStartupTarget);
-      setStatusMessage(appI18n.bundleLauncher.status.saved);
+      setStatusMessage(appI18n.bundleLauncher.feedback.saved);
     } catch (error) {
       console.error('Failed to save startup target', error);
-      setStatusMessage(appI18n.bundleLauncher.status.saveFailed);
+      setStatusMessage(appI18n.bundleLauncher.feedback.saveFailed);
     }
   }
 
-  async function handleOpenSelectedTarget() {
-    if (!selectedTarget) {
-      return;
-    }
-
-    await openTarget(selectedTarget);
-  }
+  const selectedTargetTitle = selectedEntry?.selectedStartupTarget
+    ? formatLaunchTargetTitle(selectedEntry.selectedStartupTarget)
+    : null;
+  const selectedEntryCanOpen = selectedEntry?.defaultOpenTarget
+    ? bundleAvailability[selectedEntry.defaultOpenTarget.bundleId] ?? true
+    : false;
 
   return (
     <View style={styles.screen}>
@@ -690,295 +810,349 @@ export function BundleLauncherScreen({
           eyebrow={appI18n.bundleLauncher.frame.eyebrow}
           title={appI18n.bundleLauncher.frame.title}
           description={appI18n.bundleLauncher.frame.description}>
-          <Stack>
-            <SectionCard
-              title={appI18n.bundleLauncher.sections.startupTargetTitle}
-              description={appI18n.bundleLauncher.sections.startupTargetDescription}>
-              <View style={styles.choiceGrid}>
-                {availableLaunchTargets.map(target => (
-                  <ChoiceChip
-                    key={target.targetId}
-                    label={target.title}
-                    detail={target.description}
-                    active={selectedTarget?.targetId === target.targetId}
-                    activeBadgeLabel={appI18n.common.choiceStatus.selected}
-                    inactiveBadgeLabel={appI18n.common.choiceStatus.available}
+          <Stack style={styles.stack}>
+            <View style={styles.serviceBar}>
+              <View style={styles.serviceCopy}>
+                <Text style={styles.serviceLabel}>
+                  {appI18n.bundleLauncher.service.label}
+                </Text>
+                <Text style={styles.serviceValue}>{servicePresentation.detail}</Text>
+              </View>
+              <View style={styles.serviceActions}>
+                <SignalPill
+                  label={servicePresentation.label}
+                  tone={servicePresentation.tone}
+                  size="sm"
+                />
+                {supportsBundleUpdates ? (
+                  <ActionButton
+                    label={
+                      checkingForUpdates
+                        ? appI18n.bundleLauncher.actions.checking
+                        : appI18n.bundleLauncher.actions.check
+                    }
                     onPress={() => {
-                      setSelectedTargetId(target.targetId);
-                      setStatusMessage(null);
+                      void handleCheckUpdates();
                     }}
+                    disabled={checkingForUpdates}
                   />
-                ))}
-              </View>
-            </SectionCard>
-
-            <SectionCard
-              title={appI18n.bundleLauncher.sections.remoteCatalogTitle}
-              description={appI18n.bundleLauncher.sections.remoteCatalogDescription}>
-              <View style={styles.remoteCatalogSummary}>
-                <View style={styles.summaryHeader}>
-                  <SignalPill
-                    label={remoteCatalogStatus.label}
-                    tone={remoteCatalogStatus.tone}
-                    size="sm"
-                  />
-                  <Text style={styles.remoteCatalogTitleText}>
-                    {remoteCatalog.remoteUrl ??
-                      appI18n.bundleLauncher.remoteCatalog.noRemoteUrl}
-                  </Text>
-                </View>
-
-                {remoteCatalog.status === 'unavailable' ? (
-                  remoteCatalogEntries.length === 0 ? (
-                    <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyUnavailable}</MutedText>
-                  ) : null
-                ) : null}
-                {remoteCatalog.status === 'error' ? (
-                  <Text style={styles.remoteCatalogError}>
-                    {remoteCatalog.errorMessage ??
-                      appI18n.bundleLauncher.remoteCatalog.errorFallback}
-                  </Text>
-                ) : null}
-                {remoteCatalog.status === 'ready' && remoteCatalogEntries.length === 0 ? (
-                  <MutedText>{appI18n.bundleLauncher.remoteCatalog.emptyReady}</MutedText>
                 ) : null}
               </View>
+            </View>
 
-              {remoteCatalogEntries.length > 0 ? (
-                <View style={styles.remoteBundleList}>
-                  {remoteCatalogEntries.map(entry => (
-                    <View key={entry.bundleId} style={styles.remoteBundleCard}>
-                      <View style={styles.remoteBundleHeader}>
-                        <Text style={styles.remoteBundleTitle}>
-                          {entry.bundleId === companionBundleIds.main
-                            ? appI18n.bundleLauncher.remoteCatalog.mainBundleTitle
-                            : entry.bundleId}
-                        </Text>
-                        <SignalPill
-                          label={
-                            entry.localState === 'bundled'
-                              ? appI18n.bundleLauncher.remoteCatalog.localState.bundled
-                              : entry.localState === 'staged'
-                                ? appI18n.bundleLauncher.remoteCatalog.localState.staged
-                                : appI18n.bundleLauncher.remoteCatalog.localState.remoteOnly
-                          }
-                          tone={
-                            entry.localState === 'bundled'
-                              ? 'support'
-                              : entry.localState === 'staged'
-                                ? 'warning'
-                                : 'neutral'
-                          }
-                          size="sm"
-                        />
-                      </View>
+            <View
+              style={[
+                styles.libraryShell,
+                isCompactLayout ? styles.libraryShellCompact : null,
+              ]}>
+              <View
+                style={[
+                  styles.listPane,
+                  isCompactLayout ? styles.listPaneCompact : null,
+                ]}>
+                <Text style={styles.paneTitle}>
+                  {appI18n.bundleLauncher.sections.libraryTitle}
+                </Text>
+                <Text style={styles.paneDescription}>
+                  {appI18n.bundleLauncher.sections.libraryDescription}
+                </Text>
 
-                      <MutedText>
-                        {appI18n.bundleLauncher.labels.bundleId}
-                        {entry.bundleId}
-                      </MutedText>
-                      <MutedText>
-                        {appI18n.bundleLauncher.remoteCatalog.labels.latestVersion}
-                        {entry.latestVersion ??
-                          appI18n.bundleLauncher.remoteCatalog.latestVersionUnknown}
-                      </MutedText>
-                      {entry.localState === 'staged' ? (
-                        <MutedText>
-                          {appI18n.bundleLauncher.remoteCatalog.labels.localVersion}
-                          {entry.localVersion ?? appI18n.common.unknown}
-                        </MutedText>
-                      ) : null}
-                      <MutedText>
-                        {appI18n.bundleLauncher.remoteCatalog.labels.channels}
-                        {formatRemoteChannels(entry.channels)}
-                      </MutedText>
-                      {entry.launchTargets.length > 0 ? (
-                        <MutedText>
-                          {appI18n.bundleLauncher.remoteCatalog.labels.launchTargets}
-                          {entry.launchTargets.map(target => target.title).join(' / ')}
-                        </MutedText>
-                      ) : null}
-                      {entry.localState === 'staged' ? (
-                        <MutedText>
-                          {appI18n.bundleLauncher.remoteCatalog.labels.localSourceKind}
-                          {formatStagedSourceKind(entry.localSourceKind)}
-                        </MutedText>
-                      ) : null}
-                      {entry.localState === 'staged' &&
-                      entry.localProvenanceKind ? (
-                        <MutedText>
-                          {appI18n.bundleLauncher.remoteCatalog.labels.localProvenanceKind}
-                          {formatStagedProvenanceKind(entry.localProvenanceKind)}
-                        </MutedText>
-                      ) : null}
-                      {entry.localState === 'staged' &&
-                      entry.localProvenanceStatus ? (
-                        <MutedText>
-                          {appI18n.bundleLauncher.remoteCatalog.labels.localProvenanceStatus}
-                          {formatStagedProvenanceStatus(entry.localProvenanceStatus)}
-                        </MutedText>
-                      ) : null}
-                      {entry.localState === 'staged' &&
-                      entry.localProvenanceStagedAt ? (
-                        <MutedText>
-                          {appI18n.bundleLauncher.remoteCatalog.labels.localProvenanceStagedAt}
-                          {formatIsoTimestamp(entry.localProvenanceStagedAt)}
-                        </MutedText>
-                      ) : null}
-                      {entry.rolloutPercent !== null ? (
-                        <MutedText>
-                          {appI18n.bundleLauncher.remoteCatalog.labels.rolloutPercent}
-                          {entry.rolloutPercent}%
-                        </MutedText>
-                      ) : null}
-                      {entry.discoverySource === 'local-only' ? (
-                        <MutedText>
-                          {appI18n.bundleLauncher.remoteCatalog.localOnlyDescription}
-                        </MutedText>
-                      ) : null}
+                {groupedLibraryEntries.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateTitle}>
+                      {appI18n.bundleLauncher.empty.title}
+                    </Text>
+                    <Text style={styles.emptyStateDescription}>
+                      {appI18n.bundleLauncher.empty.description}
+                    </Text>
+                  </View>
+                ) : (
+                  groupedLibraryEntries.map(section => (
+                    <View key={section.groupId} style={styles.groupSection}>
+                      <Text style={styles.groupTitle}>{section.title}</Text>
+                      <View style={styles.groupList}>
+                        {section.entries.map(entry => {
+                          const rowBusy = entry.isBusy;
+                          const rowOpenBusy =
+                            openingTargetId === entry.defaultOpenTarget?.targetId;
+                          const rowSelected = selectedEntry?.bundleId === entry.bundleId;
+                          const rowCanOpen = entry.defaultOpenTarget
+                            ? bundleAvailability[entry.defaultOpenTarget.bundleId] ?? true
+                            : false;
 
-                      <View style={styles.remoteBundleMetaRow}>
-                        {entry.isSavedStartupTarget ? (
-                          <SignalPill
-                            label={appI18n.bundleLauncher.remoteCatalog.savedTarget}
-                            tone="accent"
-                            size="sm"
-                          />
-                        ) : null}
-                        {entry.localState === 'staged' &&
-                        entry.localProvenanceKind ? (
-                          <SignalPill
-                            label={formatStagedProvenanceBadge(
-                              entry.localProvenanceKind,
-                            )}
-                            tone={
-                              entry.localProvenanceKind === 'native-ota-applied'
-                                ? 'support'
-                                : 'neutral'
-                            }
-                            size="sm"
-                          />
-                        ) : null}
-                        {entry.localState === 'staged' &&
-                        entry.localVersion &&
-                        entry.latestVersion &&
-                        entry.localVersion !== entry.latestVersion ? (
-                          <SignalPill
-                            label={appI18n.bundleLauncher.remoteCatalog.versionStatus.differs}
-                            tone="warning"
-                            size="sm"
-                          />
-                        ) : null}
-                        {entry.discoverySource === 'local-only' ? (
-                          <SignalPill
-                            label={appI18n.bundleLauncher.remoteCatalog.discoverySource.localOnly}
-                            tone="warning"
-                            size="sm"
-                          />
-                        ) : null}
-                        {entry.launchTargets.length === 0 ? (
-                          <SignalPill
-                            label={appI18n.bundleLauncher.remoteCatalog.noPublicLaunchTarget}
-                            tone="neutral"
-                            size="sm"
-                          />
-                        ) : null}
+                          return (
+                            <Pressable
+                              key={entry.bundleId}
+                              onPress={() => {
+                                setSelectedBundleId(entry.bundleId);
+                                setStatusMessage(null);
+                              }}
+                              style={[
+                                styles.appRow,
+                                rowSelected ? styles.appRowSelected : null,
+                              ]}>
+                              <View style={styles.appRowIdentity}>
+                                <View style={styles.appIcon}>
+                                  <Text style={styles.appIconLabel}>{entry.monogram}</Text>
+                                </View>
+                                <View style={styles.appMeta}>
+                                  <View style={styles.appMetaHeader}>
+                                    <Text style={styles.appName}>{entry.displayName}</Text>
+                                    {entry.isDefaultStartupApp ? (
+                                      <SignalPill
+                                        label={appI18n.bundleLauncher.library.defaultStartup}
+                                        tone="accent"
+                                        size="sm"
+                                      />
+                                    ) : null}
+                                  </View>
+                                  <Text style={styles.appSubtitle}>{entry.subtitle}</Text>
+                                </View>
+                              </View>
+
+                              <View style={styles.appRowSummary}>
+                                <SignalPill
+                                  label={entry.stateLabel}
+                                  tone={entry.stateTone}
+                                  size="sm"
+                                />
+                                <Text style={styles.appVersionSummary}>
+                                  {entry.versionSummary}
+                                </Text>
+                              </View>
+
+                              <View style={styles.appRowAction}>
+                                {entry.primaryActionLabel ? (
+                                  <ActionButton
+                                    label={
+                                      rowBusy
+                                        ? entry.primaryActionKind === 'install'
+                                          ? appI18n.bundleLauncher.actions.installing
+                                          : appI18n.bundleLauncher.actions.updating
+                                        : rowOpenBusy
+                                          ? appI18n.bundleLauncher.actions.opening
+                                          : entry.primaryActionLabel
+                                    }
+                                    onPress={() => {
+                                      void handlePrimaryAction(entry);
+                                    }}
+                                    disabled={
+                                      rowBusy ||
+                                      rowOpenBusy ||
+                                      (entry.primaryActionKind === 'open' && !rowCanOpen)
+                                    }
+                                    tone={entry.primaryActionTone}
+                                  />
+                                ) : (
+                                  <MutedText>
+                                    {appI18n.bundleLauncher.library.readOnlyHint}
+                                  </MutedText>
+                                )}
+                              </View>
+                            </Pressable>
+                          );
+                        })}
                       </View>
                     </View>
-                  ))}
-                </View>
-              ) : null}
-            </SectionCard>
+                  ))
+                )}
+              </View>
 
-            <SectionCard
-              title={appI18n.bundleLauncher.sections.summaryTitle}
-              description={appI18n.bundleLauncher.sections.summaryDescription}>
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryHeader}>
-                  <SignalPill
-                    label={
-                      startupTargetLoaded
-                        ? savedTargetOutsideChoices
-                          ? appI18n.bundleLauncher.status.externalSavedTarget
-                          : hasUnsavedSelection
-                            ? appI18n.bundleLauncher.status.pending
-                            : appI18n.bundleLauncher.status.synced
-                        : appI18n.bundleLauncher.status.loading
-                    }
-                    tone={
-                      startupTargetLoaded
-                        ? savedTargetOutsideChoices
-                          ? 'warning'
-                          : hasUnsavedSelection
-                            ? 'warning'
-                            : 'support'
-                        : 'neutral'
-                    }
-                    size="sm"
-                  />
-                  <Text style={styles.summaryTitleText}>{selectedTarget?.title}</Text>
-                </View>
-                <MutedText>
-                  {appI18n.bundleLauncher.labels.bundleId}
-                  {selectedTarget?.bundleId ?? defaultCompanionStartupTarget.bundleId}
-                </MutedText>
-                <MutedText>
-                  {appI18n.bundleLauncher.labels.surfaceId}
-                  {selectedTarget?.surfaceId ?? defaultCompanionStartupTarget.surfaceId}
-                </MutedText>
-                <MutedText>
-                  {appI18n.bundleLauncher.labels.windowId}
-                  {currentWindowId ?? appI18n.common.unknown}
-                </MutedText>
-                <MutedText>
-                  {appI18n.bundleLauncher.labels.savedTarget}
-                  {savedTargetLabel}
-                </MutedText>
-                <MutedText>
-                  {appI18n.bundleLauncher.labels.savedBundleId}
-                  {effectiveSavedStartupTarget.bundleId}
-                </MutedText>
-                <MutedText>
-                  {appI18n.bundleLauncher.labels.savedSurfaceId}
-                  {effectiveSavedStartupTarget.surfaceId}
-                </MutedText>
-                {savedTargetOutsideChoices ? (
-                  <Text style={styles.summaryWarning}>
-                    {appI18n.bundleLauncher.status.externalSavedTargetDescription}
-                  </Text>
-                ) : null}
-                {statusMessage ? (
-                  <Text style={styles.statusMessage}>{statusMessage}</Text>
-                ) : null}
+              <View
+                style={[
+                  styles.detailPane,
+                  isCompactLayout ? styles.detailPaneCompact : null,
+                ]}>
+                <Text style={styles.paneTitle}>
+                  {appI18n.bundleLauncher.sections.detailTitle}
+                </Text>
+                <Text style={styles.paneDescription}>
+                  {appI18n.bundleLauncher.sections.detailDescription}
+                </Text>
+
+                {selectedEntry ? (
+                  <View style={styles.detailCard}>
+                    <View style={styles.detailHeader}>
+                      <View style={styles.detailHeaderCopy}>
+                        <Text style={styles.detailTitle}>{selectedEntry.displayName}</Text>
+                        <Text style={styles.detailSubtitle}>{selectedEntry.subtitle}</Text>
+                      </View>
+                      <SignalPill
+                        label={selectedEntry.stateLabel}
+                        tone={selectedEntry.stateTone}
+                        size="sm"
+                      />
+                    </View>
+
+                    <View style={styles.detailHighlights}>
+                      <DetailField
+                        label={appI18n.bundleLauncher.details.installedVersion}
+                        value={
+                          selectedEntry.currentVersion ??
+                          appI18n.bundleLauncher.details.values.notInstalled
+                        }
+                      />
+                      <DetailField
+                        label={appI18n.bundleLauncher.details.availableVersion}
+                        value={
+                          selectedEntry.latestVersion ??
+                          appI18n.bundleLauncher.details.values.notAvailable
+                        }
+                      />
+                      <DetailField
+                        label={appI18n.bundleLauncher.details.selectedEntry}
+                        value={
+                          selectedTargetTitle ??
+                          appI18n.bundleLauncher.details.values.none
+                        }
+                      />
+                    </View>
+
+                    {selectedEntry.detailNote ? (
+                      <Text style={styles.detailNote}>{selectedEntry.detailNote}</Text>
+                    ) : null}
+                    {statusMessage ? (
+                      <Text style={styles.statusMessage}>{statusMessage}</Text>
+                    ) : null}
+
+                    <View style={styles.detailActions}>
+                      {selectedEntry.primaryActionLabel ? (
+                        <ActionButton
+                          label={
+                            actingBundleId === selectedEntry.bundleId
+                              ? selectedEntry.primaryActionKind === 'install'
+                                ? appI18n.bundleLauncher.actions.installing
+                                : selectedEntry.primaryActionKind === 'update'
+                                  ? appI18n.bundleLauncher.actions.updating
+                                  : appI18n.bundleLauncher.actions.opening
+                              : selectedEntry.primaryActionLabel
+                          }
+                          onPress={() => {
+                            void handlePrimaryAction(selectedEntry);
+                          }}
+                          disabled={
+                            actingBundleId === selectedEntry.bundleId ||
+                            openingTargetId === selectedEntry.defaultOpenTarget?.targetId ||
+                            (selectedEntry.primaryActionKind === 'open' &&
+                              !selectedEntryCanOpen)
+                          }
+                          tone={selectedEntry.primaryActionTone}
+                        />
+                      ) : null}
+                      <ActionButton
+                        label={
+                          savingStartupTarget
+                            ? appI18n.bundleLauncher.actions.savingDefault
+                            : appI18n.bundleLauncher.actions.setDefault
+                        }
+                        onPress={() => {
+                          void handleSaveStartupTarget();
+                        }}
+                        disabled={
+                          savingStartupTarget || !selectedEntry.selectedStartupTarget
+                        }
+                        tone="ghost"
+                      />
+                    </View>
+
+                    <DisclosureSection
+                      title={appI18n.bundleLauncher.details.startupPreferencesTitle}
+                      description={
+                        appI18n.bundleLauncher.details.startupPreferencesDescription
+                      }
+                      expanded={startupPreferencesExpanded}
+                      onToggle={() => {
+                        setStartupPreferencesExpanded(previous => !previous);
+                      }}>
+                      <View style={styles.choiceGrid}>
+                        {selectedEntry.launchTargets.map(target => (
+                          <ChoiceChip
+                            key={target.targetId}
+                            label={formatLaunchTargetTitle(target)}
+                            detail={target.description}
+                            active={
+                              selectedEntry.selectedStartupTarget?.targetId === target.targetId
+                            }
+                            activeBadgeLabel={appI18n.common.choiceStatus.selected}
+                            inactiveBadgeLabel={appI18n.common.choiceStatus.available}
+                            onPress={() => {
+                              setStartupTargetSelections(previous => ({
+                                ...previous,
+                                [selectedEntry.bundleId]: target.targetId,
+                              }));
+                              setStatusMessage(null);
+                            }}
+                          />
+                        ))}
+                      </View>
+                    </DisclosureSection>
+
+                    <DisclosureSection
+                      title={appI18n.bundleLauncher.details.advancedTitle}
+                      description={appI18n.bundleLauncher.details.advancedDescription}
+                      expanded={advancedDetailsExpanded}
+                      onToggle={() => {
+                        setAdvancedDetailsExpanded(previous => !previous);
+                      }}>
+                      <View style={styles.advancedGrid}>
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.bundleId}
+                          value={selectedEntry.bundleId}
+                        />
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.channel}
+                          value={
+                            selectedEntry.channel ??
+                            appI18n.bundleLauncher.details.values.none
+                          }
+                        />
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.rollout}
+                          value={
+                            selectedEntry.rolloutPercent !== null
+                              ? `${selectedEntry.rolloutPercent}%`
+                              : appI18n.bundleLauncher.details.values.fullRollout
+                          }
+                        />
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.localSource}
+                          value={formatSourceKind(selectedEntry.localSourceKind)}
+                        />
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.lastOta}
+                          value={formatProvenanceStatus(selectedEntry.localProvenanceStatus)}
+                        />
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.stagedAt}
+                          value={formatIsoTimestamp(selectedEntry.localProvenanceStagedAt)}
+                        />
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.provenance}
+                          value={formatProvenanceKind(selectedEntry.localProvenanceKind)}
+                        />
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.channels}
+                          value={formatChannels(selectedEntry.channels)}
+                        />
+                        <DetailField
+                          label={appI18n.bundleLauncher.details.currentWindow}
+                          value={currentWindowId ?? appI18n.common.unknown}
+                        />
+                      </View>
+                    </DisclosureSection>
+                  </View>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateTitle}>
+                      {appI18n.bundleLauncher.empty.title}
+                    </Text>
+                    <Text style={styles.emptyStateDescription}>
+                      {appI18n.bundleLauncher.empty.description}
+                    </Text>
+                  </View>
+                )}
               </View>
-              <View style={styles.actionRow}>
-                <ActionButton
-                  label={
-                    savingStartupTarget
-                      ? appI18n.bundleLauncher.actions.saveBusy
-                      : appI18n.bundleLauncher.actions.save
-                  }
-                  onPress={() => {
-                    void handleSaveStartupTarget();
-                  }}
-                  disabled={
-                    !startupTargetLoaded || savingStartupTarget || !selectedTarget
-                  }
-                  tone="ghost"
-                />
-                <ActionButton
-                  label={
-                    openingTargetId === selectedTarget?.targetId
-                      ? appI18n.bundleLauncher.actions.openBusy
-                      : appI18n.bundleLauncher.actions.open
-                  }
-                  onPress={() => {
-                    void handleOpenSelectedTarget();
-                  }}
-                  disabled={!selectedTarget || openingTargetId !== null}
-                />
-              </View>
-            </SectionCard>
+            </View>
           </Stack>
         </AppFrame>
       </ScrollView>
@@ -998,84 +1172,266 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: appSpacing.xl,
   },
-  choiceGrid: {
+  stack: {
+    gap: appSpacing.lg,
+  },
+  serviceBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: appSpacing.lg,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: appPalette.border,
+    backgroundColor: appPalette.panel,
+    paddingHorizontal: appSpacing.lg,
+    paddingVertical: appSpacing.md,
+  },
+  serviceCopy: {
+    flexGrow: 1,
+    gap: appSpacing.xs,
+  },
+  serviceLabel: {
+    color: appPalette.inkSoft,
+    ...appTypography.captionStrong,
+  },
+  serviceValue: {
+    color: appPalette.ink,
+    ...appTypography.body,
+  },
+  serviceActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: appSpacing.sm,
+  },
+  libraryShell: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: appSpacing.lg,
+  },
+  libraryShellCompact: {
+    flexDirection: 'column',
+  },
+  listPane: {
+    flex: 1.1,
+    gap: appSpacing.md,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: appPalette.border,
+    backgroundColor: appPalette.panel,
+    paddingHorizontal: appSpacing.lg,
+    paddingVertical: appSpacing.lg,
+  },
+  listPaneCompact: {
+    width: '100%',
+  },
+  detailPane: {
+    flex: 0.9,
+    gap: appSpacing.md,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: appPalette.border,
+    backgroundColor: appPalette.panel,
+    paddingHorizontal: appSpacing.lg,
+    paddingVertical: appSpacing.lg,
+  },
+  detailPaneCompact: {
+    width: '100%',
+  },
+  paneTitle: {
+    color: appPalette.ink,
+    ...appTypography.sectionTitle,
+  },
+  paneDescription: {
+    color: appPalette.inkMuted,
+    ...appTypography.body,
+  },
+  groupSection: {
+    gap: appSpacing.sm,
+  },
+  groupTitle: {
+    color: appPalette.inkSoft,
+    ...appTypography.captionStrong,
+  },
+  groupList: {
+    gap: appSpacing.sm,
+  },
+  appRow: {
+    gap: appSpacing.md,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: appPalette.border,
+    backgroundColor: appPalette.canvas,
+    paddingHorizontal: appSpacing.md,
+    paddingVertical: appSpacing.md,
+  },
+  appRowSelected: {
+    borderColor: appPalette.accent,
+    backgroundColor: '#f6e7de',
+  },
+  appRowIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: appSpacing.md,
   },
-  summaryCard: {
+  appIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f2d6c8',
+  },
+  appIconLabel: {
+    color: '#6e3b2e',
+    ...appTypography.bodyStrong,
+  },
+  appMeta: {
+    flex: 1,
+    gap: appSpacing.xs,
+  },
+  appMetaHeader: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: appSpacing.sm,
+  },
+  appName: {
+    flexShrink: 1,
+    color: appPalette.ink,
+    ...appTypography.bodyStrong,
+  },
+  appSubtitle: {
+    color: appPalette.inkMuted,
+    ...appTypography.caption,
+  },
+  appRowSummary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: appSpacing.sm,
+  },
+  appVersionSummary: {
+    color: appPalette.inkSoft,
+    ...appTypography.caption,
+  },
+  appRowAction: {
+    alignItems: 'flex-start',
+  },
+  emptyState: {
     gap: appSpacing.sm,
     borderRadius: appRadius.control,
     borderWidth: 1,
     borderColor: appPalette.border,
     backgroundColor: appPalette.canvas,
     paddingHorizontal: appSpacing.lg,
-    paddingVertical: appSpacing.md,
+    paddingVertical: appSpacing.lg,
   },
-  summaryHeader: {
+  emptyStateTitle: {
+    color: appPalette.ink,
+    ...appTypography.bodyStrong,
+  },
+  emptyStateDescription: {
+    color: appPalette.inkMuted,
+    ...appTypography.body,
+  },
+  detailCard: {
+    gap: appSpacing.md,
+  },
+  detailHeader: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: appSpacing.sm,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: appSpacing.md,
   },
-  summaryTitleText: {
+  detailHeaderCopy: {
+    flex: 1,
+    gap: appSpacing.xs,
+  },
+  detailTitle: {
     color: appPalette.ink,
-    ...appTypography.sectionTitle,
-    flexShrink: 1,
+    ...appTypography.title,
   },
-  summaryWarning: {
-    color: '#b19243',
+  detailSubtitle: {
+    color: appPalette.inkMuted,
+    ...appTypography.body,
+  },
+  detailHighlights: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: appSpacing.md,
+  },
+  detailField: {
+    flexGrow: 1,
+    minWidth: 180,
+    gap: appSpacing.xs,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: appPalette.border,
+    backgroundColor: appPalette.canvas,
+    paddingHorizontal: appSpacing.md,
+    paddingVertical: appSpacing.sm,
+  },
+  detailFieldLabel: {
+    color: appPalette.inkSoft,
+    ...appTypography.captionStrong,
+  },
+  detailFieldValue: {
+    color: appPalette.ink,
+    ...appTypography.body,
+  },
+  detailNote: {
+    color: '#8c5d2b',
     ...appTypography.bodyStrong,
   },
   statusMessage: {
     color: appPalette.accent,
     ...appTypography.bodyStrong,
   },
-  actionRow: {
+  detailActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: appSpacing.md,
   },
-  remoteCatalogSummary: {
+  disclosureShell: {
     gap: appSpacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: appPalette.border,
+    paddingTop: appSpacing.md,
   },
-  remoteCatalogTitleText: {
-    color: appPalette.inkMuted,
-    ...appTypography.caption,
-    flexShrink: 1,
-  },
-  remoteCatalogError: {
-    color: '#8c4022',
-    ...appTypography.bodyStrong,
-  },
-  remoteBundleList: {
-    gap: appSpacing.md,
-  },
-  remoteBundleCard: {
-    gap: appSpacing.sm,
-    borderRadius: appRadius.control,
-    borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.canvas,
-    paddingHorizontal: appSpacing.lg,
-    paddingVertical: appSpacing.md,
-  },
-  remoteBundleHeader: {
+  disclosureHeader: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: appSpacing.sm,
+    gap: appSpacing.md,
   },
-  remoteBundleTitle: {
+  disclosureHeaderCopy: {
+    flex: 1,
+    gap: appSpacing.xs,
+  },
+  disclosureTitle: {
     color: appPalette.ink,
     ...appTypography.bodyStrong,
-    flexGrow: 1,
-    flexShrink: 1,
   },
-  remoteBundleMetaRow: {
+  disclosureDescription: {
+    color: appPalette.inkMuted,
+    ...appTypography.caption,
+  },
+  disclosureBody: {
+    gap: appSpacing.md,
+  },
+  choiceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: appSpacing.sm,
+    gap: appSpacing.md,
+  },
+  advancedGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: appSpacing.md,
   },
 });

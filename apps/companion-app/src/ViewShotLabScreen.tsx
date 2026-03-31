@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
   Image,
   NativeModules,
@@ -35,11 +35,12 @@ import {
   SignalPill,
   Stack,
   StatusBadge,
-  appPalette,
+  useTheme,
   appRadius,
   appSpacing,
   appTypography,
 } from '@opapp/ui-native-primitives';
+import type { AppPalette } from '@opapp/ui-native-primitives';
 
 type CaptureActionId =
   | 'capture-ref-tmpfile'
@@ -151,6 +152,8 @@ function formatUpdatedAt(value: string | null) {
 }
 
 export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {}) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => createScreenStyles(palette), [palette]);
   const captureTargetRef = useRef<View>(null);
   const viewShotRef = useRef<ViewShotHandle>(null);
   const managedTmpfileRef = useRef<string | null>(null);
@@ -1030,10 +1033,11 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
   );
 }
 
-const styles = StyleSheet.create({
+function createScreenStyles(palette: AppPalette) {
+  return StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: appPalette.canvas,
+    backgroundColor: palette.canvas,
   },
   scroll: {
     flex: 1,
@@ -1051,8 +1055,8 @@ const styles = StyleSheet.create({
     gap: 14,
     borderRadius: appRadius.hero,
     borderWidth: 1,
-    borderColor: '#c86c3f',
-    backgroundColor: '#fff8f0',
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoft,
     paddingHorizontal: 18,
     paddingVertical: 16,
   },
@@ -1063,18 +1067,18 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   captureEyebrow: {
-    color: '#8e3f1d',
+    color: palette.accent,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   captureTitle: {
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.title,
   },
   captureDescription: {
-    color: appPalette.inkMuted,
+    color: palette.inkMuted,
     ...appTypography.body,
   },
   captureStripeRow: {
@@ -1089,16 +1093,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   captureStripeAccent: {
-    backgroundColor: '#f2d3bf',
+    backgroundColor: palette.accentSoft,
   },
   captureStripeSupport: {
-    backgroundColor: '#d8e7da',
+    backgroundColor: palette.supportSoft,
   },
   captureStripeSlate: {
-    backgroundColor: '#d9e4ea',
+    backgroundColor: palette.panelEmphasis,
   },
   captureStripeLabel: {
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.bodyStrong,
   },
   captureSignalRow: {
@@ -1109,12 +1113,12 @@ const styles = StyleSheet.create({
   captureFootnote: {
     gap: 4,
     borderRadius: appRadius.control,
-    backgroundColor: '#f4ebde',
+    backgroundColor: palette.canvasShade,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   captureFootnoteLabel: {
-    color: '#6b5649',
+    color: palette.inkMuted,
     ...appTypography.captionStrong,
   },
   actionRow: {
@@ -1131,35 +1135,36 @@ const styles = StyleSheet.create({
     minHeight: 260,
     borderRadius: appRadius.hero,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.panel,
+    borderColor: palette.border,
+    backgroundColor: palette.panel,
     paddingHorizontal: 14,
     paddingVertical: 14,
     justifyContent: 'center',
     overflow: 'hidden',
   },
   previewImage: {
-    width: '100%',
+    width: '100%' as const,
     height: 360,
   },
   resultTextBlock: {
     gap: 6,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.panel,
+    borderColor: palette.border,
+    backgroundColor: palette.panel,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   resultLabel: {
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.captionBold,
   },
   resultValue: {
-    color: appPalette.inkMuted,
+    color: palette.inkMuted,
     ...appTypography.body,
   },
   noteList: {
     gap: 8,
   },
-});
+  });
+}

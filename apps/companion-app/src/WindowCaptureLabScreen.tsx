@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
   Image,
   Platform,
@@ -35,11 +35,12 @@ import {
   SectionCard,
   SignalPill,
   Stack,
-  appPalette,
+  useTheme,
   appRadius,
   appSpacing,
   appTypography,
 } from '@opapp/ui-native-primitives';
+import type { AppPalette } from '@opapp/ui-native-primitives';
 
 type WindowCaptureLabScreenProps = {
   devSmokeScenario?: string;
@@ -328,6 +329,8 @@ function upsertWindowMatch(
 export function WindowCaptureLabScreen({
   devSmokeScenario,
 }: WindowCaptureLabScreenProps = {}) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => createScreenStyles(palette), [palette]);
   const busyActionRef = useRef<BusyActionId>(null);
   const devSmokeRanRef = useRef(false);
   const openSurface = useOpenSurface();
@@ -822,7 +825,7 @@ export function WindowCaptureLabScreen({
                         placeholder={
                           appI18n.windowCaptureLab.fields.handle.placeholder
                         }
-                        placeholderTextColor={appPalette.inkSoft}
+                        placeholderTextColor={palette.inkSoft}
                         style={styles.selectorInput}
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -843,7 +846,7 @@ export function WindowCaptureLabScreen({
                         placeholder={
                           appI18n.windowCaptureLab.fields.processName.placeholder
                         }
-                        placeholderTextColor={appPalette.inkSoft}
+                        placeholderTextColor={palette.inkSoft}
                         style={styles.selectorInput}
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -864,7 +867,7 @@ export function WindowCaptureLabScreen({
                         placeholder={
                           appI18n.windowCaptureLab.fields.titleContains.placeholder
                         }
-                        placeholderTextColor={appPalette.inkSoft}
+                        placeholderTextColor={palette.inkSoft}
                         style={styles.selectorInput}
                         autoCorrect={false}
                       />
@@ -884,7 +887,7 @@ export function WindowCaptureLabScreen({
                         placeholder={
                           appI18n.windowCaptureLab.fields.titleExact.placeholder
                         }
-                        placeholderTextColor={appPalette.inkSoft}
+                        placeholderTextColor={palette.inkSoft}
                         style={styles.selectorInput}
                         autoCorrect={false}
                       />
@@ -904,7 +907,7 @@ export function WindowCaptureLabScreen({
                         placeholder={
                           appI18n.windowCaptureLab.fields.className.placeholder
                         }
-                        placeholderTextColor={appPalette.inkSoft}
+                        placeholderTextColor={palette.inkSoft}
                         style={styles.selectorInput}
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -1259,10 +1262,11 @@ export function WindowCaptureLabScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createScreenStyles(palette: AppPalette) {
+  return StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: appPalette.canvas,
+    backgroundColor: palette.canvas,
   },
   scroll: {
     flex: 1,
@@ -1290,27 +1294,27 @@ const styles = StyleSheet.create({
     minWidth: 220,
     flexGrow: 1,
     gap: 6,
-    backgroundColor: appPalette.canvas,
+    backgroundColor: palette.canvas,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
+    borderColor: palette.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   selectorLabel: {
-    color: appPalette.accent,
+    color: palette.accent,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
   selectorInput: {
-    color: appPalette.ink,
+    color: palette.ink,
     minHeight: 40,
     borderRadius: appRadius.compact,
     borderWidth: 1,
-    borderColor: appPalette.borderStrong,
-    backgroundColor: appPalette.panel,
+    borderColor: palette.borderStrong,
+    backgroundColor: palette.panel,
     paddingHorizontal: 12,
     paddingVertical: 8,
     ...appTypography.body,
@@ -1322,10 +1326,10 @@ const styles = StyleSheet.create({
   },
   statusBlock: {
     gap: 6,
-    backgroundColor: appPalette.canvas,
+    backgroundColor: palette.canvas,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
+    borderColor: palette.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -1336,17 +1340,17 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.canvas,
+    borderColor: palette.border,
+    backgroundColor: palette.canvas,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   matchCardPinned: {
-    borderColor: appPalette.accent,
-    backgroundColor: appPalette.panel,
+    borderColor: palette.accent,
+    backgroundColor: palette.panel,
   },
   matchCardPressed: {
-    borderColor: appPalette.borderStrong,
+    borderColor: palette.borderStrong,
   },
   matchCardHeader: {
     flexDirection: 'row',
@@ -1357,7 +1361,7 @@ const styles = StyleSheet.create({
   matchCardTitle: {
     flex: 1,
     minWidth: 180,
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.bodyStrong,
   },
   matchBadgeRow: {
@@ -1371,24 +1375,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: appRadius.panel,
     borderWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.canvas,
+    borderColor: palette.border,
+    backgroundColor: palette.canvas,
     padding: appSpacing.md,
   },
   preview: {
-    width: '100%',
+    width: '100%' as const,
     height: 320,
     borderRadius: appRadius.panel,
   },
   resultLabel: {
-    color: appPalette.accent,
+    color: palette.accent,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   resultValue: {
-    color: appPalette.ink,
+    color: palette.ink,
     ...appTypography.body,
   },
-});
+  });
+}

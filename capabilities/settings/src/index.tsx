@@ -27,11 +27,12 @@ import {
   SectionCard,
   SignalPill,
   Stack,
-  appPalette,
+  useTheme,
   appRadius,
   appSpacing,
   appTypography,
 } from '@opapp/ui-native-primitives';
+import type { AppPalette } from '@opapp/ui-native-primitives';
 import {appI18n} from '@opapp/framework-i18n';
 
 const windowModeOptions: {
@@ -192,6 +193,8 @@ function buildSaveNotice(
 }
 
 export function SettingsScreen(props: SettingsScreenProps = {}) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => createScreenStyles(palette), [palette]);
   const [openingDetachedWindow, setOpeningDetachedWindow] = useState(false);
   const [returningInline, setReturningInline] = useState(false);
   const [openingMainTab, setOpeningMainTab] = useState(false);
@@ -732,10 +735,11 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
   );
 }
 
-const styles = StyleSheet.create({
+function createScreenStyles(palette: AppPalette) {
+  return StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: appPalette.canvas,
+    backgroundColor: palette.canvas,
   },
   scroll: {
     flex: 1,
@@ -748,7 +752,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   groupLabel: {
-    color: appPalette.ink,
+    color: palette.ink,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -765,25 +769,25 @@ const styles = StyleSheet.create({
   },
   statusBlock: {
     gap: 6,
-    backgroundColor: appPalette.canvas,
+    backgroundColor: palette.canvas,
     borderRadius: appRadius.control,
     borderWidth: 1,
-    borderColor: appPalette.border,
+    borderColor: palette.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   successText: {
-    color: appPalette.support,
+    color: palette.support,
     ...appTypography.bodyStrong,
   },
   errorText: {
-    color: appPalette.errorRed,
+    color: palette.errorRed,
     ...appTypography.bodyStrong,
   },
   footerShell: {
     borderTopWidth: 1,
-    borderColor: appPalette.border,
-    backgroundColor: appPalette.panel,
+    borderColor: palette.border,
+    backgroundColor: palette.panel,
     paddingHorizontal: 22,
     paddingTop: 14,
     paddingBottom: 16,
@@ -799,14 +803,14 @@ const styles = StyleSheet.create({
     gap: appSpacing.sm,
   },
   footerEyebrow: {
-    color: appPalette.accent,
+    color: palette.accent,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   footerStatus: {
-    color: appPalette.inkMuted,
+    color: palette.inkMuted,
     ...settingsTypographyExceptions.footerStatus,
   },
   footerActions: {
@@ -815,7 +819,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
-});
+  });
+}
 
 
 

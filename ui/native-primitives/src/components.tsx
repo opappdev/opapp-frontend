@@ -158,6 +158,7 @@ export function ChoiceChip({
   style?: StyleProp<ViewStyle>;
 }) {
   const { palette } = useTheme();
+  const [hovered, setHovered] = useState(false);
   const activationIdRef = useRef(0);
   const suppressPressForActivationRef = useRef<number | null>(null);
 
@@ -178,6 +179,8 @@ export function ChoiceChip({
       {...windowsFocusProps()}
       hitSlop={6}
       pressRetentionOffset={{ top: 12, right: 12, bottom: 12, left: 12 }}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       onPress={() => {
         if (
           activationBehavior === 'press-in' &&
@@ -201,14 +204,19 @@ export function ChoiceChip({
         active ? chipActive : chipIdle,
         emphasized
           ? active
-            ? styles.chipActiveEmphasized
-            : styles.chipIdleEmphasized
+            ? { backgroundColor: palette.accentSoft, borderColor: palette.accent }
+            : { backgroundColor: palette.panelEmphasis, borderColor: palette.borderStrong }
           : null,
-        focused && styles.chipFocusVisible,
+        hovered && !pressed
+          ? active
+            ? { borderColor: palette.accentHover }
+            : { backgroundColor: palette.canvasShade, borderColor: palette.borderStrong }
+          : null,
+        focused && { borderColor: palette.focusRing, borderWidth: 2 },
         pressed && activationBehavior === 'press'
           ? active
-            ? styles.chipActivePressed
-            : styles.chipPressed
+            ? { backgroundColor: palette.accentSoft, borderColor: palette.accentHover }
+            : { backgroundColor: palette.canvasShade, borderColor: palette.borderStrong }
           : null,
         desktopCursor,
         style,
@@ -220,8 +228,8 @@ export function ChoiceChip({
           style={[
             styles.chipEmphasisBand,
             active
-              ? styles.chipEmphasisBandActive
-              : styles.chipEmphasisBandIdle,
+              ? { backgroundColor: palette.accent }
+              : { backgroundColor: palette.borderStrong },
           ]}
         />
       ) : null}
@@ -231,7 +239,6 @@ export function ChoiceChip({
           style={[
             styles.chipLabel,
             { color: palette.ink },
-            active ? { color: '#36211d' } : null,
           ]}
         >
           {label}
@@ -250,7 +257,7 @@ export function ChoiceChip({
           <Text
             style={[
               styles.chipIndicatorLabel,
-              active ? { color: '#fff7f1' } : { color: palette.inkMuted },
+              active ? { color: palette.canvas } : { color: palette.inkMuted },
             ]}
           >
             {active ? activeBadgeLabel : inactiveBadgeLabel}
@@ -262,7 +269,6 @@ export function ChoiceChip({
           style={[
             styles.chipDetail,
             { color: palette.inkMuted },
-            active ? { color: '#6f4c37' } : null,
           ]}
         >
           {detail}
@@ -273,7 +279,6 @@ export function ChoiceChip({
           style={[
             styles.chipMeta,
             { color: palette.inkSoft },
-            active ? { color: '#7d5d49' } : null,
           ]}
         >
           {meta}
@@ -299,6 +304,7 @@ export function FilterChip({
   style?: StyleProp<ViewStyle>;
 }) {
   const { palette } = useTheme();
+  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       accessibilityRole='button'
@@ -306,11 +312,19 @@ export function FilterChip({
       focusable
       {...windowsFocusProps()}
       onPress={onPress}
-      style={({ pressed }: any) => [
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed, focused }: any) => [
         styles.filterChip,
         active
           ? { backgroundColor: palette.accent, borderColor: palette.accent }
           : { backgroundColor: palette.panel, borderColor: palette.border },
+        hovered && !pressed
+          ? active
+            ? { backgroundColor: palette.accentHover }
+            : { backgroundColor: palette.canvasShade }
+          : null,
+        focused && { borderColor: palette.focusRing, borderWidth: 2 },
         pressed ? styles.filterChipPressed : null,
         desktopCursor,
         style,
@@ -319,7 +333,7 @@ export function FilterChip({
       <Text
         style={[
           styles.filterChipLabel,
-          active ? { color: '#fff8f3' } : { color: palette.inkSoft },
+          active ? { color: palette.canvas } : { color: palette.inkSoft },
         ]}
       >
         {label}
@@ -558,6 +572,7 @@ export function ActionButton({
   tone?: 'accent' | 'ghost';
 }) {
   const { palette } = useTheme();
+  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       accessibilityRole='button'
@@ -565,7 +580,9 @@ export function ActionButton({
       focusable
       {...windowsFocusProps()}
       onPress={onPress}
-      style={({ pressed }: any) => [
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed, focused }: any) => [
         styles.actionButton,
         tone === 'accent'
           ? { backgroundColor: palette.accent, borderColor: palette.accent }
@@ -579,6 +596,12 @@ export function ActionButton({
               borderColor: palette.border,
             }
           : null,
+        !disabled && hovered && !pressed
+          ? tone === 'accent'
+            ? { backgroundColor: palette.accentHover }
+            : { backgroundColor: palette.canvasShade }
+          : null,
+        !disabled && focused && { borderColor: palette.focusRing, borderWidth: 2 },
         pressed && !disabled ? styles.actionButtonPressed : null,
         desktopCursor,
       ]}
@@ -586,7 +609,7 @@ export function ActionButton({
       <Text
         style={[
           styles.actionButtonLabel,
-          tone === 'accent' ? { color: '#fff7f1' } : { color: palette.ink },
+          tone === 'accent' ? { color: palette.canvas } : { color: palette.ink },
           disabled ? { color: palette.inkSoft } : null,
         ]}
       >
@@ -917,6 +940,7 @@ export function Expander({
 }>) {
   const { palette, spacing } = useTheme();
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [hovered, setHovered] = useState(false);
 
   const toggle = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -931,13 +955,17 @@ export function Expander({
         focusable
         {...windowsFocusProps()}
         onPress={toggle}
-        style={({ pressed }: any) => [
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        style={({ pressed, focused }: any) => [
           styles.expanderHeader,
           {
             backgroundColor: palette.panel,
             paddingVertical: spacing.sm2,
             paddingHorizontal: spacing.lg,
           },
+          hovered && !pressed ? { backgroundColor: palette.canvasShade } : null,
+          focused && { borderColor: palette.focusRing, borderWidth: 2 },
           pressed ? { backgroundColor: palette.canvasShade } : null,
           desktopCursor,
         ]}
@@ -1238,17 +1266,13 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 3,
     borderBottomRightRadius: 3,
   },
-  chipEmphasisBandIdle: { backgroundColor: '#8e745f' },
-  chipEmphasisBandActive: { backgroundColor: '#b65b32' },
-  chipIdleEmphasized: { backgroundColor: '#f6efe5', borderColor: '#c0aa90' },
-  chipActiveEmphasized: { backgroundColor: '#efd4c5', borderColor: '#c77447' },
-  chipPressed: { backgroundColor: '#eee2d1', borderColor: '#b6a488' },
-  chipActivePressed: { backgroundColor: '#e4c3ae', borderColor: '#9e5431' },
-  chipFocusVisible: {
-    // focus outline handled by native enableFocusRing on Windows;
-    // on other platforms, add a visible ring via shadow or border
-    borderWidth: 2,
-  },
+  chipEmphasisBandIdle: {},
+  chipEmphasisBandActive: {},
+  chipIdleEmphasized: {},
+  chipActiveEmphasized: {},
+  chipPressed: {},
+  chipActivePressed: {},
+  chipFocusVisible: {},
   chipHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',

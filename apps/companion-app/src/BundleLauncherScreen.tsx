@@ -32,6 +32,7 @@ import {
   appPalette,
   appRadius,
   appSpacing,
+  appTonePalette,
   appTypography,
 } from '@opapp/ui-native-primitives';
 import {
@@ -460,6 +461,7 @@ export function BundleLauncherScreen({
   const [openingTargetId, setOpeningTargetId] = useState<string | null>(null);
   const [actingBundleId, setActingBundleId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusTone, setStatusTone] = useState<'support' | 'danger' | 'neutral'>('neutral');
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
   const [stagedBundles, setStagedBundles] = useState<StagedBundleRecord[]>([]);
   const [updateStatuses, setUpdateStatuses] = useState<BundleUpdateStatus[]>([]);
@@ -700,9 +702,11 @@ export function BundleLauncherScreen({
 
     try {
       await openSurface(createCompanionOpenSurfaceRequest(target));
+      setStatusTone('support');
       setStatusMessage(appI18n.bundleLauncher.feedback.opened);
     } catch (error) {
       console.error('Failed to open launch target', error);
+      setStatusTone('danger');
       setStatusMessage(appI18n.bundleLauncher.feedback.openFailed);
       throw error;
     } finally {
@@ -720,9 +724,11 @@ export function BundleLauncherScreen({
 
     try {
       await refreshLibraryData({preferNetwork: true});
+      setStatusTone('support');
       setStatusMessage(appI18n.bundleLauncher.feedback.checked);
     } catch (error) {
       console.error('Failed to refresh bundle library', error);
+      setStatusTone('danger');
       setStatusMessage(appI18n.bundleLauncher.feedback.checkFailed);
     } finally {
       setCheckingForUpdates(false);
@@ -754,20 +760,24 @@ export function BundleLauncherScreen({
       const result = await runBundleUpdate(entry.bundleId);
       await refreshLibraryData();
       if (result.status === 'updated') {
+        setStatusTone('support');
         setStatusMessage(
           entry.primaryActionKind === 'install'
             ? appI18n.bundleLauncher.feedback.installed
             : appI18n.bundleLauncher.feedback.updated,
         );
       } else if (result.status === 'failed') {
+        setStatusTone('danger');
         setStatusMessage(
           result.errorMessage ?? appI18n.bundleLauncher.feedback.updateFailed,
         );
       } else {
+        setStatusTone('neutral');
         setStatusMessage(appI18n.bundleLauncher.feedback.checked);
       }
     } catch (error) {
       console.error('Failed to run bundle update', error);
+      setStatusTone('danger');
       setStatusMessage(appI18n.bundleLauncher.feedback.updateFailed);
     } finally {
       setActingBundleId(null);
@@ -789,9 +799,11 @@ export function BundleLauncherScreen({
         presentation: selectedEntry.selectedStartupTarget.presentation,
       };
       await saveStartupTarget(nextStartupTarget);
+      setStatusTone('support');
       setStatusMessage(appI18n.bundleLauncher.feedback.saved);
     } catch (error) {
       console.error('Failed to save startup target', error);
+      setStatusTone('danger');
       setStatusMessage(appI18n.bundleLauncher.feedback.saveFailed);
     }
   }
@@ -853,9 +865,11 @@ export function BundleLauncherScreen({
                 <Text style={styles.paneTitle}>
                   {appI18n.bundleLauncher.sections.libraryTitle}
                 </Text>
-                <Text style={styles.paneDescription}>
-                  {appI18n.bundleLauncher.sections.libraryDescription}
-                </Text>
+                {remoteCatalog.status === 'loading' ? (
+                  <Text style={styles.loadingHint}>
+                    {appI18n.bundleLauncher.service.status.loading}
+                  </Text>
+                ) : null}
 
                 {groupedLibraryEntries.length === 0 ? (
                   <View style={styles.emptyState}>
@@ -910,18 +924,17 @@ export function BundleLauncherScreen({
                                 </View>
                               </View>
 
-                              <View style={styles.appRowSummary}>
-                                <SignalPill
-                                  label={entry.stateLabel}
-                                  tone={entry.stateTone}
-                                  size="sm"
-                                />
-                                <Text style={styles.appVersionSummary}>
-                                  {entry.versionSummary}
-                                </Text>
-                              </View>
-
-                              <View style={styles.appRowAction}>
+                              <View style={styles.appRowTrailing}>
+                                <View style={styles.appRowSummary}>
+                                  <SignalPill
+                                    label={entry.stateLabel}
+                                    tone={entry.stateTone}
+                                    size="sm"
+                                  />
+                                  <Text style={styles.appVersionSummary}>
+                                    {entry.versionSummary}
+                                  </Text>
+                                </View>
                                 {entry.primaryActionLabel ? (
                                   <ActionButton
                                     label={
@@ -966,9 +979,6 @@ export function BundleLauncherScreen({
                 <Text style={styles.paneTitle}>
                   {appI18n.bundleLauncher.sections.detailTitle}
                 </Text>
-                <Text style={styles.paneDescription}>
-                  {appI18n.bundleLauncher.sections.detailDescription}
-                </Text>
 
                 {selectedEntry ? (
                   <View style={styles.detailCard}>
@@ -1012,7 +1022,14 @@ export function BundleLauncherScreen({
                       <Text style={styles.detailNote}>{selectedEntry.detailNote}</Text>
                     ) : null}
                     {statusMessage ? (
-                      <Text style={styles.statusMessage}>{statusMessage}</Text>
+                      <Text
+                        style={[
+                          styles.statusMessage,
+                          statusTone === 'support' ? styles.statusMessageSuccess : null,
+                          statusTone === 'danger' ? styles.statusMessageError : null,
+                        ]}>
+                        {statusMessage}
+                      </Text>
                     ) : null}
 
                     <View style={styles.detailActions}>
@@ -1259,6 +1276,8 @@ const styles = StyleSheet.create({
     gap: appSpacing.sm,
   },
   appRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: appSpacing.md,
     borderRadius: appRadius.control,
     borderWidth: 1,
@@ -1269,23 +1288,28 @@ const styles = StyleSheet.create({
   },
   appRowSelected: {
     borderColor: appPalette.accent,
-    backgroundColor: '#f6e7de',
+    backgroundColor: appPalette.accentSoft,
   },
   appRowIdentity: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: appSpacing.md,
   },
+  appRowTrailing: {
+    alignItems: 'flex-end',
+    gap: appSpacing.xs,
+  },
   appIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f2d6c8',
+    backgroundColor: appPalette.accentSoft,
   },
   appIconLabel: {
-    color: '#6e3b2e',
+    color: appTonePalette.accent.soft.label.color as string,
     ...appTypography.bodyStrong,
   },
   appMeta: {
@@ -1311,14 +1335,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: appSpacing.sm,
   },
   appVersionSummary: {
     color: appPalette.inkSoft,
     ...appTypography.caption,
-  },
-  appRowAction: {
-    alignItems: 'flex-start',
   },
   emptyState: {
     gap: appSpacing.sm,
@@ -1384,12 +1406,22 @@ const styles = StyleSheet.create({
     ...appTypography.body,
   },
   detailNote: {
-    color: '#8c5d2b',
+    color: appTonePalette.warning.soft.label.color as string,
     ...appTypography.bodyStrong,
   },
   statusMessage: {
     color: appPalette.accent,
     ...appTypography.bodyStrong,
+  },
+  statusMessageSuccess: {
+    color: appPalette.support,
+  },
+  statusMessageError: {
+    color: appPalette.errorRed,
+  },
+  loadingHint: {
+    color: appPalette.inkSoft,
+    ...appTypography.caption,
   },
   detailActions: {
     flexDirection: 'row',

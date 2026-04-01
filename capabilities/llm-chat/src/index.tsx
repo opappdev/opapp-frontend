@@ -7,7 +7,10 @@ import {
   View,
 } from 'react-native';
 import {logException, logInteraction} from '@opapp/framework-diagnostics';
-import {usePersistentJSON} from '@opapp/framework-filesystem';
+import {
+  usePersistentJSON,
+  writeUserFile,
+} from '@opapp/framework-filesystem';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
@@ -31,18 +34,30 @@ import {streamOpenAiCompatibleChat} from './stream';
 const persistedConfigPath = 'llm-chat/config.v1.json';
 const nativeSseDevSmokeScenario = 'llm-chat-native-sse';
 const nativeSseServerErrorDevSmokeScenario = 'llm-chat-native-sse-server-error';
+const nativeSseMalformedChunkDevSmokeScenario =
+  'llm-chat-native-sse-malformed-chunk';
 const nativeSseDevSmokeToken = 'fixture-token';
 const nativeSseDevSmokeModel = 'fixture-model';
+const llmChatDevSmokeRequestPrompt =
+  'Reply with exactly CHAT_TEST_OK and nothing else.';
+const llmChatMalformedChunkErrorText =
+  '服务端返回了无法解析的流式 JSON 数据。';
+const llmChatDevSmokeUiStatePath = 'llm-chat/dev-smoke-ui-state.json';
 const llmChatDevSmokeScenarios = {
   [nativeSseDevSmokeScenario]: {
     expectedAssistantText: 'CHAT_TEST_OK',
     expectedErrorText: undefined,
-    prompt: 'Reply with exactly CHAT_TEST_OK and nothing else.',
+    prompt: llmChatDevSmokeRequestPrompt,
   },
   [nativeSseServerErrorDevSmokeScenario]: {
     expectedAssistantText: undefined,
     expectedErrorText: 'EventSource requires HTTP 200, received 500.',
-    prompt: 'Reply with exactly CHAT_TEST_OK and nothing else.',
+    prompt: llmChatDevSmokeRequestPrompt,
+  },
+  [nativeSseMalformedChunkDevSmokeScenario]: {
+    expectedAssistantText: undefined,
+    expectedErrorText: llmChatMalformedChunkErrorText,
+    prompt: llmChatDevSmokeRequestPrompt,
   },
 } as const;
 
@@ -81,6 +96,30 @@ function logDevSmokeFailure({
     scenario,
     stage,
   });
+}
+
+async function persistLlmChatDevSmokeErrorUiState({
+  errorMessage,
+  scenario,
+}: {
+  errorMessage: string;
+  scenario: string;
+}) {
+  const persisted = await writeUserFile(
+    llmChatDevSmokeUiStatePath,
+    JSON.stringify({
+      errorMessage,
+      renderedAt: new Date().toISOString(),
+      scenario,
+      state: 'error',
+    }),
+  );
+
+  if (!persisted) {
+    throw new Error(
+      `Dev smoke could not persist error UI state to ${llmChatDevSmokeUiStatePath}.`,
+    );
+  }
 }
 
 function createMessageId(prefix: string) {
@@ -440,6 +479,59 @@ export function LlmChatScreen({
       requestPrompt: prompt,
     });
   }
+
+  useEffect(() => {
+    if (!devSmokeScenario) {
+      return;
+    }
+    if (!errorMessage) {
+      return;
+    }
+
+    const normalizedErrorMessage = errorMessage.replace(/\r/g, '');
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        await persistLlmChatDevSmokeErrorUiState({
+          errorMessage: normalizedErrorMessage,
+          scenario: devSmokeScenario,
+        });
+        if (cancelled) {
+          return;
+        }
+
+        const normalizedLoggedErrorMessage = normalizeDevSmokeLogValue(
+          normalizedErrorMessage,
+        );
+        console.log(
+          `[frontend-llm-chat] dev-smoke-error-ui path=${llmChatDevSmokeUiStatePath} message=${normalizedLoggedErrorMessage}`,
+        );
+        logInteraction('llm-chat.dev-smoke.error-ui', {
+          errorMessage: normalizedLoggedErrorMessage,
+          path: llmChatDevSmokeUiStatePath,
+          scenario: devSmokeScenario,
+        });
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        logDevSmokeFailure({
+          error:
+            error instanceof Error
+              ? error
+              : new Error('Dev smoke failed to persist the error UI state.'),
+          scenario: devSmokeScenario,
+          stage: 'persist-error-ui',
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [devSmokeScenario, errorMessage]);
 
   useEffect(() => {
     const devSmokeConfig = resolveLlmChatDevSmokeConfig(devSmokeScenario);

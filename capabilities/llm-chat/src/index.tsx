@@ -6,6 +6,7 @@ import {
   TextInput as RNTextInput,
   View,
 } from 'react-native';
+import {logException, logInteraction} from '@opapp/framework-diagnostics';
 import {usePersistentJSON} from '@opapp/framework-filesystem';
 import {appI18n} from '@opapp/framework-i18n';
 import {
@@ -28,6 +29,12 @@ import {
 import {streamOpenAiCompatibleChat} from './stream';
 
 const persistedConfigPath = 'llm-chat/config.v1.json';
+const nativeSseDevSmokeScenario = 'llm-chat-native-sse';
+const nativeSseDevSmokeToken = 'fixture-token';
+const nativeSseDevSmokeModel = 'fixture-model';
+const nativeSseDevSmokePrompt =
+  'Reply with exactly CHAT_TEST_OK and nothing else.';
+const nativeSseDevSmokeAssistantText = 'CHAT_TEST_OK';
 
 function createMessageId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -135,7 +142,15 @@ function MessageBubble({
   );
 }
 
-export function LlmChatScreen() {
+type LlmChatScreenProps = {
+  devSmokeBaseUrl?: string;
+  devSmokeScenario?: string;
+};
+
+export function LlmChatScreen({
+  devSmokeBaseUrl,
+  devSmokeScenario,
+}: LlmChatScreenProps = {}) {
   const {palette, spacing} = useTheme();
   const persistedConfig = usePersistentJSON<PersistedLlmChatConfig>({
     filePath: persistedConfigPath,
@@ -145,6 +160,7 @@ export function LlmChatScreen() {
   const activeStreamRef = useRef<ReturnType<typeof streamOpenAiCompatibleChat> | null>(
     null,
   );
+  const devSmokeRanRef = useRef(false);
   const [config, setConfig] = useState(createDefaultLlmChatConfig());
   const [configLoaded, setConfigLoaded] = useState(false);
   const [token, setToken] = useState('');
@@ -214,17 +230,40 @@ export function LlmChatScreen() {
     );
   }
 
-  function sendPrompt() {
-    const validationError = validateLlmChatConfig(config, token, prompt);
+  function startChatRequest({
+    requestConfig,
+    requestToken,
+    requestPrompt,
+    devSmokeScenario,
+    expectedAssistantText,
+  }: {
+    requestConfig: PersistedLlmChatConfig;
+    requestToken: string;
+    requestPrompt: string;
+    devSmokeScenario?: string;
+    expectedAssistantText?: string;
+  }) {
+    const normalizedPrompt = requestPrompt.trim();
+    const validationError = validateLlmChatConfig(
+      requestConfig,
+      requestToken,
+      normalizedPrompt,
+    );
     if (validationError) {
       setErrorMessage(validationError);
+      if (devSmokeScenario) {
+        logException('llm-chat.dev-smoke.failed', new Error(validationError), {
+          scenario: devSmokeScenario,
+          stage: 'validation',
+        });
+      }
       return;
     }
 
     const nextUserMessage: LlmChatMessage = {
       id: createMessageId('user'),
       role: 'user',
-      content: prompt.trim(),
+      content: normalizedPrompt,
     };
     const nextAssistantMessage: LlmChatMessage = {
       id: createMessageId('assistant'),
@@ -232,8 +271,11 @@ export function LlmChatScreen() {
       content: '',
     };
     const requestMessages = [...messages, nextUserMessage];
+    let assistantText = '';
 
-    setPrompt('');
+    setPrompt(currentPrompt =>
+      currentPrompt === requestPrompt ? '' : currentPrompt,
+    );
     setErrorMessage(null);
     setStatus('connecting');
     setMessages(currentMessages => [
@@ -244,27 +286,107 @@ export function LlmChatScreen() {
 
     activeStreamRef.current?.close();
     activeStreamRef.current = streamOpenAiCompatibleChat({
-      config,
-      token,
+      config: requestConfig,
+      token: requestToken,
       messages: requestMessages,
       onOpen() {
         setStatus('streaming');
+        if (devSmokeScenario) {
+          console.log('[frontend-llm-chat] dev-smoke-open');
+          logInteraction('llm-chat.dev-smoke.open', {
+            scenario: devSmokeScenario,
+          });
+        }
       },
       onDelta(text) {
         setStatus('streaming');
+        assistantText += text;
         appendAssistantDelta(nextAssistantMessage.id, text);
       },
       onDone() {
         activeStreamRef.current = null;
         setStatus('done');
+        if (devSmokeScenario) {
+          const normalizedAssistantText = assistantText.replace(/\r/g, '');
+          if (!normalizedAssistantText.includes(expectedAssistantText ?? '')) {
+            const mismatchError = new Error(
+              `Dev smoke assistant text mismatch. Received: ${normalizedAssistantText}`,
+            );
+            setErrorMessage(mismatchError.message);
+            logException('llm-chat.dev-smoke.failed', mismatchError, {
+              scenario: devSmokeScenario,
+              stage: 'assert-assistant-text',
+            });
+            return;
+          }
+
+          console.log(
+            `[frontend-llm-chat] dev-smoke-assistant-text text=${expectedAssistantText}`,
+          );
+          console.log('[frontend-llm-chat] dev-smoke-complete');
+          logInteraction('llm-chat.dev-smoke.complete', {
+            scenario: devSmokeScenario,
+            assistantText: expectedAssistantText,
+          });
+        }
       },
       onError(error) {
         activeStreamRef.current = null;
         setStatus('done');
         setErrorMessage(error.message);
+        if (devSmokeScenario) {
+          logException('llm-chat.dev-smoke.failed', error, {
+            scenario: devSmokeScenario,
+            stage: 'stream',
+          });
+        }
       },
     });
   }
+
+  function sendPrompt() {
+    startChatRequest({
+      requestConfig: config,
+      requestToken: token,
+      requestPrompt: prompt,
+    });
+  }
+
+  useEffect(() => {
+    if (
+      devSmokeRanRef.current ||
+      !configLoaded ||
+      persistedConfig.loaded === false
+    ) {
+      return;
+    }
+
+    if (
+      devSmokeScenario !== nativeSseDevSmokeScenario ||
+      typeof devSmokeBaseUrl !== 'string' ||
+      devSmokeBaseUrl.trim().length === 0
+    ) {
+      return;
+    }
+
+    devSmokeRanRef.current = true;
+    console.log('[frontend-llm-chat] dev-smoke-start');
+    logInteraction('llm-chat.dev-smoke.start', {
+      scenario: devSmokeScenario,
+      baseUrl: devSmokeBaseUrl.trim(),
+    });
+    startChatRequest({
+      requestConfig: {
+        baseUrl: devSmokeBaseUrl.trim(),
+        model: nativeSseDevSmokeModel,
+        systemPrompt: '',
+      },
+      requestToken: nativeSseDevSmokeToken,
+      requestPrompt: nativeSseDevSmokePrompt,
+      devSmokeScenario,
+      expectedAssistantText: nativeSseDevSmokeAssistantText,
+    });
+  }, [configLoaded, devSmokeBaseUrl, devSmokeScenario, persistedConfig.loaded]);
 
   const isStreaming = status === 'connecting' || status === 'streaming';
   const serviceReady = Boolean(

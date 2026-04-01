@@ -9,6 +9,7 @@
     "src"
   ],
   "dependencies": {
+    "@opapp/framework-diagnostics": "workspace:*",
     "@opapp/framework-filesystem": "workspace:*",
     "@opapp/framework-i18n": "workspace:*",
     "@opapp/framework-sse": "workspace:*",

@@ -12,6 +12,9 @@
       "@opapp/app-companion": [
         "./apps/companion-app/src/index.tsx"
       ],
+      "@opapp/capability-llm-chat": [
+        "./capabilities/llm-chat/src/index.tsx"
+      ],
       "@opapp/capability-settings": [
         "./capabilities/settings/src/index.tsx"
       ],
@@ -26,6 +29,9 @@
       ],
       "@opapp/framework-filesystem": [
         "./framework/filesystem/src/index.ts"
+      ],
+      "@opapp/framework-sse": [
+        "./framework/sse/src/index.ts"
       ],
       "@opapp/framework-surfaces": [
         "./framework/surfaces/src/index.ts"

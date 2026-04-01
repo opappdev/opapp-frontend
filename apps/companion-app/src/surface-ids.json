@@ -1,5 +1,6 @@
 {
   "companionMain": "companion.main",
+  "companionChatMain": "companion.chat.main",
   "companionSettings": "companion.settings",
   "companionViewShot": "companion.view-shot",
   "companionWindowCapture": "companion.window-capture"

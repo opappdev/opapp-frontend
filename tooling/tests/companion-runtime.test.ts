@@ -1,10 +1,30 @@
 import assert from 'node:assert/strict';
 import {
+  companionBundleIds,
+  companionLaunchTargets,
+  getCompanionRuntimeBundle,
   resolveCompanionRestoredSessionAutoOpen,
   resolveCompanionStartupTargetAutoOpen,
 } from '../../apps/companion-app/src/companion-runtime';
 
 export function run() {
+  assert.deepEqual(getCompanionRuntimeBundle(companionBundleIds.chat), {
+    bundleId: companionBundleIds.chat,
+    defaultSurfaceId: 'companion.chat.main',
+    entryFile: 'index.chat.js',
+    bundleFile: 'index.chat.windows.bundle',
+    platforms: ['windows'],
+    surfaces: ['companion.chat.main'],
+  });
+  assert.equal(
+    companionLaunchTargets.some(
+      target =>
+        target.bundleId === companionBundleIds.chat &&
+        target.surfaceId === 'companion.chat.main',
+    ),
+    true,
+  );
+
   const restoredSessionDecision = resolveCompanionRestoredSessionAutoOpen({
     runtimeBundleId: 'opapp.companion.main',
     windowId: 'window.main',

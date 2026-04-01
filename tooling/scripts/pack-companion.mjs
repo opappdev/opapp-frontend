@@ -15,11 +15,13 @@ const tempDir = path.join(path.resolve(repoRoot, '..'), '.tmp');
 
 const packageMap = {
   app: path.join(repoRoot, 'apps', 'companion-app'),
+  capabilityLlmChat: path.join(repoRoot, 'capabilities', 'llm-chat'),
   capabilitySettings: path.join(repoRoot, 'capabilities', 'settings'),
   contractsWindowing: path.join(repoRoot, 'contracts', 'windowing'),
   frameworkI18n: path.join(repoRoot, 'framework', 'i18n'),
   frameworkDiagnostics: path.join(repoRoot, 'framework', 'diagnostics'),
   frameworkFilesystem: path.join(repoRoot, 'framework', 'filesystem'),
+  frameworkSse: path.join(repoRoot, 'framework', 'sse'),
   frameworkSurfaces: path.join(repoRoot, 'framework', 'surfaces'),
   frameworkViewShot: path.join(repoRoot, 'framework', 'view-shot'),
   frameworkWindowCapture: path.join(repoRoot, 'framework', 'window-capture'),
@@ -60,6 +62,9 @@ async function main() {
   const capabilitySettingsPkg = await readJson(
     path.join(packageMap.capabilitySettings, 'package.json'),
   );
+  const capabilityLlmChatPkg = await readJson(
+    path.join(packageMap.capabilityLlmChat, 'package.json'),
+  );
   const contractsWindowingPkg = await readJson(
     path.join(packageMap.contractsWindowing, 'package.json'),
   );
@@ -71,6 +76,9 @@ async function main() {
   );
   const frameworkFilesystemPkg = await readJson(
     path.join(packageMap.frameworkFilesystem, 'package.json'),
+  );
+  const frameworkSsePkg = await readJson(
+    path.join(packageMap.frameworkSse, 'package.json'),
   );
   const frameworkSurfacesPkg = await readJson(
     path.join(packageMap.frameworkSurfaces, 'package.json'),
@@ -115,6 +123,11 @@ async function main() {
     private: false,
   };
 
+  const normalizedFrameworkSsePkg = {
+    ...frameworkSsePkg,
+    private: false,
+  };
+
   const normalizedFrameworkSurfacesPkg = {
     ...frameworkSurfacesPkg,
     private: false,
@@ -153,15 +166,28 @@ async function main() {
     },
   };
 
+  const normalizedCapabilityLlmChatPkg = {
+    ...capabilityLlmChatPkg,
+    private: false,
+    dependencies: {
+      '@opapp/framework-filesystem': frameworkFilesystemPkg.version,
+      '@opapp/framework-i18n': frameworkI18nPkg.version,
+      '@opapp/framework-sse': frameworkSsePkg.version,
+      '@opapp/ui-native-primitives': uiPkg.version,
+    },
+  };
+
   const normalizedAppPkg = {
     ...appPkg,
     private: false,
     dependencies: {
+      '@opapp/capability-llm-chat': capabilityLlmChatPkg.version,
       '@opapp/capability-settings': capabilitySettingsPkg.version,
       '@opapp/contracts-windowing': contractsWindowingPkg.version,
       '@opapp/framework-i18n': frameworkI18nPkg.version,
       '@opapp/framework-filesystem': frameworkFilesystemPkg.version,
       '@opapp/framework-diagnostics': frameworkDiagnosticsPkg.version,
+      '@opapp/framework-sse': frameworkSsePkg.version,
       '@opapp/framework-surfaces': frameworkSurfacesPkg.version,
       '@opapp/framework-view-shot': frameworkViewShotPkg.version,
       '@opapp/framework-window-capture': frameworkWindowCapturePkg.version,
@@ -169,11 +195,13 @@ async function main() {
       '@opapp/ui-native-primitives': uiPkg.version,
     },
     bundledDependencies: [
+      '@opapp/capability-llm-chat',
       '@opapp/capability-settings',
       '@opapp/contracts-windowing',
       '@opapp/framework-i18n',
       '@opapp/framework-filesystem',
       '@opapp/framework-diagnostics',
+      '@opapp/framework-sse',
       '@opapp/framework-surfaces',
       '@opapp/framework-view-shot',
       '@opapp/framework-window-capture',
@@ -185,11 +213,17 @@ async function main() {
   await copyPackage(packageMap.app, packageRoot, normalizedAppPkg, [
     'app.json',
     'index.js',
+    'index.chat.js',
     'index.main.js',
     '.private-companion',
     'babel.config.js',
     'metro.config.js',
   ]);
+  await copyPackage(
+    packageMap.capabilityLlmChat,
+    path.join(internalPackagesRoot, 'capability-llm-chat'),
+    normalizedCapabilityLlmChatPkg,
+  );
   await copyPackage(
     packageMap.capabilitySettings,
     path.join(internalPackagesRoot, 'capability-settings'),
@@ -214,6 +248,11 @@ async function main() {
     packageMap.frameworkFilesystem,
     path.join(internalPackagesRoot, 'framework-filesystem'),
     normalizedFrameworkFilesystemPkg,
+  );
+  await copyPackage(
+    packageMap.frameworkSse,
+    path.join(internalPackagesRoot, 'framework-sse'),
+    normalizedFrameworkSsePkg,
   );
   await copyPackage(
     packageMap.frameworkSurfaces,

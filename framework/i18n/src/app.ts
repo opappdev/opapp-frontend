@@ -11,6 +11,7 @@ export const zhCNApp = {
   surfaces: {
     launcher: '应用库与更新',
     challengeAdvisor: '挑战场景作战板',
+    llmChat: 'LLM Chat',
     settings: '应用设置',
     viewShotLab: 'View Shot 实验台',
     windowCaptureLab: 'Window Capture 实验台',
@@ -143,6 +144,7 @@ export const zhCNApp = {
     targets: {
       mainLauncher:
         '先回到应用库首页，方便继续切换设置页、实验页或其它应用。',
+      llmChat: '直接进入独立的 OpenAI-compatible LLM Chat 应用。',
       settings: '直接进入设置页，方便先调整宿主和窗口偏好。',
       viewShotLab: '直接进入 View Shot 验证页。',
       windowCaptureLab: '直接进入 Window Capture 验证页。',
@@ -388,6 +390,54 @@ export const zhCNApp = {
       battleKickerTurnsInfix: ' · 预计 ',
       battleKickerTurnsSuffix: ' 回合',
       encounterTargetPendingEvidence: '目标回合待补证',
+    },
+  },
+  llmChat: {
+    eyebrow: '原生流式 SSE',
+    title: 'LLM Chat',
+    description:
+      '直接连接兼容 OpenAI 的 `/v1/chat/completions`，按 SSE 增量渲染 assistant 回复，先交付最小可用的多轮对话体验。',
+    errorTitle: '当前请求失败',
+    emptyAssistantMessage: '等待模型继续返回内容...',
+    roles: {
+      user: '用户',
+      assistant: '助手',
+    },
+    status: {
+      idle: '待配置',
+      ready: '可以发送',
+      streaming: '生成中',
+    },
+    config: {
+      title: '连接配置',
+      description:
+        '只持久化 Base URL、Model 和 System Prompt。Token 只保存在当前会话内，不会写入磁盘。',
+      baseUrl: 'Base URL',
+      model: 'Model',
+      token: 'Token',
+      tokenHint: 'Token 仅保留在当前会话内，关闭应用后不会保存。',
+      systemPrompt: 'System Prompt',
+      systemPromptPlaceholder: '可选。用来约束助手风格、边界或输出格式。',
+    },
+    transcript: {
+      title: '对话流',
+      description:
+        'assistant 内容会随着 SSE 数据块逐步追加。当前版本保留纯文本换行，不做 Markdown 渲染。',
+    },
+    empty: {
+      title: '还没有对话内容',
+      description: '先填好连接信息，然后输入一条消息开始流式对话。',
+    },
+    composer: {
+      title: '发送消息',
+      description: '支持多轮上下文、手动停止和清空当前会话。',
+      placeholder: '输入你想发送给模型的内容...',
+    },
+    actions: {
+      send: '发送',
+      sending: '发送中...',
+      stop: '停止',
+      clear: '清空会话',
     },
   },
   settings: {

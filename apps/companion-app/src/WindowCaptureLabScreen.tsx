@@ -173,6 +173,14 @@ function findWindowByHandle(
   return matches.find(match => matchesWindowHandle(match, handleValue)) ?? null;
 }
 
+function buildHandleSelector(
+  windowInfo: WindowCaptureWindowInfo,
+): WindowCaptureSelector {
+  return {
+    handle: windowInfo.handleHex || windowInfo.handle,
+  };
+}
+
 function buildSelectorFromDraftOrThrow(
   selectorDraft: SelectorDraft,
 ): WindowCaptureSelector {
@@ -552,10 +560,14 @@ export function WindowCaptureLabScreen({
           processName: selectedWindow.processName,
         });
 
+        // Lock the smoke run to the first resolved foreground window so packaged
+        // startup focus changes do not retarget the second capture mid-run.
+        const smokeSelector = buildHandleSelector(selectedWindow);
+
         const windowResult = await runCapture('capture-window', 'window', {
           throwOnFailure: true,
           silentOnSuccess: true,
-          selector: foregroundSelector,
+          selector: smokeSelector,
         });
         if (!windowResult) {
           throw new Error(
@@ -589,7 +601,7 @@ export function WindowCaptureLabScreen({
         const clientResult = await runCapture('capture-client', 'client', {
           throwOnFailure: true,
           silentOnSuccess: true,
-          selector: foregroundSelector,
+          selector: smokeSelector,
         });
         if (!clientResult) {
           throw new Error(

@@ -77,19 +77,21 @@ function createBundleArgs({
 }
 
 function createBundlePlans(runtimeBundles) {
-  const bundleById = new Map(
-    runtimeBundles.bundles.map(bundle => [bundle.bundleId, bundle]),
-  );
-
-  return [
-    {
-      bundleId: runtimeBundles.mainBundleId,
-      entryFile: 'index.main.js',
-      outputDir: outputRoot,
-      bundleFile: 'index.main.windows.bundle',
-      surfaces: bundleById.get(runtimeBundles.mainBundleId)?.surfaces ?? [],
-    },
-  ];
+  return runtimeBundles.bundles
+    .filter(bundle => {
+      const platforms = Array.isArray(bundle.platforms) ? bundle.platforms : [];
+      return platforms.includes('windows');
+    })
+    .map(bundle => ({
+      bundleId: bundle.bundleId,
+      entryFile: bundle.entryFile,
+      outputDir:
+        bundle.bundleId === runtimeBundles.mainBundleId
+          ? outputRoot
+          : path.join(outputRoot, 'bundles', bundle.bundleId),
+      bundleFile: bundle.bundleFile,
+      surfaces: bundle.surfaces ?? [],
+    }));
 }
 
 function normalizePrivateBundleDescriptor(descriptor, sourceLabel) {

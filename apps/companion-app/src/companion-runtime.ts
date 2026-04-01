@@ -11,6 +11,7 @@ import surfaceIds from './surface-ids.json';
 
 export const companionBundleIds = {
   main: runtimeBundles.mainBundleId,
+  chat: 'opapp.companion.chat',
 } as const;
 
 export type CompanionBundleId = string;
@@ -18,6 +19,9 @@ export type CompanionBundleId = string;
 export type CompanionRuntimeBundle = {
   bundleId: string;
   defaultSurfaceId: string;
+  entryFile?: string;
+  bundleFile?: string;
+  platforms?: string[];
   surfaces: string[];
 };
 
@@ -134,6 +138,15 @@ export const companionLaunchTargets: CompanionLaunchTarget[] = [
     surfaceId: surfaceIds.companionWindowCapture,
     bundleId: companionBundleIds.main,
     policy: 'tool',
+    presentation: 'current-window',
+  },
+  {
+    targetId: 'llm-chat',
+    title: appI18n.surfaces.llmChat,
+    description: appI18n.bundleLauncher.targets.llmChat,
+    surfaceId: surfaceIds.companionChatMain,
+    bundleId: companionBundleIds.chat,
+    policy: 'main',
     presentation: 'current-window',
   },
 ];

@@ -22,6 +22,17 @@ const knownBundlePresentations = new Map<string, BundleLibraryPresentation>([
     },
   ],
   [
+    companionBundleIds.chat,
+    {
+      bundleId: companionBundleIds.chat,
+      displayName: 'LLM Chat',
+      subtitle: '独立的 OpenAI-compatible 流式聊天应用。',
+      iconKey: 'llm-chat',
+      iconTone: 'accent' as const,
+      defaultOpenTargetId: 'llm-chat',
+    },
+  ],
+  [
     'opapp.hbr.workspace',
     {
       bundleId: 'opapp.hbr.workspace',

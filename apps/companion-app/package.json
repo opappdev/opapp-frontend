@@ -9,6 +9,7 @@
     "src",
     "app.json",
     "index.js",
+    "index.chat.js",
     "index.main.js",
     ".private-companion",
     "babel.config.js",
@@ -21,11 +22,13 @@
     "start:windows": "node ../../tooling/scripts/start-companion-windows.mjs"
   },
   "dependencies": {
+    "@opapp/capability-llm-chat": "workspace:*",
     "@opapp/capability-settings": "workspace:*",
     "@opapp/contracts-windowing": "workspace:*",
     "@opapp/framework-view-shot": "workspace:*",
     "@opapp/framework-window-capture": "workspace:*",
     "@opapp/framework-filesystem": "workspace:*",
+    "@opapp/framework-sse": "workspace:*",
     "@opapp/framework-surfaces": "workspace:*",
     "@opapp/framework-windowing": "workspace:*",
     "@opapp/ui-native-primitives": "workspace:*",

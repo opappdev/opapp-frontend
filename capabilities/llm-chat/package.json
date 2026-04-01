@@ -1,0 +1,22 @@
+{
+  "name": "@opapp/capability-llm-chat",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "sideEffects": false,
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@opapp/framework-filesystem": "workspace:*",
+    "@opapp/framework-i18n": "workspace:*",
+    "@opapp/framework-sse": "workspace:*",
+    "@opapp/ui-native-primitives": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.1",
+    "react-native": "0.82.0"
+  },
+  "license": "MPL-2.0"
+}

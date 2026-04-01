@@ -1,5 +1,8 @@
 import type {ComponentType} from 'react';
 import {
+  LlmChatScreen,
+} from '@opapp/capability-llm-chat';
+import {
   createSurfaceRegistry,
   defineSurface,
   registerSurfaceRegistry,
@@ -31,6 +34,8 @@ const viewShotLabSurfaceComponent =
   ViewShotLabScreen as ComponentType<Record<string, unknown>>;
 const windowCaptureLabSurfaceComponent =
   WindowCaptureLabScreen as ComponentType<Record<string, unknown>>;
+const llmChatSurfaceComponent =
+  LlmChatScreen as ComponentType<Record<string, unknown>>;
 
 const companionSurfaceDefinitions = {
   launcher: defineSurface<Record<string, unknown>>({
@@ -70,6 +75,15 @@ const companionSurfaceDefinitions = {
     acceptsInitialProps: true,
     Component: windowCaptureLabSurfaceComponent,
   }),
+  llmChat: defineSurface<Record<string, unknown>>({
+    surfaceId: surfaceIds.companionChatMain,
+    title: appI18n.surfaces.llmChat,
+    capabilityId: 'llm-chat',
+    defaultPolicy: 'main',
+    defaultPresentation: 'current-window',
+    acceptsInitialProps: true,
+    Component: llmChatSurfaceComponent,
+  }),
 } as const;
 
 function createCompanionSurfaceRegistry(
@@ -108,6 +122,16 @@ export const mainCompanionBundleConfig = createCompanionBundleConfig(
   mainCompanionSurfaceRegistry,
 );
 
+export const chatCompanionSurfaceRegistry = createCompanionSurfaceRegistry([
+  'llmChat',
+]);
+
+export const chatCompanionBundleConfig = createCompanionBundleConfig(
+  companionBundleIds.chat,
+  surfaceIds.companionChatMain,
+  chatCompanionSurfaceRegistry,
+);
+
 export function registerCompanionBundleRegistry(
   bundleConfig: CompanionBundleConfig,
 ) {
@@ -115,8 +139,12 @@ export function registerCompanionBundleRegistry(
 }
 
 export function resolveCompanionBundleConfig(bundleId?: string | null) {
-  if (bundleId === companionBundleIds.main) {
+  if (!bundleId || bundleId === companionBundleIds.main) {
     return mainCompanionBundleConfig;
+  }
+
+  if (bundleId === companionBundleIds.chat) {
+    return chatCompanionBundleConfig;
   }
 
   return null;

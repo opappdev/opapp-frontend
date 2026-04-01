@@ -47,6 +47,9 @@ importers:
 
   apps/companion-app:
     dependencies:
+      '@opapp/capability-llm-chat':
+        specifier: workspace:*
+        version: link:../../capabilities/llm-chat
       '@opapp/capability-settings':
         specifier: workspace:*
         version: link:../../capabilities/settings
@@ -62,6 +65,9 @@ importers:
       '@opapp/framework-i18n':
         specifier: workspace:*
         version: link:../../framework/i18n
+      '@opapp/framework-sse':
+        specifier: workspace:*
+        version: link:../../framework/sse
       '@opapp/framework-surfaces':
         specifier: workspace:*
         version: link:../../framework/surfaces
@@ -87,6 +93,27 @@ importers:
       react-native-windows:
         specifier: 0.82.0
         version: 0.82.0(@babel/core@7.29.0)(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react-native@0.82.0(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1))(react@19.1.1)(tslib@2.8.1)(typescript@5.9.3)
+
+  capabilities/llm-chat:
+    dependencies:
+      '@opapp/framework-filesystem':
+        specifier: workspace:*
+        version: link:../../framework/filesystem
+      '@opapp/framework-i18n':
+        specifier: workspace:*
+        version: link:../../framework/i18n
+      '@opapp/framework-sse':
+        specifier: workspace:*
+        version: link:../../framework/sse
+      '@opapp/ui-native-primitives':
+        specifier: workspace:*
+        version: link:../../ui/native-primitives
+      react:
+        specifier: ^19.1.1
+        version: 19.1.1
+      react-native:
+        specifier: 0.82.0
+        version: 0.82.0(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1)
 
   capabilities/settings:
     dependencies:
@@ -127,6 +154,12 @@ importers:
         version: 0.82.0(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1)
 
   framework/i18n: {}
+
+  framework/sse:
+    dependencies:
+      react-native:
+        specifier: 0.82.0
+        version: 0.82.0(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1)
 
   framework/surfaces:
     dependencies:
@@ -3837,9 +3870,7 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/new-app-screen@0.82.0-rc.0(@types/react@19.2.14)(react-native@0.82.0(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1))(react@19.1.1)':
     dependencies:

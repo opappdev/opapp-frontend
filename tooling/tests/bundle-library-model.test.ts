@@ -60,6 +60,14 @@ export function run() {
         surfaceIds: ['hbr.stellar-sweep'],
       },
       {
+        bundleId: companionBundleIds.chat,
+        latestVersion: '0.1.0',
+        versions: ['0.1.0'],
+        rolloutPercent: null,
+        channels: {stable: '0.1.0'},
+        surfaceIds: ['companion.chat.main'],
+      },
+      {
         bundleId: 'opapp.hidden.tool',
         latestVersion: '0.1.0',
         versions: ['0.1.0'],
@@ -89,7 +97,18 @@ export function run() {
   });
 
   const launchTargetsByBundleId = new Map<string, CompanionLaunchTarget[]>([
-    [companionBundleIds.main, companionLaunchTargets],
+    [
+      companionBundleIds.main,
+      companionLaunchTargets.filter(
+        target => target.bundleId === companionBundleIds.main,
+      ),
+    ],
+    [
+      companionBundleIds.chat,
+      companionLaunchTargets.filter(
+        target => target.bundleId === companionBundleIds.chat,
+      ),
+    ],
     [
       'opapp.hbr.workspace',
       [createLaunchTarget('opapp.hbr.workspace', 'hbr.challenge-advisor', '挑战场景作战板')],
@@ -186,6 +205,11 @@ export function run() {
   assert.equal(mainEntry.group, 'installed');
   assert.equal(mainEntry.state, 'installed');
   assert.equal(mainEntry.primaryActionKind, 'open');
+
+  const chatEntry = findEntry(entries, companionBundleIds.chat);
+  assert.equal(chatEntry.group, 'available');
+  assert.equal(chatEntry.state, 'install-available');
+  assert.equal(chatEntry.primaryActionKind, 'install');
 
   const installableEntry = findEntry(entries, 'opapp.hbr.stellar-sweep');
   assert.equal(installableEntry.group, 'available');

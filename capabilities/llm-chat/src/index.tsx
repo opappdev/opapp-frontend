@@ -30,11 +30,58 @@ import {streamOpenAiCompatibleChat} from './stream';
 
 const persistedConfigPath = 'llm-chat/config.v1.json';
 const nativeSseDevSmokeScenario = 'llm-chat-native-sse';
+const nativeSseServerErrorDevSmokeScenario = 'llm-chat-native-sse-server-error';
 const nativeSseDevSmokeToken = 'fixture-token';
 const nativeSseDevSmokeModel = 'fixture-model';
-const nativeSseDevSmokePrompt =
-  'Reply with exactly CHAT_TEST_OK and nothing else.';
-const nativeSseDevSmokeAssistantText = 'CHAT_TEST_OK';
+const llmChatDevSmokeScenarios = {
+  [nativeSseDevSmokeScenario]: {
+    expectedAssistantText: 'CHAT_TEST_OK',
+    expectedErrorText: undefined,
+    prompt: 'Reply with exactly CHAT_TEST_OK and nothing else.',
+  },
+  [nativeSseServerErrorDevSmokeScenario]: {
+    expectedAssistantText: undefined,
+    expectedErrorText: 'EventSource requires HTTP 200, received 500.',
+    prompt: 'Reply with exactly CHAT_TEST_OK and nothing else.',
+  },
+} as const;
+
+function normalizeDevSmokeLogValue(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function resolveLlmChatDevSmokeConfig(devSmokeScenario?: string) {
+  if (
+    !devSmokeScenario ||
+    !Object.prototype.hasOwnProperty.call(llmChatDevSmokeScenarios, devSmokeScenario)
+  ) {
+    return null;
+  }
+
+  return llmChatDevSmokeScenarios[
+    devSmokeScenario as keyof typeof llmChatDevSmokeScenarios
+  ];
+}
+
+function logDevSmokeFailure({
+  error,
+  scenario,
+  stage,
+}: {
+  error: Error;
+  scenario: string;
+  stage: string;
+}) {
+  console.log(
+    `[frontend-llm-chat] dev-smoke-failed stage=${stage} message=${normalizeDevSmokeLogValue(
+      error.message,
+    )}`,
+  );
+  logException('llm-chat.dev-smoke.failed', error, {
+    scenario,
+    stage,
+  });
+}
 
 function createMessageId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -236,12 +283,14 @@ export function LlmChatScreen({
     requestPrompt,
     devSmokeScenario,
     expectedAssistantText,
+    expectedErrorText,
   }: {
     requestConfig: PersistedLlmChatConfig;
     requestToken: string;
     requestPrompt: string;
     devSmokeScenario?: string;
     expectedAssistantText?: string;
+    expectedErrorText?: string;
   }) {
     const normalizedPrompt = requestPrompt.trim();
     const validationError = validateLlmChatConfig(
@@ -252,7 +301,8 @@ export function LlmChatScreen({
     if (validationError) {
       setErrorMessage(validationError);
       if (devSmokeScenario) {
-        logException('llm-chat.dev-smoke.failed', new Error(validationError), {
+        logDevSmokeFailure({
+          error: new Error(validationError),
           scenario: devSmokeScenario,
           stage: 'validation',
         });
@@ -307,26 +357,44 @@ export function LlmChatScreen({
         activeStreamRef.current = null;
         setStatus('done');
         if (devSmokeScenario) {
+          if (expectedErrorText) {
+            const unexpectedSuccessError = new Error(
+              `Dev smoke expected stream error: ${expectedErrorText}`,
+            );
+            setErrorMessage(unexpectedSuccessError.message);
+            logDevSmokeFailure({
+              error: unexpectedSuccessError,
+              scenario: devSmokeScenario,
+              stage: 'assert-error',
+            });
+            return;
+          }
+
           const normalizedAssistantText = assistantText.replace(/\r/g, '');
           if (!normalizedAssistantText.includes(expectedAssistantText ?? '')) {
             const mismatchError = new Error(
               `Dev smoke assistant text mismatch. Received: ${normalizedAssistantText}`,
             );
             setErrorMessage(mismatchError.message);
-            logException('llm-chat.dev-smoke.failed', mismatchError, {
+            logDevSmokeFailure({
+              error: mismatchError,
               scenario: devSmokeScenario,
               stage: 'assert-assistant-text',
             });
             return;
           }
 
+          const normalizedExpectedAssistantText = normalizeDevSmokeLogValue(
+            expectedAssistantText ?? '',
+          );
           console.log(
-            `[frontend-llm-chat] dev-smoke-assistant-text text=${expectedAssistantText}`,
+            `[frontend-llm-chat] dev-smoke-assistant-text text=${normalizedExpectedAssistantText}`,
           );
           console.log('[frontend-llm-chat] dev-smoke-complete');
           logInteraction('llm-chat.dev-smoke.complete', {
             scenario: devSmokeScenario,
-            assistantText: expectedAssistantText,
+            assistantText: normalizedExpectedAssistantText,
+            outcome: 'success',
           });
         }
       },
@@ -335,7 +403,28 @@ export function LlmChatScreen({
         setStatus('done');
         setErrorMessage(error.message);
         if (devSmokeScenario) {
-          logException('llm-chat.dev-smoke.failed', error, {
+          const normalizedErrorMessage = error.message.replace(/\r/g, '');
+          if (
+            expectedErrorText &&
+            normalizedErrorMessage.includes(expectedErrorText)
+          ) {
+            const normalizedExpectedErrorText = normalizeDevSmokeLogValue(
+              expectedErrorText,
+            );
+            console.log(
+              `[frontend-llm-chat] dev-smoke-error message=${normalizedExpectedErrorText}`,
+            );
+            console.log('[frontend-llm-chat] dev-smoke-complete');
+            logInteraction('llm-chat.dev-smoke.complete', {
+              scenario: devSmokeScenario,
+              errorMessage: normalizedExpectedErrorText,
+              outcome: 'error',
+            });
+            return;
+          }
+
+          logDevSmokeFailure({
+            error,
             scenario: devSmokeScenario,
             stage: 'stream',
           });
@@ -353,6 +442,7 @@ export function LlmChatScreen({
   }
 
   useEffect(() => {
+    const devSmokeConfig = resolveLlmChatDevSmokeConfig(devSmokeScenario);
     if (
       devSmokeRanRef.current ||
       !configLoaded ||
@@ -362,7 +452,7 @@ export function LlmChatScreen({
     }
 
     if (
-      devSmokeScenario !== nativeSseDevSmokeScenario ||
+      !devSmokeConfig ||
       typeof devSmokeBaseUrl !== 'string' ||
       devSmokeBaseUrl.trim().length === 0
     ) {
@@ -382,9 +472,10 @@ export function LlmChatScreen({
         systemPrompt: '',
       },
       requestToken: nativeSseDevSmokeToken,
-      requestPrompt: nativeSseDevSmokePrompt,
+      requestPrompt: devSmokeConfig.prompt,
       devSmokeScenario,
-      expectedAssistantText: nativeSseDevSmokeAssistantText,
+      expectedAssistantText: devSmokeConfig.expectedAssistantText,
+      expectedErrorText: devSmokeConfig.expectedErrorText,
     });
   }, [configLoaded, devSmokeBaseUrl, devSmokeScenario, persistedConfig.loaded]);
 

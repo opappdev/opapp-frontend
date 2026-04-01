@@ -7,6 +7,10 @@ import {
   parsePersistedLlmChatConfig,
   validateLlmChatConfig,
 } from '../../capabilities/llm-chat/src/model';
+import {
+  lmStudioExpectedAssistantText,
+  lmStudioRecordedMessagePayloads,
+} from './fixtures/lm-studio-chat-stream';
 
 export function run() {
   assert.deepEqual(createDefaultLlmChatConfig(), {
@@ -96,6 +100,40 @@ export function run() {
     {
       kind: 'delta',
       text: 'Hello',
+    },
+  );
+
+  assert.deepEqual(
+    consumeOpenAiCompatibleStreamEvent(
+      lmStudioRecordedMessagePayloads[0],
+    ),
+    {
+      kind: 'noop',
+    },
+  );
+
+  assert.deepEqual(
+    consumeOpenAiCompatibleStreamEvent(
+      lmStudioRecordedMessagePayloads[2],
+    ),
+    {
+      kind: 'delta',
+      text: '\n\n',
+    },
+  );
+
+  assert.deepEqual(
+    consumeOpenAiCompatibleStreamEvent(lmStudioRecordedMessagePayloads[3]),
+    {
+      kind: 'delta',
+      text: lmStudioExpectedAssistantText,
+    },
+  );
+
+  assert.deepEqual(
+    consumeOpenAiCompatibleStreamEvent(lmStudioRecordedMessagePayloads[4]),
+    {
+      kind: 'done',
     },
   );
 

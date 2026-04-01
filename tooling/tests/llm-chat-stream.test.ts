@@ -5,7 +5,10 @@ import type {
   SseRequestOptions,
   SseTransportFactory,
 } from '../../framework/sse/src/types';
-import {streamOpenAiCompatibleChatWithOpenSseRequest} from '../../capabilities/llm-chat/src/stream-core';
+import {
+  llmChatStreamInterruptedErrorText,
+  streamOpenAiCompatibleChatWithOpenSseRequest,
+} from '../../capabilities/llm-chat/src/stream-core';
 import {
   lmStudioExpectedAssistantText,
   lmStudioRecordedSseChunks,
@@ -209,4 +212,50 @@ export async function run() {
 
   assert.deepEqual(failureErrors, ['network down']);
   assert.equal(failureDoneCount, 0);
+
+  const truncatedReplay = createReplayTransport([
+    'data: {"id":"chatcmpl-truncated","object":"chat.completion.chunk","created":1775063653,"model":"fixture-model","choices":[{"index":0,"delta":{"content":"partial"},"logprobs":null,"finish_reason":null}]}\n\n',
+  ]);
+  const truncatedErrors: string[] = [];
+  const truncatedDeltas: string[] = [];
+  let truncatedOpened = 0;
+  let truncatedDoneCount = 0;
+  const truncatedHandle = streamOpenAiCompatibleChatWithOpenSseRequest(
+    {
+      config: {
+        baseUrl: 'http://127.0.0.1:1234',
+        model: 'minimax/minimax-m2.5',
+        systemPrompt: '',
+      },
+      token: 'lm-studio',
+      messages: [
+        {
+          id: 'user-3',
+          role: 'user',
+          content: 'Hello again',
+        },
+      ],
+      onOpen() {
+        truncatedOpened += 1;
+      },
+      onDelta(text) {
+        truncatedDeltas.push(text);
+      },
+      onDone() {
+        truncatedDoneCount += 1;
+      },
+      onError(error) {
+        truncatedErrors.push(error.message);
+      },
+    },
+    options => openSseRequestWithTransport(options, truncatedReplay.transport),
+  );
+
+  await truncatedHandle.done;
+
+  assert.equal(truncatedReplay.calls.length, 1);
+  assert.equal(truncatedOpened, 1);
+  assert.deepEqual(truncatedDeltas, ['partial']);
+  assert.equal(truncatedDoneCount, 0);
+  assert.deepEqual(truncatedErrors, [llmChatStreamInterruptedErrorText]);
 }

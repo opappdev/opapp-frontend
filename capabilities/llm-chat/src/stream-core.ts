@@ -14,6 +14,9 @@ export type OpenLlmChatSseRequest = (
   options: SseRequestOptions,
 ) => SseRequestHandle;
 
+export const llmChatStreamInterruptedErrorText =
+  '服务端在完成流式响应前中断了连接。';
+
 export function streamOpenAiCompatibleChatWithOpenSseRequest(
   {
     config,
@@ -44,6 +47,7 @@ export function streamOpenAiCompatibleChatWithOpenSseRequest(
 
   let finished = false;
   let requestHandle: SseRequestHandle | null = null;
+  let sawTerminalChunk = false;
 
   function finishDone() {
     if (finished) {
@@ -83,6 +87,7 @@ export function streamOpenAiCompatibleChatWithOpenSseRequest(
           onDelta?.(result.text);
           return;
         case 'done':
+          sawTerminalChunk = true;
           requestHandle?.close();
           finishDone();
           return;
@@ -98,6 +103,11 @@ export function streamOpenAiCompatibleChatWithOpenSseRequest(
       finishError(error);
     },
     onComplete() {
+      if (!sawTerminalChunk) {
+        finishError(new Error(llmChatStreamInterruptedErrorText));
+        return;
+      }
+
       finishDone();
     },
   });

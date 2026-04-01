@@ -29,6 +29,7 @@ import {
   type LlmChatMessage,
   type PersistedLlmChatConfig,
 } from './model';
+import {llmChatStreamInterruptedErrorText} from './stream-core';
 import {streamOpenAiCompatibleChat} from './stream';
 
 const persistedConfigPath = 'llm-chat/config.v1.json';
@@ -36,6 +37,8 @@ const nativeSseDevSmokeScenario = 'llm-chat-native-sse';
 const nativeSseServerErrorDevSmokeScenario = 'llm-chat-native-sse-server-error';
 const nativeSseMalformedChunkDevSmokeScenario =
   'llm-chat-native-sse-malformed-chunk';
+const nativeSseStreamAbortDevSmokeScenario =
+  'llm-chat-native-sse-stream-abort';
 const nativeSseDevSmokeToken = 'fixture-token';
 const nativeSseDevSmokeModel = 'fixture-model';
 const llmChatDevSmokeRequestPrompt =
@@ -57,6 +60,11 @@ const llmChatDevSmokeScenarios = {
   [nativeSseMalformedChunkDevSmokeScenario]: {
     expectedAssistantText: undefined,
     expectedErrorText: llmChatMalformedChunkErrorText,
+    prompt: llmChatDevSmokeRequestPrompt,
+  },
+  [nativeSseStreamAbortDevSmokeScenario]: {
+    expectedAssistantText: undefined,
+    expectedErrorText: llmChatStreamInterruptedErrorText,
     prompt: llmChatDevSmokeRequestPrompt,
   },
 } as const;

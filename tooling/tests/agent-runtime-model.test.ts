@@ -16,6 +16,7 @@ import {
   agentRuntimeStorageRoot,
   agentThreadDocumentsDir,
   agentThreadIndexPath,
+  agentWorkspaceTargetPath,
   buildAgentRunDocumentPath,
   buildAgentThreadDocumentPath,
 } from '../../framework/agent-runtime/src/storage';
@@ -318,6 +319,7 @@ export function run() {
   );
 
   assert.equal(agentRuntimeStorageRoot, 'agent-runtime');
+  assert.equal(agentWorkspaceTargetPath, 'agent-runtime/workspace-target.json');
   assert.equal(agentThreadDocumentsDir, 'agent-runtime/threads');
   assert.equal(agentRunDocumentsDir, 'agent-runtime/runs');
   assert.equal(agentThreadIndexPath, 'agent-runtime/thread-index.json');

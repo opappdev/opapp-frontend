@@ -61,6 +61,7 @@ export {
   agentRuntimeStorageRoot,
   agentThreadDocumentsDir,
   agentThreadIndexPath,
+  agentWorkspaceTargetPath,
   buildAgentRunDocumentPath,
   buildAgentThreadDocumentPath,
 } from './storage';

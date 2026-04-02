@@ -1,6 +1,8 @@
 import {normalizeAgentStorageId} from './model';
 
 export const agentRuntimeStorageRoot = 'agent-runtime';
+export const agentWorkspaceTargetPath =
+  `${agentRuntimeStorageRoot}/workspace-target.json`;
 export const agentThreadDocumentsDir = `${agentRuntimeStorageRoot}/threads`;
 export const agentRunDocumentsDir = `${agentRuntimeStorageRoot}/runs`;
 export const agentThreadIndexPath = `${agentRuntimeStorageRoot}/thread-index.json`;

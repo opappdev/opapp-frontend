@@ -65,3 +65,21 @@ export {
   buildAgentRunDocumentPath,
   buildAgentThreadDocumentPath,
 } from './storage';
+export {
+  createAgentTerminalTimelineEntry,
+  createNativeAgentTerminalRuntime,
+  agentTerminalShells,
+} from './terminal-core';
+export {
+  isNativeAgentTerminalRuntimeAvailable,
+  openAgentTerminalSession,
+} from './terminal';
+export type {
+  AgentTerminalSessionEvent,
+  AgentTerminalSessionHandle,
+  AgentTerminalSessionListener,
+  AgentTerminalShell,
+  NativeAgentTerminalBridge,
+  NativeAgentTerminalEventPayload,
+  OpenAgentTerminalSessionOptions,
+} from './terminal-core';

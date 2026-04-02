@@ -96,6 +96,9 @@ importers:
 
   capabilities/llm-chat:
     dependencies:
+      '@opapp/framework-diagnostics':
+        specifier: workspace:*
+        version: link:../../framework/diagnostics
       '@opapp/framework-filesystem':
         specifier: workspace:*
         version: link:../../framework/filesystem
@@ -137,6 +140,8 @@ importers:
         version: 0.82.0(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1)
 
   contracts/windowing: {}
+
+  framework/agent-runtime: {}
 
   framework/diagnostics:
     dependencies:

@@ -27,7 +27,12 @@ only carries the shared frontend code, contracts, and supporting tooling.
 ## Git Commit Prep
 
 Before committing frontend changes, run `corepack pnpm commit:check`. That
-covers the repo's default `typecheck` plus the fast frontend test suite.
+covers frozen-lockfile validation plus the repo's default `typecheck` and fast
+frontend test suite.
+
+If you change any workspace `package.json` or dependency declaration, include
+the matching `pnpm-lock.yaml` update in the same diff instead of leaving CI to
+discover the drift later.
 
 Windows dev / prod preview remains owned by `opapp-desktop`. When you need to
 see the current Windows effect, run `npm run dev:windows`,

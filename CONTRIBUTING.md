@@ -21,11 +21,13 @@ explicitly says otherwise.
 ## Before opening a pull request
 
 1. Run `corepack pnpm commit:check`.
-2. Keep changes scoped to this repository unless you are intentionally changing
+2. If you changed any workspace `package.json` or dependency declaration, keep
+   the matching `pnpm-lock.yaml` update in the same diff.
+3. Keep changes scoped to this repository unless you are intentionally changing
    a shared contract with `opapp-desktop` or `opapp-mobile`.
-3. Update docs when you change bundle contracts, runtime assumptions, or repo
+4. Update docs when you change bundle contracts, runtime assumptions, or repo
    boundaries.
-4. Confirm you are not committing secrets, personal env files, generated
+5. Confirm you are not committing secrets, personal env files, generated
    artifacts, or local `.private-*` content.
 
 ## Repo boundaries

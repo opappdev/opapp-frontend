@@ -27,6 +27,9 @@
       "@opapp/framework-diagnostics": [
         "./framework/diagnostics/src/index.ts"
       ],
+      "@opapp/framework-agent-runtime": [
+        "./framework/agent-runtime/src/index.ts"
+      ],
       "@opapp/framework-filesystem": [
         "./framework/filesystem/src/index.ts"
       ],

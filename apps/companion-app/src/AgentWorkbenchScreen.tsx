@@ -24,7 +24,9 @@ import {
 import {
   getTrustedWorkspaceTarget,
   listWorkspaceDirectory,
+  readWorkspaceFile,
   readUserFile,
+  searchWorkspacePaths,
   statWorkspacePath,
   type TrustedWorkspaceTarget,
   type WorkspaceEntry,
@@ -40,6 +42,7 @@ import {
   SignalPill,
   Stack,
   StatusBadge,
+  TextInput,
   Toolbar,
   useTheme,
   appLayout,
@@ -49,6 +52,12 @@ import {
   type AppPalette,
   type AppTone,
 } from '@opapp/ui-native-primitives';
+import {
+  buildTerminalTranscript,
+  createWorkspaceChoices,
+  resolvePreferredWorkspacePath,
+  resolveSelectedThreadId,
+} from './agent-workbench-model';
 
 const terminalFontFamily = Platform.OS === 'windows' ? 'Consolas' : undefined;
 
@@ -137,41 +146,6 @@ function resolveTerminalEventLabel(event: AgentTerminalEventType) {
   }
 }
 
-function resolvePreferredWorkspacePath(
-  directories: ReadonlyArray<WorkspaceEntry>,
-  currentPath: string,
-) {
-  const normalizedCurrent = currentPath.trim();
-  if (
-    normalizedCurrent.length === 0 ||
-    directories.some(entry => entry.relativePath === normalizedCurrent)
-  ) {
-    return normalizedCurrent;
-  }
-
-  for (const preferredPath of ['opapp-frontend', 'opapp-desktop', 'opapp-mobile']) {
-    if (directories.some(entry => entry.relativePath === preferredPath)) {
-      return preferredPath;
-    }
-  }
-
-  return directories[0]?.relativePath ?? '';
-}
-
-function resolveSelectedThreadId(
-  threads: ReadonlyArray<AgentThreadSummary>,
-  currentThreadId: string | null,
-) {
-  if (
-    currentThreadId &&
-    threads.some(thread => thread.threadId === currentThreadId)
-  ) {
-    return currentThreadId;
-  }
-
-  return threads[0]?.threadId ?? null;
-}
-
 async function loadRunDocument(
   threadId: string | null,
   threads: ReadonlyArray<AgentThreadSummary>,
@@ -187,35 +161,6 @@ async function loadRunDocument(
 
   const raw = await readUserFile(buildAgentRunDocumentPath(runId));
   return raw ? parsePersistedAgentRunDocument(raw) : null;
-}
-
-function buildTerminalTranscript(document: AgentRunDocument | null) {
-  if (!document) {
-    return '';
-  }
-
-  return document.timeline
-    .flatMap(entry => {
-      if (entry.kind !== 'terminal-event') {
-        return [];
-      }
-
-      switch (entry.event) {
-        case 'started':
-          return [`$ ${entry.command ?? document.run.goal}\n`];
-        case 'stdout':
-          return [entry.text ?? ''];
-        case 'stderr':
-          return [entry.text ? `[stderr] ${entry.text}` : ''];
-        case 'stdin':
-          return [entry.text ? `> ${entry.text}` : ''];
-        case 'exit':
-          return [`\n[exit ${entry.exitCode ?? appI18n.common.unknown}]\n`];
-        default:
-          return [];
-      }
-    })
-    .join('');
 }
 
 function formatThreadSubtitle(thread: AgentThreadSummary) {
@@ -234,6 +179,16 @@ function formatWorkspaceSelection(
   }
 
   return selectedWorkspaceStat.relativePath || selectedWorkspaceStat.name;
+}
+
+function resolveWorkspaceKindLabel(kind: WorkspaceEntry['kind']) {
+  return kind === 'directory'
+    ? appI18n.agentWorkbench.workspace.directoryKind
+    : appI18n.agentWorkbench.workspace.fileKind;
+}
+
+function formatWorkspaceEntryMeta(entry: WorkspaceEntry) {
+  return `${resolveWorkspaceKindLabel(entry.kind)} · ${formatSizeBytes(entry.sizeBytes)}`;
 }
 
 function DetailField({
@@ -277,9 +232,21 @@ export function AgentWorkbenchScreen() {
   const [workspaceDirectories, setWorkspaceDirectories] = useState<
     WorkspaceEntry[]
   >([]);
+  const [workspaceEntries, setWorkspaceEntries] = useState<WorkspaceEntry[]>([]);
   const [selectedCwd, setSelectedCwd] = useState('');
   const [selectedWorkspaceStat, setSelectedWorkspaceStat] =
     useState<WorkspaceEntry | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<WorkspaceEntry[]>([]);
+  const [selectedInspectorEntry, setSelectedInspectorEntry] =
+    useState<WorkspaceEntry | null>(null);
+  const [selectedInspectorChildren, setSelectedInspectorChildren] = useState<
+    WorkspaceEntry[]
+  >([]);
+  const [selectedInspectorContent, setSelectedInspectorContent] =
+    useState<string | null>(null);
+  const [inspectorLoading, setInspectorLoading] = useState(false);
   const [threads, setThreads] = useState<AgentThreadSummary[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedRunDocument, setSelectedRunDocument] =
@@ -296,12 +263,59 @@ export function AgentWorkbenchScreen() {
   const activeRunHandleRef = useRef<PersistedAgentTerminalRunHandle | null>(null);
   const selectedCwdRef = useRef('');
   const selectedThreadIdRef = useRef<string | null>(null);
+  const inspectorRequestIdRef = useRef(0);
+  const searchRequestIdRef = useRef(0);
 
   const selectedRunStatus = selectedRunDocument?.run.status ?? null;
   const terminalTranscript = useMemo(
     () => buildTerminalTranscript(selectedRunDocument),
     [selectedRunDocument],
   );
+
+  const handleInspectWorkspaceEntry = useCallback(
+    async (entry: WorkspaceEntry) => {
+      const requestId = inspectorRequestIdRef.current + 1;
+      inspectorRequestIdRef.current = requestId;
+      setSelectedInspectorEntry(entry);
+      setInspectorLoading(true);
+
+      try {
+        if (entry.kind === 'directory') {
+          const children = await listWorkspaceDirectory(entry.relativePath);
+          if (inspectorRequestIdRef.current !== requestId) {
+            return;
+          }
+          setSelectedInspectorChildren(children);
+          setSelectedInspectorContent(null);
+          return;
+        }
+
+        const content = await readWorkspaceFile(entry.relativePath);
+        if (inspectorRequestIdRef.current !== requestId) {
+          return;
+        }
+        setSelectedInspectorChildren([]);
+        setSelectedInspectorContent(content);
+      } finally {
+        if (inspectorRequestIdRef.current === requestId) {
+          setInspectorLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
+  const resetWorkspaceExplorer = useCallback(() => {
+    searchRequestIdRef.current += 1;
+    inspectorRequestIdRef.current += 1;
+    setSearchQuery('');
+    setSearching(false);
+    setSearchResults([]);
+    setSelectedInspectorEntry(null);
+    setSelectedInspectorChildren([]);
+    setSelectedInspectorContent(null);
+    setInspectorLoading(false);
+  }, []);
 
   const refreshWorkbench = useCallback(
     async ({
@@ -338,11 +352,15 @@ export function AgentWorkbenchScreen() {
       const workspaceStat = workspace
         ? await statWorkspacePath(nextSelectedCwd)
         : null;
+      const currentDirectoryEntries = workspace
+        ? await listWorkspaceDirectory(nextSelectedCwd)
+        : [];
 
       selectedCwdRef.current = nextSelectedCwd;
       selectedThreadIdRef.current = nextSelectedThreadId;
       setTrustedWorkspace(workspace);
       setWorkspaceDirectories(directories);
+      setWorkspaceEntries(currentDirectoryEntries);
       setSelectedCwd(nextSelectedCwd);
       setSelectedWorkspaceStat(workspaceStat);
       setThreads(nextThreads);
@@ -477,22 +495,55 @@ export function AgentWorkbenchScreen() {
     }
   }, []);
 
+  const handleSearch = useCallback(async () => {
+    const normalizedQuery = searchQuery.trim();
+    if (!trustedWorkspace || normalizedQuery.length === 0) {
+      searchRequestIdRef.current += 1;
+      setSearching(false);
+      setSearchResults([]);
+      return;
+    }
+
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
+    setSearching(true);
+    try {
+      const results = await searchWorkspacePaths(normalizedQuery, {
+        relativePath: selectedCwdRef.current,
+        limit: 40,
+      });
+      if (searchRequestIdRef.current !== requestId) {
+        return;
+      }
+      setSearchResults(results);
+    } finally {
+      if (searchRequestIdRef.current === requestId) {
+        setSearching(false);
+      }
+    }
+  }, [searchQuery, trustedWorkspace]);
+
+  const handleBrowseDirectory = useCallback(
+    async (relativePath: string) => {
+      selectedCwdRef.current = relativePath;
+      setSelectedCwd(relativePath);
+      resetWorkspaceExplorer();
+      await refreshWorkbench({
+        preferredCwd: relativePath,
+        preferredThreadId: selectedThreadIdRef.current,
+      });
+    },
+    [refreshWorkbench, resetWorkspaceExplorer],
+  );
+
   const workspaceChoices = useMemo(
-    () => [
-      {
-        key: '',
-        label: appI18n.agentWorkbench.workspace.rootLabel,
-        detail:
-          trustedWorkspace?.displayName ??
-          appI18n.agentWorkbench.workspace.rootDetail,
-      },
-      ...workspaceDirectories.map(entry => ({
-        key: entry.relativePath,
-        label: entry.name,
-        detail: entry.relativePath,
-      })),
-    ],
-    [trustedWorkspace, workspaceDirectories],
+    () =>
+      createWorkspaceChoices({
+        trustedWorkspace,
+        directories: workspaceDirectories,
+        currentPath: selectedCwd,
+      }),
+    [selectedCwd, trustedWorkspace, workspaceDirectories],
   );
 
   if (loading) {
@@ -641,17 +692,129 @@ export function AgentWorkbenchScreen() {
                             activeBadgeLabel={appI18n.agentWorkbench.workspace.currentBadge}
                             inactiveBadgeLabel={appI18n.agentWorkbench.workspace.availableBadge}
                             onPress={() => {
-                              selectedCwdRef.current = choice.key;
-                              setSelectedCwd(choice.key);
-                              void refreshWorkbench({
-                                preferredCwd: choice.key,
-                                preferredThreadId: selectedThreadIdRef.current,
-                              });
+                              void handleBrowseDirectory(choice.key);
                             }}
                             style={screenStyles.choiceChip}
                           />
                         ))}
                       </View>
+                    </View>
+                  )}
+                </View>
+
+                <View style={screenStyles.sectionCard}>
+                  <Text style={screenStyles.sectionTitle}>
+                    {appI18n.agentWorkbench.sections.directoryTitle}
+                  </Text>
+                  <Text style={screenStyles.sectionDescription}>
+                    {appI18n.agentWorkbench.sections.directoryDescription}
+                  </Text>
+
+                  {!trustedWorkspace ? (
+                    <EmptyState
+                      title={appI18n.agentWorkbench.empty.directoryTitle}
+                      description={appI18n.agentWorkbench.empty.directoryDescription}
+                    />
+                  ) : workspaceEntries.length === 0 ? (
+                    <EmptyState
+                      title={appI18n.agentWorkbench.empty.directoryTitle}
+                      description={appI18n.agentWorkbench.empty.directoryDescription}
+                    />
+                  ) : (
+                    <View style={screenStyles.threadList}>
+                      {workspaceEntries.map(entry => (
+                        <ChoiceChip
+                          key={entry.relativePath || entry.name}
+                          label={entry.name}
+                          detail={entry.relativePath || appI18n.agentWorkbench.workspace.rootLabel}
+                          meta={formatWorkspaceEntryMeta(entry)}
+                          active={
+                            selectedInspectorEntry?.relativePath === entry.relativePath
+                          }
+                          activeBadgeLabel={appI18n.agentWorkbench.inspector.selectedBadge}
+                          inactiveBadgeLabel={appI18n.agentWorkbench.inspector.availableBadge}
+                          onPress={() => {
+                            void handleInspectWorkspaceEntry(entry);
+                          }}
+                          style={screenStyles.choiceChip}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <View style={screenStyles.sectionCard}>
+                  <Text style={screenStyles.sectionTitle}>
+                    {appI18n.agentWorkbench.sections.searchTitle}
+                  </Text>
+                  <Text style={screenStyles.sectionDescription}>
+                    {appI18n.agentWorkbench.sections.searchDescription}
+                  </Text>
+
+                  {!trustedWorkspace ? (
+                    <EmptyState
+                      title={appI18n.agentWorkbench.empty.searchTitle}
+                      description={appI18n.agentWorkbench.empty.searchDescription}
+                    />
+                  ) : (
+                    <View style={screenStyles.sectionBody}>
+                      <TextInput
+                        value={searchQuery}
+                        onChangeText={text => {
+                          searchRequestIdRef.current += 1;
+                          setSearchQuery(text);
+                          setSearching(false);
+                          if (text.trim().length === 0) {
+                            setSearchResults([]);
+                          }
+                        }}
+                        placeholder={appI18n.agentWorkbench.search.placeholder}
+                        onClear={() => {
+                          searchRequestIdRef.current += 1;
+                          setSearchQuery('');
+                          setSearching(false);
+                          setSearchResults([]);
+                        }}
+                        style={screenStyles.searchInput}
+                      />
+                      <ActionButton
+                        label={
+                          searching
+                            ? appI18n.agentWorkbench.actions.searching
+                            : appI18n.agentWorkbench.actions.search
+                        }
+                        onPress={() => {
+                          void handleSearch();
+                        }}
+                        disabled={searching || searchQuery.trim().length === 0}
+                        tone='ghost'
+                      />
+                      {searchResults.length === 0 ? (
+                        <EmptyState
+                          title={appI18n.agentWorkbench.empty.searchTitle}
+                          description={appI18n.agentWorkbench.empty.searchDescription}
+                        />
+                      ) : (
+                        <View style={screenStyles.threadList}>
+                          {searchResults.map(entry => (
+                            <ChoiceChip
+                              key={`${entry.relativePath}:${entry.kind}`}
+                              label={entry.name}
+                              detail={entry.relativePath}
+                              meta={formatWorkspaceEntryMeta(entry)}
+                              active={
+                                selectedInspectorEntry?.relativePath === entry.relativePath
+                              }
+                              activeBadgeLabel={appI18n.agentWorkbench.inspector.selectedBadge}
+                              inactiveBadgeLabel={appI18n.agentWorkbench.inspector.availableBadge}
+                              onPress={() => {
+                                void handleInspectWorkspaceEntry(entry);
+                              }}
+                              style={screenStyles.choiceChip}
+                            />
+                          ))}
+                        </View>
+                      )}
                     </View>
                   )}
                 </View>
@@ -701,6 +864,125 @@ export function AgentWorkbenchScreen() {
                   screenStyles.detailPane,
                   isCompactLayout ? screenStyles.detailPaneCompact : null,
                 ]}>
+                <View style={screenStyles.sectionCard}>
+                  <Text style={screenStyles.sectionTitle}>
+                    {appI18n.agentWorkbench.sections.inspectorTitle}
+                  </Text>
+                  <Text style={screenStyles.sectionDescription}>
+                    {appI18n.agentWorkbench.sections.inspectorDescription}
+                  </Text>
+
+                  {!selectedInspectorEntry ? (
+                    <EmptyState
+                      title={appI18n.agentWorkbench.empty.inspectorTitle}
+                      description={appI18n.agentWorkbench.empty.inspectorDescription}
+                    />
+                  ) : (
+                    <View style={screenStyles.sectionBody}>
+                      <View style={screenStyles.detailGrid}>
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.relativePath}
+                          value={
+                            selectedInspectorEntry.relativePath ||
+                            appI18n.agentWorkbench.workspace.rootLabel
+                          }
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.currentType}
+                          value={resolveWorkspaceKindLabel(selectedInspectorEntry.kind)}
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.size}
+                          value={formatSizeBytes(selectedInspectorEntry.sizeBytes)}
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.childCount}
+                          value={`${selectedInspectorChildren.length}`}
+                        />
+                      </View>
+
+                      {inspectorLoading ? (
+                        <View style={screenStyles.loadingInline}>
+                          <ActivityIndicator size='small' color={palette.accent} />
+                        </View>
+                      ) : null}
+
+                      {selectedInspectorEntry.kind === 'directory' ? (
+                        <View style={screenStyles.sectionBody}>
+                          <ActionButton
+                            label={appI18n.agentWorkbench.actions.openDirectory}
+                            onPress={() => {
+                              void handleBrowseDirectory(
+                                selectedInspectorEntry.relativePath,
+                              );
+                            }}
+                            disabled={selectedCwd === selectedInspectorEntry.relativePath}
+                            tone='ghost'
+                          />
+                          {selectedInspectorChildren.length === 0 ? (
+                            <EmptyState
+                              title={appI18n.agentWorkbench.empty.directoryTitle}
+                              description={
+                                appI18n.agentWorkbench.empty.directoryDescription
+                              }
+                            />
+                          ) : (
+                            <View style={screenStyles.threadList}>
+                              {selectedInspectorChildren.map(entry => (
+                                <ChoiceChip
+                                  key={`${entry.relativePath}:${entry.kind}`}
+                                  label={entry.name}
+                                  detail={entry.relativePath}
+                                  meta={formatWorkspaceEntryMeta(entry)}
+                                  active={
+                                    selectedInspectorEntry.relativePath ===
+                                    entry.relativePath
+                                  }
+                                  activeBadgeLabel={
+                                    appI18n.agentWorkbench.inspector.selectedBadge
+                                  }
+                                  inactiveBadgeLabel={
+                                    appI18n.agentWorkbench.inspector.availableBadge
+                                  }
+                                  onPress={() => {
+                                    void handleInspectWorkspaceEntry(entry);
+                                  }}
+                                  style={screenStyles.choiceChip}
+                                />
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      ) : (
+                        <View
+                          style={[
+                            screenStyles.terminalBox,
+                            {
+                              backgroundColor: palette.canvas,
+                              borderColor: palette.border,
+                            },
+                          ]}>
+                          <ScrollView style={screenStyles.terminalScroll}>
+                            <Text
+                              style={[
+                                screenStyles.terminalText,
+                                {
+                                  color: palette.ink,
+                                  fontFamily: terminalFontFamily,
+                                },
+                              ]}>
+                              {selectedInspectorContent === null
+                                ? appI18n.agentWorkbench.empty.contentUnavailable
+                                : selectedInspectorContent ||
+                                  appI18n.agentWorkbench.empty.fileContent}
+                            </Text>
+                          </ScrollView>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+
                 <View style={screenStyles.sectionCard}>
                   <Text style={screenStyles.sectionTitle}>
                     {appI18n.agentWorkbench.sections.runTitle}
@@ -922,6 +1204,11 @@ function createScreenStyles(palette: AppPalette) {
     infoText: {
       ...appTypography.body,
     },
+    loadingInline: {
+      minHeight: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     contentShell: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -976,6 +1263,9 @@ function createScreenStyles(palette: AppPalette) {
     },
     choiceChip: {
       maxWidth: '100%',
+    },
+    searchInput: {
+      width: '100%',
     },
     threadList: {
       gap: appSpacing.sm,

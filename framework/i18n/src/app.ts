@@ -405,9 +405,12 @@ export const zhCNApp = {
     actions: {
       refresh: '刷新',
       refreshing: '刷新中...',
+      search: '搜索路径',
+      searching: '搜索中...',
       runGitStatus: '运行 git status',
       runningGitStatus: '正在运行 git status...',
       cancelRun: '停止当前运行',
+      openDirectory: '切换到此目录',
     },
     feedback: {
       title: '工作台状态',
@@ -423,6 +426,15 @@ export const zhCNApp = {
       workspaceTitle: 'Trusted Workspace',
       workspaceDescription:
         '读取宿主当前保存的 trusted workspace，并把 terminal cwd 约束在这个范围内。',
+      directoryTitle: '当前目录内容',
+      directoryDescription:
+        '显示当前执行目录下的一层文件和子目录，便于从 workbench 直接选中路径做检查。',
+      searchTitle: '路径搜索',
+      searchDescription:
+        '按当前执行目录为范围搜索工作区路径，结果既可以打开文件，也可以切到某个子目录继续浏览。',
+      inspectorTitle: 'Path Inspector',
+      inspectorDescription:
+        '文件显示只读内容，目录显示子项并允许切换为当前目录，先补 workbench 的基础 repo 浏览能力。',
       threadsTitle: '线程与运行',
       threadsDescription:
         '这里显示 `agent-runtime/thread-index.json` 里的最新 thread 摘要，并默认选中最近一条 run。',
@@ -442,8 +454,13 @@ export const zhCNApp = {
       rootLabel: '工作区根目录',
       rootDetail: '直接在 trusted workspace root 下运行',
       directoryKind: 'directory',
+      fileKind: 'file',
       currentBadge: '当前目录',
       availableBadge: '可切换',
+    },
+    inspector: {
+      selectedBadge: '当前查看',
+      availableBadge: '可打开',
     },
     threads: {
       selectedBadge: '当前线程',
@@ -453,11 +470,16 @@ export const zhCNApp = {
       gitStatusTitle: 'Git Status',
       gitStatusGoal: '检查工作区状态',
     },
+    search: {
+      placeholder: '搜索文件名、目录名或相对路径',
+    },
     labels: {
       rootPath: '根目录',
       selectedCwd: '执行目录',
+      relativePath: '相对路径',
       currentType: '当前类型',
       size: '大小',
+      childCount: '子项数',
       threadId: 'Thread ID',
       runId: 'Run ID',
       sessionId: 'Session ID',
@@ -492,6 +514,14 @@ export const zhCNApp = {
       workspaceTitle: '还没有 trusted workspace',
       workspaceDescription:
         '先在宿主里配置 trusted workspace root，terminal run 才能被允许启动并落到 agent-runtime 持久化。',
+      directoryTitle: '当前目录下没有可展示的路径',
+      directoryDescription:
+        '先切到一个包含文件的目录，或者从上面的目录切换器里换一个工作区范围。',
+      searchTitle: '还没有搜索结果',
+      searchDescription: '输入关键词并点击“搜索路径”后，这里会显示匹配到的文件和目录。',
+      inspectorTitle: '还没有选中任何路径',
+      inspectorDescription:
+        '从“当前目录内容”或“路径搜索”里选中文件/目录后，右侧会显示内容或子项。',
       threadsTitle: '还没有任何 run',
       threadsDescription:
         '点击“运行 git status”后，这里会生成新的 thread / run 记录。',
@@ -501,6 +531,8 @@ export const zhCNApp = {
       timelineTitle: '当前没有 timeline',
       timelineDescription:
         'run 落下后，started/stdout/stderr/stdin/exit 会按顺序出现在这里。',
+      fileContent: '当前文件为空。',
+      contentUnavailable: '当前路径内容不可读，或者宿主没有返回文本内容。',
       terminalDescription: 'stdout / stderr 聚合输出会显示在这里。',
     },
   },

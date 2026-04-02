@@ -10,6 +10,7 @@ export const zhCNApp = {
   },
   surfaces: {
     launcher: '应用库与更新',
+    agentWorkbench: 'Agent Workbench',
     challengeAdvisor: '挑战场景作战板',
     llmChat: 'LLM Chat',
     settings: '应用设置',
@@ -144,6 +145,8 @@ export const zhCNApp = {
     targets: {
       mainLauncher:
         '先回到应用库首页，方便继续切换设置页、实验页或其它应用。',
+      agentWorkbench:
+        '进入本地 Agent 工作台，查看 trusted workspace、run 文档和 terminal timeline。',
       llmChat: '直接进入独立的 OpenAI-compatible LLM Chat 应用。',
       settings: '直接进入设置页，方便先调整宿主和窗口偏好。',
       viewShotLab: '直接进入 View Shot 验证页。',
@@ -390,6 +393,115 @@ export const zhCNApp = {
       battleKickerTurnsInfix: ' · 预计 ',
       battleKickerTurnsSuffix: ' 回合',
       encounterTargetPendingEvidence: '目标回合待补证',
+    },
+  },
+  agentWorkbench: {
+    frame: {
+      eyebrow: 'Agent 工作台',
+      title: '本地 Agent Workbench',
+      description:
+        '把 trusted workspace、run 持久化和 terminal timeline 接到同一页里，先验证主线 D 的最小 run 闭环。',
+    },
+    actions: {
+      refresh: '刷新',
+      refreshing: '刷新中...',
+      runGitStatus: '运行 git status',
+      runningGitStatus: '正在运行 git status...',
+      cancelRun: '停止当前运行',
+    },
+    feedback: {
+      title: '工作台状态',
+      refreshed: 'Agent 工作台已刷新。',
+      missingWorkspace: '当前还没有 trusted workspace，无法启动 terminal run。',
+      runStarted: '已启动新的 terminal run。',
+      runFailed: '启动 terminal run 失败，请查看最新 run 文档或宿主日志。',
+      cancelRequested: '已请求停止当前运行，等待宿主回传 exit 事件。',
+      cancelFailed: '停止当前运行失败，请稍后重试。',
+      refreshFailed: '刷新工作台失败，请稍后重试。',
+    },
+    sections: {
+      workspaceTitle: 'Trusted Workspace',
+      workspaceDescription:
+        '读取宿主当前保存的 trusted workspace，并把 terminal cwd 约束在这个范围内。',
+      threadsTitle: '线程与运行',
+      threadsDescription:
+        '这里显示 `agent-runtime/thread-index.json` 里的最新 thread 摘要，并默认选中最近一条 run。',
+      runTitle: '运行详情',
+      runDescription:
+        '展示当前选中 run 的核心元数据，包括 goal、sessionId 和最近更新时间。',
+      timelineTitle: '结构化时间线',
+      timelineDescription:
+        '当前最小闭环先持久化 `started / stdout / stderr / stdin / exit`，错误则落为 error timeline。',
+      terminalTitle: 'Terminal Pane',
+      terminalDescription:
+        '把 terminal-event timeline 聚合成一个只读终端输出窗口，方便快速核对 stdout/stderr。',
+    },
+    workspace: {
+      ready: 'workspace 已就绪',
+      missing: 'workspace 未配置',
+      rootLabel: '工作区根目录',
+      rootDetail: '直接在 trusted workspace root 下运行',
+      directoryKind: 'directory',
+      currentBadge: '当前目录',
+      availableBadge: '可切换',
+    },
+    threads: {
+      selectedBadge: '当前线程',
+      availableBadge: '可查看',
+    },
+    run: {
+      gitStatusTitle: 'Git Status',
+      gitStatusGoal: '检查工作区状态',
+    },
+    labels: {
+      rootPath: '根目录',
+      selectedCwd: '执行目录',
+      currentType: '当前类型',
+      size: '大小',
+      threadId: 'Thread ID',
+      runId: 'Run ID',
+      sessionId: 'Session ID',
+      goal: 'Goal',
+      updatedAt: '最后更新',
+      timelineCount: '时间线事件数',
+      event: '事件',
+      command: '命令',
+      cwd: '工作目录',
+      exitCode: '退出码',
+      errorCode: '错误码',
+    },
+    status: {
+      idle: '空闲',
+      queued: '排队中',
+      running: '运行中',
+      needsApproval: '等待审批',
+      completed: '已完成',
+      failed: '失败',
+      cancelled: '已取消',
+      interrupted: '已中断',
+    },
+    events: {
+      started: '启动',
+      stdout: '标准输出',
+      stderr: '标准错误',
+      stdin: '标准输入',
+      exit: '退出',
+      error: '错误',
+    },
+    empty: {
+      workspaceTitle: '还没有 trusted workspace',
+      workspaceDescription:
+        '先在宿主里配置 trusted workspace root，terminal run 才能被允许启动并落到 agent-runtime 持久化。',
+      threadsTitle: '还没有任何 run',
+      threadsDescription:
+        '点击“运行 git status”后，这里会生成新的 thread / run 记录。',
+      runTitle: '当前没有可展示的 run',
+      runDescription:
+        '先从当前 trusted workspace 启动一次 terminal run，再回来看结构化 run 文档。',
+      timelineTitle: '当前没有 timeline',
+      timelineDescription:
+        'run 落下后，started/stdout/stderr/stdin/exit 会按顺序出现在这里。',
+      terminalDescription: 'stdout / stderr 聚合输出会显示在这里。',
     },
   },
   llmChat: {

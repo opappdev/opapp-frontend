@@ -114,6 +114,15 @@ export const companionLaunchTargets: CompanionLaunchTarget[] = [
     presentation: 'current-window',
   },
   {
+    targetId: 'agent-workbench',
+    title: appI18n.surfaces.agentWorkbench,
+    description: appI18n.bundleLauncher.targets.agentWorkbench,
+    surfaceId: surfaceIds.companionAgentWorkbench,
+    bundleId: companionBundleIds.main,
+    policy: 'main',
+    presentation: 'current-window',
+  },
+  {
     targetId: 'settings',
     title: appI18n.surfaces.settings,
     description: appI18n.bundleLauncher.targets.settings,

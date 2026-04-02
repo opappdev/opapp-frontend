@@ -56,6 +56,9 @@ importers:
       '@opapp/contracts-windowing':
         specifier: workspace:*
         version: link:../../contracts/windowing
+      '@opapp/framework-agent-runtime':
+        specifier: workspace:*
+        version: link:../../framework/agent-runtime
       '@opapp/framework-diagnostics':
         specifier: workspace:*
         version: link:../../framework/diagnostics
@@ -141,7 +144,11 @@ importers:
 
   contracts/windowing: {}
 
-  framework/agent-runtime: {}
+  framework/agent-runtime:
+    dependencies:
+      '@opapp/framework-filesystem':
+        specifier: workspace:*
+        version: link:../filesystem
 
   framework/diagnostics:
     dependencies:
@@ -3875,7 +3882,9 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/new-app-screen@0.82.0-rc.0(@types/react@19.2.14)(react-native@0.82.0(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1))(react@19.1.1)':
     dependencies:

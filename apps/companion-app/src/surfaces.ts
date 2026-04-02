@@ -10,6 +10,7 @@ import {
 } from '@opapp/framework-surfaces';
 import {appI18n} from '@opapp/framework-i18n';
 import {SettingsScreen} from '@opapp/capability-settings';
+import {AgentWorkbenchScreen} from './AgentWorkbenchScreen';
 import {BundleLauncherScreen} from './BundleLauncherScreen';
 import {
   companionBundleIds,
@@ -28,6 +29,8 @@ type CompanionBundleConfig = {
 
 const launcherSurfaceComponent =
   BundleLauncherScreen as ComponentType<Record<string, unknown>>;
+const agentWorkbenchSurfaceComponent =
+  AgentWorkbenchScreen as ComponentType<Record<string, unknown>>;
 const settingsSurfaceComponent =
   SettingsScreen as ComponentType<Record<string, unknown>>;
 const viewShotLabSurfaceComponent =
@@ -46,6 +49,15 @@ const companionSurfaceDefinitions = {
     defaultPresentation: 'current-window',
     acceptsInitialProps: true,
     Component: launcherSurfaceComponent,
+  }),
+  agentWorkbench: defineSurface<Record<string, unknown>>({
+    surfaceId: surfaceIds.companionAgentWorkbench,
+    title: appI18n.surfaces.agentWorkbench,
+    capabilityId: 'agent-workbench',
+    defaultPolicy: 'main',
+    defaultPresentation: 'current-window',
+    acceptsInitialProps: true,
+    Component: agentWorkbenchSurfaceComponent,
   }),
   settings: defineSurface<Record<string, unknown>>({
     surfaceId: surfaceIds.companionSettings,
@@ -111,6 +123,7 @@ function createCompanionBundleConfig(
 
 export const mainCompanionSurfaceRegistry = createCompanionSurfaceRegistry([
   'launcher',
+  'agentWorkbench',
   'settings',
   'viewShotLab',
   'windowCaptureLab',

@@ -71,6 +71,10 @@ export {
   agentTerminalShells,
 } from './terminal-core';
 export {
+  createPersistedAgentTerminalRuntime,
+  openPersistedAgentTerminalRun,
+} from './run-coordinator';
+export {
   isNativeAgentTerminalRuntimeAvailable,
   openAgentTerminalSession,
 } from './terminal';
@@ -83,3 +87,7 @@ export type {
   NativeAgentTerminalEventPayload,
   OpenAgentTerminalSessionOptions,
 } from './terminal-core';
+export type {
+  OpenPersistedAgentTerminalRunOptions,
+  PersistedAgentTerminalRunHandle,
+} from './run-coordinator';

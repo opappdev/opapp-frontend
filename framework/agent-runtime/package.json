@@ -8,5 +8,8 @@
   "files": [
     "src"
   ],
+  "dependencies": {
+    "@opapp/framework-filesystem": "workspace:*"
+  },
   "license": "MPL-2.0"
 }

@@ -614,6 +614,12 @@ export function BundleLauncherScreen({
     () => buildServicePresentation(remoteCatalog, checkingForUpdates),
     [checkingForUpdates, remoteCatalog],
   );
+  const agentWorkbenchTarget = useMemo(
+    () =>
+      companionLaunchTargets.find(target => target.targetId === 'agent-workbench') ??
+      null,
+    [],
+  );
   const availableLaunchTargetBundleIds = useMemo(
     () => launchTargets.map(target => target.bundleId),
     [launchTargets],
@@ -903,6 +909,17 @@ export function BundleLauncherScreen({
                       void handleCheckUpdates();
                     }}
                     disabled={checkingForUpdates}
+                  />
+                ) : null}
+                {agentWorkbenchTarget ? (
+                  <ActionButton
+                    label={appI18n.surfaces.agentWorkbench}
+                    onPress={() => {
+                      void openSurface(
+                        createCompanionOpenSurfaceRequest(agentWorkbenchTarget),
+                      );
+                    }}
+                    tone="ghost"
                   />
                 ) : null}
               </View>

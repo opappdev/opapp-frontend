@@ -11,6 +11,7 @@
       ],
       "surfaces": [
         "companion.main",
+        "companion.agent-workbench",
         "companion.settings",
         "companion.view-shot",
         "companion.window-capture"

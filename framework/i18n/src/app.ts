@@ -405,6 +405,9 @@ export const zhCNApp = {
     actions: {
       refresh: '刷新',
       refreshing: '刷新中...',
+      loadDiff: '查看 git diff',
+      loadingDiff: '正在加载 git diff...',
+      refreshDiff: '刷新 git diff',
       search: '搜索路径',
       searching: '搜索中...',
       runGitStatus: '运行 git status',
@@ -435,6 +438,9 @@ export const zhCNApp = {
       inspectorTitle: 'Path Inspector',
       inspectorDescription:
         '文件显示只读内容，目录显示子项并允许切换为当前目录，先补 workbench 的基础 repo 浏览能力。',
+      diffTitle: 'Git Diff',
+      diffDescription:
+        '在对应子仓库根目录执行 `git diff HEAD -- <path>`，把当前文件相对 HEAD 的差异直接显示在 workbench。',
       threadsTitle: '线程与运行',
       threadsDescription:
         '这里显示 `agent-runtime/thread-index.json` 里的最新 thread 摘要，并默认选中最近一条 run。',
@@ -522,6 +528,15 @@ export const zhCNApp = {
       inspectorTitle: '还没有选中任何路径',
       inspectorDescription:
         '从“当前目录内容”或“路径搜索”里选中文件/目录后，右侧会显示内容或子项。',
+      diffTitle: '还没有加载 git diff',
+      diffDescription:
+        '选中文件后点击“查看 git diff”，这里会显示当前文件相对 HEAD 的差异。',
+      diffUnavailableTitle: '当前路径还不能显示 git diff',
+      diffUnavailableDescription:
+        '该路径不在已支持的子仓库范围内，或者当前选中的是仓库根目录本身。',
+      diffNoChangesTitle: '当前文件没有 git diff 输出',
+      diffNoChangesDescription:
+        '可能当前文件相对 HEAD 没有变更，或者它还没有被 git 跟踪。',
       threadsTitle: '还没有任何 run',
       threadsDescription:
         '点击“运行 git status”后，这里会生成新的 thread / run 记录。',

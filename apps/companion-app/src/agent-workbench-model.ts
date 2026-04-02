@@ -14,6 +14,8 @@ export type WorkspaceChoiceItem = {
   detail: string;
 };
 
+const workspaceRepoRoots = ['opapp-frontend', 'opapp-desktop', 'opapp-mobile'];
+
 function resolveWorkspaceChoiceLabel(relativePath: string) {
   const normalizedPath = relativePath.trim();
   if (!normalizedPath) {
@@ -124,4 +126,29 @@ export function buildTerminalTranscript(document: AgentRunDocument | null) {
       }
     })
     .join('');
+}
+
+function quotePowerShellLiteral(value: string) {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
+export function buildWorkspaceGitDiffCommand(relativePath: string) {
+  const segments = relativePath
+    .trim()
+    .split('/')
+    .filter(Boolean);
+  const repoRoot = segments[0] ?? '';
+  if (!workspaceRepoRoots.includes(repoRoot)) {
+    return null;
+  }
+
+  const repoRelativePath = segments.slice(1).join('/');
+  if (!repoRelativePath) {
+    return null;
+  }
+
+  return {
+    cwd: repoRoot,
+    command: `git diff --no-ext-diff --no-color HEAD -- ${quotePowerShellLiteral(repoRelativePath)}`,
+  };
 }

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  buildWorkspaceGitDiffCommand,
   buildTerminalTranscript,
   createWorkspaceChoices,
   resolvePreferredWorkspacePath,
@@ -49,6 +50,16 @@ export function run() {
     ['', 'opapp-frontend/framework', 'opapp-frontend', 'opapp-desktop'],
   );
   assert.equal(workspaceChoices[1]?.label, 'framework');
+
+  assert.deepEqual(
+    buildWorkspaceGitDiffCommand("opapp-frontend/apps/companion-app/src/user's-note.tsx"),
+    {
+      cwd: 'opapp-frontend',
+      command:
+        "git diff --no-ext-diff --no-color HEAD -- 'apps/companion-app/src/user''s-note.tsx'",
+    },
+  );
+  assert.equal(buildWorkspaceGitDiffCommand('AGENT.md'), null);
 
   assert.equal(
     resolveSelectedThreadId(

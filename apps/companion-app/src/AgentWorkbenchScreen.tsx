@@ -12,9 +12,11 @@ import {logException, logInteraction} from '@opapp/framework-diagnostics';
 import {
   agentThreadIndexPath,
   buildAgentRunDocumentPath,
+  openAgentTerminalSession,
   openPersistedAgentTerminalRun,
   parsePersistedAgentRunDocument,
   parsePersistedAgentThreadIndex,
+  type AgentTerminalSessionHandle,
   type AgentRunDocument,
   type AgentRunStatus,
   type AgentTerminalEventType,
@@ -53,6 +55,7 @@ import {
   type AppTone,
 } from '@opapp/ui-native-primitives';
 import {
+  buildWorkspaceGitDiffCommand,
   buildTerminalTranscript,
   createWorkspaceChoices,
   resolvePreferredWorkspacePath,
@@ -247,6 +250,14 @@ export function AgentWorkbenchScreen() {
   const [selectedInspectorContent, setSelectedInspectorContent] =
     useState<string | null>(null);
   const [inspectorLoading, setInspectorLoading] = useState(false);
+  const [selectedDiffPath, setSelectedDiffPath] = useState<string | null>(null);
+  const [selectedDiffOutput, setSelectedDiffOutput] = useState<string | null>(
+    null,
+  );
+  const [selectedDiffError, setSelectedDiffError] = useState<string | null>(
+    null,
+  );
+  const [diffLoading, setDiffLoading] = useState(false);
   const [threads, setThreads] = useState<AgentThreadSummary[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedRunDocument, setSelectedRunDocument] =
@@ -261,8 +272,10 @@ export function AgentWorkbenchScreen() {
   } | null>(null);
 
   const activeRunHandleRef = useRef<PersistedAgentTerminalRunHandle | null>(null);
+  const diffSessionRef = useRef<AgentTerminalSessionHandle | null>(null);
   const selectedCwdRef = useRef('');
   const selectedThreadIdRef = useRef<string | null>(null);
+  const diffRequestIdRef = useRef(0);
   const inspectorRequestIdRef = useRef(0);
   const searchRequestIdRef = useRef(0);
 
@@ -271,9 +284,30 @@ export function AgentWorkbenchScreen() {
     () => buildTerminalTranscript(selectedRunDocument),
     [selectedRunDocument],
   );
+  const selectedGitDiffCommand = useMemo(() => {
+    if (!selectedInspectorEntry || selectedInspectorEntry.kind === 'directory') {
+      return null;
+    }
+
+    return buildWorkspaceGitDiffCommand(selectedInspectorEntry.relativePath);
+  }, [selectedInspectorEntry]);
+
+  const resetSelectedDiff = useCallback(() => {
+    diffRequestIdRef.current += 1;
+    const currentSession = diffSessionRef.current;
+    diffSessionRef.current = null;
+    if (currentSession) {
+      void currentSession.cancel().catch(() => {});
+    }
+    setSelectedDiffPath(null);
+    setSelectedDiffOutput(null);
+    setSelectedDiffError(null);
+    setDiffLoading(false);
+  }, []);
 
   const handleInspectWorkspaceEntry = useCallback(
     async (entry: WorkspaceEntry) => {
+      resetSelectedDiff();
       const requestId = inspectorRequestIdRef.current + 1;
       inspectorRequestIdRef.current = requestId;
       setSelectedInspectorEntry(entry);
@@ -302,12 +336,13 @@ export function AgentWorkbenchScreen() {
         }
       }
     },
-    [],
+    [resetSelectedDiff],
   );
 
   const resetWorkspaceExplorer = useCallback(() => {
     searchRequestIdRef.current += 1;
     inspectorRequestIdRef.current += 1;
+    resetSelectedDiff();
     setSearchQuery('');
     setSearching(false);
     setSearchResults([]);
@@ -315,7 +350,7 @@ export function AgentWorkbenchScreen() {
     setSelectedInspectorChildren([]);
     setSelectedInspectorContent(null);
     setInspectorLoading(false);
-  }, []);
+  }, [resetSelectedDiff]);
 
   const refreshWorkbench = useCallback(
     async ({
@@ -535,6 +570,118 @@ export function AgentWorkbenchScreen() {
     },
     [refreshWorkbench, resetWorkspaceExplorer],
   );
+
+  const handleLoadSelectedDiff = useCallback(async () => {
+    if (
+      !selectedInspectorEntry ||
+      selectedInspectorEntry.kind === 'directory' ||
+      !selectedGitDiffCommand
+    ) {
+      return;
+    }
+
+    diffRequestIdRef.current += 1;
+    const requestId = diffRequestIdRef.current;
+    const previousSession = diffSessionRef.current;
+    diffSessionRef.current = null;
+    if (previousSession) {
+      void previousSession.cancel().catch(() => {});
+    }
+
+    setSelectedDiffPath(selectedInspectorEntry.relativePath);
+    setSelectedDiffOutput('');
+    setSelectedDiffError(null);
+    setDiffLoading(true);
+
+    const chunks: string[] = [];
+    let settled = false;
+
+    try {
+      const session = await openAgentTerminalSession(
+        {
+          command: selectedGitDiffCommand.command,
+          cwd: selectedGitDiffCommand.cwd,
+        },
+        {
+          onEvent(event) {
+            if (diffRequestIdRef.current !== requestId) {
+              return;
+            }
+
+            switch (event.event) {
+              case 'stdout':
+                if (event.text) {
+                  chunks.push(event.text);
+                  setSelectedDiffOutput(chunks.join(''));
+                }
+                break;
+              case 'stderr':
+                if (event.text) {
+                  chunks.push(`[stderr] ${event.text}`);
+                  setSelectedDiffOutput(chunks.join(''));
+                }
+                break;
+              case 'exit':
+                settled = true;
+                diffSessionRef.current = null;
+                setDiffLoading(false);
+                break;
+              default:
+                break;
+            }
+          },
+          onError(error) {
+            settled = true;
+            if (diffRequestIdRef.current !== requestId) {
+              return;
+            }
+
+            diffSessionRef.current = null;
+            setDiffLoading(false);
+            setSelectedDiffError(error.message);
+            logException('agent-workbench.diff.failed', error, {
+              relativePath: selectedInspectorEntry.relativePath,
+              cwd: selectedGitDiffCommand.cwd,
+            });
+          },
+        },
+      );
+
+      if (diffRequestIdRef.current !== requestId) {
+        await session.cancel().catch(() => {});
+        return;
+      }
+
+      if (!settled) {
+        diffSessionRef.current = session;
+      }
+    } catch (error) {
+      if (diffRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setDiffLoading(false);
+      setSelectedDiffOutput(null);
+      setSelectedDiffError(
+        error instanceof Error
+          ? error.message
+          : appI18n.agentWorkbench.feedback.runFailed,
+      );
+      logException('agent-workbench.diff.failed', error, {
+        relativePath: selectedInspectorEntry.relativePath,
+        cwd: selectedGitDiffCommand.cwd,
+      });
+    }
+  }, [selectedGitDiffCommand, selectedInspectorEntry]);
+
+  useEffect(() => () => {
+    diffRequestIdRef.current += 1;
+    const currentSession = diffSessionRef.current;
+    diffSessionRef.current = null;
+    if (currentSession) {
+      void currentSession.cancel().catch(() => {});
+    }
+  }, []);
 
   const workspaceChoices = useMemo(
     () =>
@@ -979,6 +1126,113 @@ export function AgentWorkbenchScreen() {
                           </ScrollView>
                         </View>
                       )}
+
+                      {selectedInspectorEntry.kind === 'file' ? (
+                        <View style={screenStyles.sectionBody}>
+                          <Text style={screenStyles.sectionTitle}>
+                            {appI18n.agentWorkbench.sections.diffTitle}
+                          </Text>
+                          <Text style={screenStyles.sectionDescription}>
+                            {appI18n.agentWorkbench.sections.diffDescription}
+                          </Text>
+
+                          {selectedGitDiffCommand ? (
+                            <ActionButton
+                              label={
+                                diffLoading
+                                  ? appI18n.agentWorkbench.actions.loadingDiff
+                                  : selectedDiffPath ===
+                                      selectedInspectorEntry.relativePath
+                                    ? appI18n.agentWorkbench.actions.refreshDiff
+                                    : appI18n.agentWorkbench.actions.loadDiff
+                              }
+                              onPress={() => {
+                                void handleLoadSelectedDiff();
+                              }}
+                              disabled={diffLoading}
+                              tone='ghost'
+                            />
+                          ) : null}
+
+                          {selectedDiffError ? (
+                            <InfoPanel
+                              title={appI18n.agentWorkbench.sections.diffTitle}
+                              tone='danger'>
+                              <Text
+                                style={[screenStyles.infoText, {color: palette.ink}]}>
+                                {selectedDiffError}
+                              </Text>
+                            </InfoPanel>
+                          ) : null}
+
+                          {selectedDiffError
+                            ? null
+                            : !selectedGitDiffCommand
+                              ? (
+                                  <EmptyState
+                                    title={
+                                      appI18n.agentWorkbench.empty.diffUnavailableTitle
+                                    }
+                                    description={
+                                      appI18n.agentWorkbench.empty.diffUnavailableDescription
+                                    }
+                                  />
+                                )
+                              : selectedDiffPath !==
+                                    selectedInspectorEntry.relativePath
+                                ? (
+                                    <EmptyState
+                                      title={appI18n.agentWorkbench.empty.diffTitle}
+                                      description={
+                                        appI18n.agentWorkbench.empty.diffDescription
+                                      }
+                                    />
+                                  )
+                                : diffLoading && !selectedDiffOutput
+                                  ? (
+                                      <View style={screenStyles.loadingInline}>
+                                        <ActivityIndicator
+                                          size='small'
+                                          color={palette.accent}
+                                        />
+                                      </View>
+                                    )
+                                  : selectedDiffOutput
+                                    ? (
+                                        <View
+                                          style={[
+                                            screenStyles.terminalBox,
+                                            {
+                                              backgroundColor: palette.canvas,
+                                              borderColor: palette.border,
+                                            },
+                                          ]}>
+                                          <ScrollView style={screenStyles.terminalScroll}>
+                                            <Text
+                                              style={[
+                                                screenStyles.terminalText,
+                                                {
+                                                  color: palette.ink,
+                                                  fontFamily: terminalFontFamily,
+                                                },
+                                              ]}>
+                                              {selectedDiffOutput}
+                                            </Text>
+                                          </ScrollView>
+                                        </View>
+                                      )
+                                    : (
+                                        <EmptyState
+                                          title={
+                                            appI18n.agentWorkbench.empty.diffNoChangesTitle
+                                          }
+                                          description={
+                                            appI18n.agentWorkbench.empty.diffNoChangesDescription
+                                          }
+                                        />
+                                      )}
+                        </View>
+                      ) : null}
                     </View>
                   )}
                 </View>

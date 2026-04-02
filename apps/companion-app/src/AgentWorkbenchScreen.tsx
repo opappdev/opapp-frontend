@@ -60,9 +60,11 @@ import {
   createWorkspaceChoices,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
+  resolveWorkspaceGitDiffCandidate,
 } from './agent-workbench-model';
 
 const terminalFontFamily = Platform.OS === 'windows' ? 'Consolas' : undefined;
+const agentWorkbenchDevSmokeScenario = 'agent-workbench-basics';
 
 function formatIsoTimestamp(value: string | null) {
   if (!value) {
@@ -222,7 +224,37 @@ function DetailField({
   );
 }
 
-export function AgentWorkbenchScreen() {
+function normalizeDevSmokeLogValue(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function logAgentWorkbenchDevSmokeFailure({
+  error,
+  scenario,
+  stage,
+}: {
+  error: Error;
+  scenario: string;
+  stage: string;
+}) {
+  console.log(
+    `[frontend-agent-workbench] dev-smoke-failed stage=${stage} message=${normalizeDevSmokeLogValue(
+      error.message,
+    )}`,
+  );
+  logException('agent-workbench.dev-smoke.failed', error, {
+    scenario,
+    stage,
+  });
+}
+
+type AgentWorkbenchScreenProps = {
+  devSmokeScenario?: string;
+};
+
+export function AgentWorkbenchScreen({
+  devSmokeScenario,
+}: AgentWorkbenchScreenProps = {}) {
   const {width} = useWindowDimensions();
   const {palette} = useTheme();
   const screenStyles = useMemo(() => createScreenStyles(palette), [palette]);
@@ -273,6 +305,7 @@ export function AgentWorkbenchScreen() {
 
   const activeRunHandleRef = useRef<PersistedAgentTerminalRunHandle | null>(null);
   const diffSessionRef = useRef<AgentTerminalSessionHandle | null>(null);
+  const devSmokeRanRef = useRef(false);
   const selectedCwdRef = useRef('');
   const selectedThreadIdRef = useRef<string | null>(null);
   const diffRequestIdRef = useRef(0);
@@ -673,6 +706,75 @@ export function AgentWorkbenchScreen() {
       });
     }
   }, [selectedGitDiffCommand, selectedInspectorEntry]);
+
+  useEffect(() => {
+    if (
+      devSmokeScenario !== agentWorkbenchDevSmokeScenario ||
+      devSmokeRanRef.current ||
+      !trustedWorkspace
+    ) {
+      return;
+    }
+
+    const normalizedCwd = selectedCwd.trim();
+    if (!normalizedCwd || workspaceEntries.length === 0) {
+      return;
+    }
+
+    const diffCandidate = resolveWorkspaceGitDiffCandidate(workspaceEntries);
+    if (!diffCandidate) {
+      return;
+    }
+
+    devSmokeRanRef.current = true;
+
+    void (async () => {
+      try {
+        console.log('[frontend-agent-workbench] dev-smoke-start');
+        logInteraction('agent-workbench.dev-smoke.start', {
+          scenario: devSmokeScenario,
+          cwd: normalizedCwd,
+          trusted: trustedWorkspace.trusted,
+        });
+
+        console.log(
+          `[frontend-agent-workbench] dev-smoke-workspace cwd=${normalizedCwd} entries=${workspaceEntries.length} trusted=${trustedWorkspace.trusted ? 'true' : 'false'}`,
+        );
+        logInteraction('agent-workbench.dev-smoke.workspace', {
+          scenario: devSmokeScenario,
+          cwd: normalizedCwd,
+          entryCount: workspaceEntries.length,
+          trusted: trustedWorkspace.trusted,
+        });
+
+        console.log(
+          `[frontend-agent-workbench] dev-smoke-diff-ready path=${diffCandidate.entry.relativePath} cwd=${diffCandidate.gitDiffCommand.cwd}`,
+        );
+        logInteraction('agent-workbench.dev-smoke.diff-ready', {
+          scenario: devSmokeScenario,
+          path: diffCandidate.entry.relativePath,
+          cwd: diffCandidate.gitDiffCommand.cwd,
+          command: diffCandidate.gitDiffCommand.command,
+        });
+
+        console.log('[frontend-agent-workbench] dev-smoke-complete');
+        logInteraction('agent-workbench.dev-smoke.complete', {
+          scenario: devSmokeScenario,
+          cwd: normalizedCwd,
+        });
+      } catch (error) {
+        const normalizedError =
+          error instanceof Error
+            ? error
+            : new Error('Agent workbench dev smoke failed.');
+        logAgentWorkbenchDevSmokeFailure({
+          error: normalizedError,
+          scenario: devSmokeScenario,
+          stage: 'probe',
+        });
+      }
+    })();
+  }, [devSmokeScenario, selectedCwd, trustedWorkspace, workspaceEntries]);
 
   useEffect(() => () => {
     diffRequestIdRef.current += 1;

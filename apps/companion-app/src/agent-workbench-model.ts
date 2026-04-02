@@ -15,6 +15,11 @@ export type WorkspaceChoiceItem = {
 };
 
 const workspaceRepoRoots = ['opapp-frontend', 'opapp-desktop', 'opapp-mobile'];
+const preferredWorkspaceGitDiffEntryNames = [
+  'package.json',
+  'pnpm-workspace.yaml',
+  'tsconfig.json',
+];
 
 function resolveWorkspaceChoiceLabel(relativePath: string) {
   const normalizedPath = relativePath.trim();
@@ -151,4 +156,38 @@ export function buildWorkspaceGitDiffCommand(relativePath: string) {
     cwd: repoRoot,
     command: `git diff --no-ext-diff --no-color HEAD -- ${quotePowerShellLiteral(repoRelativePath)}`,
   };
+}
+
+function resolveWorkspaceGitDiffEntryPriority(entry: WorkspaceEntry) {
+  const preferredIndex = preferredWorkspaceGitDiffEntryNames.indexOf(entry.name);
+  return preferredIndex >= 0 ? preferredIndex : preferredWorkspaceGitDiffEntryNames.length;
+}
+
+export function resolveWorkspaceGitDiffCandidate(
+  entries: ReadonlyArray<WorkspaceEntry>,
+) {
+  const sortedEntries = entries
+    .filter(entry => entry.kind === 'file')
+    .sort((left, right) => {
+      const priorityDiff =
+        resolveWorkspaceGitDiffEntryPriority(left) -
+        resolveWorkspaceGitDiffEntryPriority(right);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+
+      return left.relativePath.localeCompare(right.relativePath);
+    });
+
+  for (const entry of sortedEntries) {
+    const gitDiffCommand = buildWorkspaceGitDiffCommand(entry.relativePath);
+    if (gitDiffCommand) {
+      return {
+        entry,
+        gitDiffCommand,
+      };
+    }
+  }
+
+  return null;
 }

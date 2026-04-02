@@ -3,6 +3,7 @@ import {
   buildWorkspaceGitDiffCommand,
   buildTerminalTranscript,
   createWorkspaceChoices,
+  resolveWorkspaceGitDiffCandidate,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
 } from '../../apps/companion-app/src/agent-workbench-model';
@@ -60,6 +61,40 @@ export function run() {
     },
   );
   assert.equal(buildWorkspaceGitDiffCommand('AGENT.md'), null);
+  assert.deepEqual(
+    resolveWorkspaceGitDiffCandidate([
+      {
+        name: 'README.md',
+        relativePath: 'AGENT.md',
+        kind: 'file',
+        sizeBytes: 128,
+      },
+      {
+        name: 'tsconfig.json',
+        relativePath: 'opapp-frontend/tsconfig.json',
+        kind: 'file',
+        sizeBytes: 256,
+      },
+      {
+        name: 'package.json',
+        relativePath: 'opapp-frontend/package.json',
+        kind: 'file',
+        sizeBytes: 512,
+      },
+    ]),
+    {
+      entry: {
+        name: 'package.json',
+        relativePath: 'opapp-frontend/package.json',
+        kind: 'file',
+        sizeBytes: 512,
+      },
+      gitDiffCommand: {
+        cwd: 'opapp-frontend',
+        command: "git diff --no-ext-diff --no-color HEAD -- 'package.json'",
+      },
+    },
+  );
 
   assert.equal(
     resolveSelectedThreadId(

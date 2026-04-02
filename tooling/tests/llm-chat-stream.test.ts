@@ -14,6 +14,9 @@ import {
   lmStudioRecordedSseChunks,
 } from './fixtures/lm-studio-chat-stream';
 
+const llmChatMalformedChunkErrorText =
+  '服务端返回了无法解析的流式 JSON 数据。';
+
 type CapturedOpenRequest = {
   closed: boolean;
   handle: SseRequestHandle;
@@ -213,6 +216,84 @@ export async function run() {
   assert.deepEqual(failureErrors, ['network down']);
   assert.equal(failureDoneCount, 0);
 
+  const abortController = new AbortController();
+  let abortDoneCount = 0;
+  const abortErrors: string[] = [];
+  const abortHandle = streamOpenAiCompatibleChatWithOpenSseRequest(
+    {
+      config: {
+        baseUrl: 'http://127.0.0.1:1234',
+        model: 'minimax/minimax-m2.5',
+        systemPrompt: '',
+      },
+      token: 'lm-studio',
+      signal: abortController.signal,
+      messages: [
+        {
+          id: 'user-abort',
+          role: 'user',
+          content: 'Hello abort',
+        },
+      ],
+      onDone() {
+        abortDoneCount += 1;
+      },
+      onError(error) {
+        abortErrors.push(error.message);
+      },
+    },
+    options =>
+      openSseRequestWithTransport(options, async () => ({
+        connectionId: 'abortable',
+        close() {},
+      })),
+  );
+
+  abortController.abort();
+  await abortHandle.done;
+
+  assert.equal(abortDoneCount, 0);
+  assert.deepEqual(abortErrors, []);
+
+  const malformedReplay = createReplayTransport([
+    'data: {"choices":[}\n\n',
+  ]);
+  const malformedErrors: string[] = [];
+  let malformedDoneCount = 0;
+  const malformedHandle = streamOpenAiCompatibleChatWithOpenSseRequest(
+    {
+      config: {
+        baseUrl: 'http://127.0.0.1:1234',
+        model: 'minimax/minimax-m2.5',
+        systemPrompt: '',
+      },
+      token: 'lm-studio',
+      messages: [
+        {
+          id: 'user-malformed',
+          role: 'user',
+          content: 'Hello malformed',
+        },
+      ],
+      onDone() {
+        malformedDoneCount += 1;
+      },
+      onError(error) {
+        malformedErrors.push(error.message);
+      },
+    },
+    options => openSseRequestWithTransport(options, malformedReplay.transport),
+  );
+
+  await assert.rejects(
+    malformedHandle.done,
+    new RegExp(llmChatMalformedChunkErrorText),
+  );
+
+  assert.equal(malformedReplay.calls.length, 1);
+  assert.equal(malformedDoneCount, 0);
+  assert.deepEqual(malformedErrors, [llmChatMalformedChunkErrorText]);
+
   const truncatedReplay = createReplayTransport([
     'data: {"id":"chatcmpl-truncated","object":"chat.completion.chunk","created":1775063653,"model":"fixture-model","choices":[{"index":0,"delta":{"content":"partial"},"logprobs":null,"finish_reason":null}]}\n\n',
   ]);
@@ -251,7 +332,10 @@ export async function run() {
     options => openSseRequestWithTransport(options, truncatedReplay.transport),
   );
 
-  await truncatedHandle.done;
+  await assert.rejects(
+    truncatedHandle.done,
+    new RegExp(llmChatStreamInterruptedErrorText),
+  );
 
   assert.equal(truncatedReplay.calls.length, 1);
   assert.equal(truncatedOpened, 1);

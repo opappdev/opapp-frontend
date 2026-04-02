@@ -46,8 +46,36 @@ export function streamOpenAiCompatibleChatWithOpenSseRequest(
   });
 
   let finished = false;
+  let doneSettled = false;
   let requestHandle: SseRequestHandle | null = null;
   let sawTerminalChunk = false;
+  let resolveDone!: () => void;
+  let rejectDone!: (error: Error) => void;
+  const done = new Promise<void>((resolve, reject) => {
+    resolveDone = resolve;
+    rejectDone = reject;
+  });
+  // Keep protocol-error rejections from surfacing as unhandled when callers only
+  // consume callback-style completion.
+  done.catch(() => {});
+
+  function resolveWrapperDone() {
+    if (doneSettled) {
+      return;
+    }
+
+    doneSettled = true;
+    resolveDone();
+  }
+
+  function rejectWrapperDone(error: Error) {
+    if (doneSettled) {
+      return;
+    }
+
+    doneSettled = true;
+    rejectDone(error);
+  }
 
   function finishDone() {
     if (finished) {
@@ -55,6 +83,7 @@ export function streamOpenAiCompatibleChatWithOpenSseRequest(
     }
 
     finished = true;
+    resolveWrapperDone();
     onDone?.();
   }
 
@@ -64,6 +93,7 @@ export function streamOpenAiCompatibleChatWithOpenSseRequest(
     }
 
     finished = true;
+    rejectWrapperDone(error);
     onError?.(error);
   }
 
@@ -112,17 +142,26 @@ export function streamOpenAiCompatibleChatWithOpenSseRequest(
     },
   });
 
-  requestHandle.done.catch((error: unknown) => {
-    if (error instanceof Error) {
-      finishError(error);
-      return;
-    }
+  requestHandle.done
+    .then(() => {
+      if (finished) {
+        return;
+      }
 
-    finishError(new Error('聊天请求意外失败。'));
-  });
+      resolveWrapperDone();
+    })
+    .catch((error: unknown) => {
+      if (error instanceof Error) {
+        finishError(error);
+        return;
+      }
+
+      finishError(new Error('聊天请求意外失败。'));
+    });
 
   return {
     ...requestHandle,
+    done,
     close() {
       requestHandle?.close();
       finishDone();

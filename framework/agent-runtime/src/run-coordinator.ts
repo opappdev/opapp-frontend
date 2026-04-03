@@ -48,6 +48,7 @@ type TrustedWorkspaceTarget = {
 
 export type OpenPersistedAgentTerminalRunOptions =
   OpenAgentTerminalSessionOptions & {
+    threadId?: string | null;
     title?: string | null;
     goal?: string | null;
     permissionMode?: AgentPermissionMode | null;
@@ -232,9 +233,7 @@ function buildThreadDocument({
 }) {
   return {
     thread,
-    runIds: [...new Set(runIds)].sort((left, right) =>
-      left.localeCompare(right),
-    ),
+    runIds: [...new Set(runIds)],
   };
 }
 
@@ -245,6 +244,7 @@ function createInitialRunDocument({
   settings,
   request,
   createdAt,
+  resumedFromRunId = null,
   status,
 }: {
   threadId: string;
@@ -253,6 +253,7 @@ function createInitialRunDocument({
   settings: AgentRunSettings;
   request: AgentTerminalRunRequest;
   createdAt: string;
+  resumedFromRunId?: string | null;
   status: AgentRunStatus;
 }): AgentRunDocument {
   const run: AgentRunSummary = {
@@ -265,7 +266,7 @@ function createInitialRunDocument({
     updatedAt: createdAt,
     startedAt: null,
     completedAt: null,
-    resumedFromRunId: null,
+    resumedFromRunId,
     settings,
     request,
   };
@@ -375,9 +376,7 @@ function resolveExitStatus({
 }
 
 function mergeRunIds(runIds: ReadonlyArray<string>, runId: string) {
-  return [...new Set([...runIds, runId])].sort((left, right) =>
-    left.localeCompare(right),
-  );
+  return [...new Set([...runIds, runId])];
 }
 
 function findPendingApprovalEntry(
@@ -585,6 +584,34 @@ export function createPersistedAgentTerminalRuntime({
           lastRunStatus: runDocument.run.status,
         }),
       runIds: [runDocument.run.runId],
+    };
+  }
+
+  async function loadPersistedThreadState(threadId: string) {
+    const normalizedThreadId = normalizeAgentStorageId(threadId, 'thread id');
+    const rawThreadDocument = await readUserFile(
+      buildAgentThreadDocumentPath(normalizedThreadId),
+    );
+    const threadDocument = rawThreadDocument
+      ? parsePersistedAgentThreadDocument(rawThreadDocument)
+      : null;
+    if (threadDocument) {
+      return {
+        thread: threadDocument.thread,
+        runIds: [...threadDocument.runIds],
+      };
+    }
+
+    const threadFromIndex = (
+      await loadThreadIndex(readUserFile)
+    ).threads.find(thread => thread.threadId === normalizedThreadId);
+    if (!threadFromIndex) {
+      throw new Error(`Persisted agent thread ${normalizedThreadId} was not found.`);
+    }
+
+    return {
+      thread: threadFromIndex,
+      runIds: threadFromIndex.lastRunId ? [threadFromIndex.lastRunId] : [],
     };
   }
 
@@ -797,7 +824,8 @@ export function createPersistedAgentTerminalRuntime({
   async function openRun(
     options: OpenPersistedAgentTerminalRunOptions,
   ): Promise<PersistedAgentTerminalRunHandle> {
-    const threadId = createId('thread');
+    const continuedThreadId = options.threadId?.trim() || null;
+    const threadId = continuedThreadId ?? createId('thread');
     const runId = createId('run');
     const createdAt = now();
     const workspaceTarget = await getTrustedWorkspaceTarget();
@@ -815,17 +843,34 @@ export function createPersistedAgentTerminalRuntime({
     });
     const requiresApproval =
       options.requiresApproval === true && settings.approvalMode === 'manual';
-    const thread = createThreadSummary({
-      threadId,
-      runId,
-      title: formatThreadTitle({
-        title: options.title,
-        goal,
-        command: request.command,
-      }),
-      createdAt,
-      lastRunStatus: requiresApproval ? 'needs-approval' : 'queued',
-    });
+    const initialRunStatus: AgentRunStatus = requiresApproval
+      ? 'needs-approval'
+      : 'queued';
+    const previousThreadState = continuedThreadId
+      ? await loadPersistedThreadState(continuedThreadId)
+      : null;
+    const resumedFromRunId =
+      previousThreadState?.thread.lastRunId ??
+      previousThreadState?.runIds.at(-1) ??
+      null;
+    const thread = previousThreadState
+      ? {
+          ...previousThreadState.thread,
+          updatedAt: createdAt,
+          lastRunId: runId,
+          lastRunStatus: initialRunStatus,
+        }
+      : createThreadSummary({
+          threadId,
+          runId,
+          title: formatThreadTitle({
+            title: options.title,
+            goal,
+            command: request.command,
+          }),
+          createdAt,
+          lastRunStatus: initialRunStatus,
+        });
     const runDocument = createInitialRunDocument({
       threadId,
       runId,
@@ -833,9 +878,12 @@ export function createPersistedAgentTerminalRuntime({
       settings,
       request,
       createdAt,
-      status: requiresApproval ? 'needs-approval' : 'queued',
+      resumedFromRunId,
+      status: initialRunStatus,
     });
-    const runIds = [runId];
+    const runIds = previousThreadState
+      ? mergeRunIds(previousThreadState.runIds, runId)
+      : [runId];
     const whenSettled = createWhenSettledPromise(runId);
 
     if (requiresApproval) {

@@ -321,6 +321,10 @@ function readStringRecord(value: unknown) {
   return record;
 }
 
+function dedupeStorageIdsInOrder(values: ReadonlyArray<string>) {
+  return [...new Set(values)];
+}
+
 function parseAgentWorkspaceTarget(value: unknown): AgentWorkspaceTarget {
   const record = isRecord(value) ? value : {};
 
@@ -744,9 +748,7 @@ export function parsePersistedAgentThreadDocument(
 
   return {
     thread,
-    runIds: [...new Set(runIds)].sort((left, right) =>
-      left.localeCompare(right),
-    ),
+    runIds: dedupeStorageIdsInOrder(runIds),
   };
 }
 

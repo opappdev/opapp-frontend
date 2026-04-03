@@ -57,6 +57,7 @@ export async function run() {
     | undefined;
   let cancelCount = 0;
   let stdinWrites: string[] = [];
+  let sessionOpenCount = 0;
 
   const runtime = createPersistedAgentTerminalRuntime({
     readUserFile: async path => files.get(path) ?? null,
@@ -71,8 +72,9 @@ export async function run() {
     }),
     openAgentTerminalSession: async (_options, nextListener) => {
       listener = nextListener;
+      sessionOpenCount += 1;
       return {
-        sessionId: 'terminal-1',
+        sessionId: `terminal-${sessionOpenCount}`,
         async cancel() {
           cancelCount += 1;
         },
@@ -84,6 +86,8 @@ export async function run() {
     now: createClock([
       '2026-04-03T01:00:00.000Z',
       '2026-04-03T01:00:00.050Z',
+      '2026-04-03T01:05:00.000Z',
+      '2026-04-03T01:05:00.050Z',
     ]),
     createId: createIdFactory([
       'thread-1',
@@ -91,7 +95,9 @@ export async function run() {
       'entry-1',
       'entry-2',
       'entry-3',
+      'run-2',
       'entry-4',
+      'entry-5',
     ]),
   });
 
@@ -192,6 +198,56 @@ export async function run() {
     ['started', 'stdout', 'exit'],
   );
   assert.equal(settledDocument.timeline.at(-1)?.kind, 'terminal-event');
+
+  const continuedHandle = await runtime.openRun({
+    threadId: 'thread-1',
+    goal: 'Continue current thread',
+    command: 'git status --short',
+    cwd: 'opapp-frontend',
+  });
+
+  await flushMicrotasks();
+  assert.equal(continuedHandle.threadId, 'thread-1');
+  assert.equal(continuedHandle.runId, 'run-2');
+  assert.equal(continuedHandle.sessionId, 'terminal-2');
+
+  listener?.onEvent?.({
+    sessionId: 'terminal-2',
+    event: 'started',
+    cwd: 'D:/code/opappdev/opapp-frontend',
+    command: 'git status --short',
+    exitCode: null,
+    text: null,
+    createdAt: '2026-04-03T01:05:01.000Z',
+  });
+  listener?.onEvent?.({
+    sessionId: 'terminal-2',
+    event: 'exit',
+    cwd: 'D:/code/opappdev/opapp-frontend',
+    command: 'git status --short',
+    exitCode: 0,
+    text: null,
+    createdAt: '2026-04-03T01:05:02.000Z',
+  });
+
+  const continuedDocument = await continuedHandle.whenSettled;
+  await flushMicrotasks();
+
+  assert.equal(continuedDocument.run.threadId, 'thread-1');
+  assert.equal(continuedDocument.run.resumedFromRunId, 'run-1');
+
+  const continuedThreadDocument = parsePersistedAgentThreadDocument(
+    files.get(buildAgentThreadDocumentPath('thread-1')) ?? '',
+  );
+  assert.ok(continuedThreadDocument);
+  assert.deepEqual(continuedThreadDocument?.runIds, ['run-1', 'run-2']);
+
+  const continuedRunDocument = parsePersistedAgentRunDocument(
+    files.get(buildAgentRunDocumentPath('run-2')) ?? '',
+  );
+  assert.ok(continuedRunDocument);
+  assert.equal(continuedRunDocument?.run.threadId, 'thread-1');
+  assert.equal(continuedRunDocument?.run.resumedFromRunId, 'run-1');
 
   const approvalFiles = new Map<string, string>();
   let approvalListener:

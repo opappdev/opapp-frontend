@@ -636,12 +636,15 @@ export function AgentWorkbenchScreen({
     }
 
     try {
+      const continuedThreadId = selectedThreadIdRef.current || undefined;
       const handle = await openPersistedAgentTerminalRun({
+        threadId: continuedThreadId,
         title: appI18n.agentWorkbench.run.gitStatusTitle,
         goal: `${appI18n.agentWorkbench.run.gitStatusGoal} ${selectedCwdRef.current || trustedWorkspace.displayName || trustedWorkspace.rootPath}`,
         command: 'git status',
         cwd: selectedCwdRef.current || undefined,
       });
+      const continuedFromRunId = handle.getSnapshot().run.resumedFromRunId;
 
       attachActiveRunHandle(handle);
       setStatusTone('support');
@@ -649,6 +652,7 @@ export function AgentWorkbenchScreen({
       logInteraction('agent-workbench.run.started', {
         threadId: handle.threadId,
         runId: handle.runId,
+        resumedFromRunId: continuedFromRunId,
         cwd: selectedCwdRef.current,
       });
 
@@ -678,7 +682,9 @@ export function AgentWorkbenchScreen({
 
     setApprovalBusy('requesting');
     try {
+      const continuedThreadId = selectedThreadIdRef.current || undefined;
       const handle = await openPersistedAgentTerminalRun({
+        threadId: continuedThreadId,
         title: appI18n.agentWorkbench.run.writeApprovalTitle,
         goal: appI18n.agentWorkbench.run.writeApprovalGoal,
         command: workspaceWriteApprovalCommand.command,
@@ -691,12 +697,14 @@ export function AgentWorkbenchScreen({
           selectedCwdRef.current || appI18n.agentWorkbench.workspace.rootLabel,
         ),
       });
+      const continuedFromRunId = handle.getSnapshot().run.resumedFromRunId;
 
       setStatusTone('support');
       setStatusMessage(appI18n.agentWorkbench.feedback.approvalRequested);
       logInteraction('agent-workbench.approval.requested', {
         threadId: handle.threadId,
         runId: handle.runId,
+        resumedFromRunId: continuedFromRunId,
         requestedCwd: selectedCwdRef.current,
         targetPath: workspaceWriteApprovalCommand.relativePath,
       });
@@ -1729,6 +1737,12 @@ export function AgentWorkbenchScreen({
                           label={appI18n.agentWorkbench.labels.runId}
                           value={selectedRunDocument.run.runId}
                         />
+                        {selectedRunDocument.run.resumedFromRunId ? (
+                          <DetailField
+                            label={appI18n.agentWorkbench.labels.resumedFromRunId}
+                            value={selectedRunDocument.run.resumedFromRunId}
+                          />
+                        ) : null}
                         <DetailField
                           label={appI18n.agentWorkbench.labels.sessionId}
                           value={selectedRunDocument.run.sessionId ?? appI18n.common.unknown}

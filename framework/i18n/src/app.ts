@@ -518,6 +518,7 @@ export const zhCNApp = {
       childCount: '子项数',
       threadId: 'Thread ID',
       runId: 'Run ID',
+      resumedFromRunId: '承接自 Run ID',
       sessionId: 'Session ID',
       goal: 'Goal',
       updatedAt: '最后更新',

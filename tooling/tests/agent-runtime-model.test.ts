@@ -133,7 +133,7 @@ export function run() {
       lastRunId: null,
       lastRunStatus: null,
     },
-    runIds: ['run-1', 'run-2'],
+    runIds: ['run-2', 'run-1'],
   });
 
   assert.equal(

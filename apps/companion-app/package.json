@@ -22,6 +22,7 @@
     "start:windows": "node ../../tooling/scripts/start-companion-windows.mjs"
   },
   "dependencies": {
+    "@babel/runtime": "^7.29.0",
     "@opapp/capability-llm-chat": "workspace:*",
     "@opapp/capability-settings": "workspace:*",
     "@opapp/contracts-windowing": "workspace:*",

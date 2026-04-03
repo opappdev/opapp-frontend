@@ -47,6 +47,9 @@ importers:
 
   apps/companion-app:
     dependencies:
+      '@babel/runtime':
+        specifier: ^7.29.0
+        version: 7.29.2
       '@opapp/capability-llm-chat':
         specifier: workspace:*
         version: link:../../capabilities/llm-chat
@@ -3882,9 +3885,7 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/new-app-screen@0.82.0-rc.0(@types/react@19.2.14)(react-native@0.82.0(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1))(react@19.1.1)':
     dependencies:

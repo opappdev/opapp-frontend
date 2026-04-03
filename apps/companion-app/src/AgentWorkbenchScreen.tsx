@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput as RNTextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -49,7 +50,6 @@ import {
   SignalPill,
   Stack,
   StatusBadge,
-  TextInput,
   Toolbar,
   useTheme,
   appLayout,
@@ -70,7 +70,7 @@ import {
 } from './agent-workbench-model';
 
 const terminalFontFamily = Platform.OS === 'windows' ? 'Consolas' : undefined;
-const agentWorkbenchDevSmokeScenario = 'agent-workbench-basics';
+const searchInputWarmupDelayMs = Platform.OS === 'windows' ? 1200 : 0;
 
 function formatIsoTimestamp(value: string | null) {
   if (!value) {
@@ -293,9 +293,11 @@ function formatWorkspaceEntryMeta(entry: WorkspaceEntry) {
 function DetailField({
   label,
   value,
+  valueTestID,
 }: {
   label: string;
   value: string;
+  valueTestID?: string;
 }) {
   const {palette} = useTheme();
 
@@ -311,44 +313,14 @@ function DetailField({
       <Text style={[baseStyles.detailFieldLabel, {color: palette.inkSoft}]}>
         {label}
       </Text>
-      <Text style={[baseStyles.detailFieldValue, {color: palette.ink}]}>
+      <Text testID={valueTestID} style={[baseStyles.detailFieldValue, {color: palette.ink}]}>
         {value}
       </Text>
     </View>
   );
 }
 
-function normalizeDevSmokeLogValue(value: string) {
-  return value.replace(/\s+/g, ' ').trim();
-}
-
-function logAgentWorkbenchDevSmokeFailure({
-  error,
-  scenario,
-  stage,
-}: {
-  error: Error;
-  scenario: string;
-  stage: string;
-}) {
-  console.log(
-    `[frontend-agent-workbench] dev-smoke-failed stage=${stage} message=${normalizeDevSmokeLogValue(
-      error.message,
-    )}`,
-  );
-  logException('agent-workbench.dev-smoke.failed', error, {
-    scenario,
-    stage,
-  });
-}
-
-type AgentWorkbenchScreenProps = {
-  devSmokeScenario?: string;
-};
-
-export function AgentWorkbenchScreen({
-  devSmokeScenario,
-}: AgentWorkbenchScreenProps = {}) {
+export function AgentWorkbenchScreen() {
   const {width} = useWindowDimensions();
   const {palette} = useTheme();
   const screenStyles = useMemo(() => createScreenStyles(palette), [palette]);
@@ -403,7 +375,6 @@ export function AgentWorkbenchScreen({
 
   const activeRunHandleRef = useRef<PersistedAgentTerminalRunHandle | null>(null);
   const diffSessionRef = useRef<AgentTerminalSessionHandle | null>(null);
-  const devSmokeRanRef = useRef(false);
   const selectedCwdRef = useRef('');
   const selectedThreadIdRef = useRef<string | null>(null);
   const diffRequestIdRef = useRef(0);
@@ -583,9 +554,15 @@ export function AgentWorkbenchScreen({
     }
 
     // Delay RN Windows TextInput mounting until after the first real screen
-    // commit. Direct main-window startup can otherwise hang before the
-    // workbench finishes its startup probes.
-    setSearchInputReady(true);
+    // commit and a short startup warmup. Direct main-window startup can
+    // otherwise crash before the workbench finishes its startup probes.
+    const timer = setTimeout(() => {
+      setSearchInputReady(true);
+    }, searchInputWarmupDelayMs);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, [loading, searchInputReady]);
 
   const handleRefresh = useCallback(async () => {
@@ -976,151 +953,6 @@ export function AgentWorkbenchScreen({
     }
   }, [selectedGitDiffCommand, selectedInspectorEntry]);
 
-  useEffect(() => {
-    if (
-      devSmokeScenario !== agentWorkbenchDevSmokeScenario ||
-      devSmokeRanRef.current ||
-      !trustedWorkspace ||
-      loading
-    ) {
-      return;
-    }
-
-    const normalizedCwd = selectedCwd.trim();
-    if (!normalizedCwd || workspaceEntries.length === 0) {
-      return;
-    }
-
-    const diffCandidate = resolveWorkspaceGitDiffCandidate(workspaceEntries);
-    if (!diffCandidate) {
-      return;
-    }
-
-    devSmokeRanRef.current = true;
-
-    void (async () => {
-      try {
-        console.log('[frontend-agent-workbench] dev-smoke-start');
-        logInteraction('agent-workbench.dev-smoke.start', {
-          scenario: devSmokeScenario,
-          cwd: normalizedCwd,
-          trusted: trustedWorkspace.trusted,
-        });
-
-        console.log(
-          `[frontend-agent-workbench] dev-smoke-workspace cwd=${normalizedCwd} entries=${workspaceEntries.length} trusted=${trustedWorkspace.trusted ? 'true' : 'false'}`,
-        );
-        logInteraction('agent-workbench.dev-smoke.workspace', {
-          scenario: devSmokeScenario,
-          cwd: normalizedCwd,
-          entryCount: workspaceEntries.length,
-          trusted: trustedWorkspace.trusted,
-        });
-
-        console.log(
-          `[frontend-agent-workbench] dev-smoke-diff-ready path=${diffCandidate.entry.relativePath} cwd=${diffCandidate.gitDiffCommand.cwd}`,
-        );
-        logInteraction('agent-workbench.dev-smoke.diff-ready', {
-          scenario: devSmokeScenario,
-          path: diffCandidate.entry.relativePath,
-          cwd: diffCandidate.gitDiffCommand.cwd,
-          command: diffCandidate.gitDiffCommand.command,
-        });
-
-        console.log('[frontend-agent-workbench] dev-smoke-ui-ready');
-        logInteraction('agent-workbench.dev-smoke.ui-ready', {
-          scenario: devSmokeScenario,
-          cwd: normalizedCwd,
-          selectedThreadId,
-          threadCount: threads.length,
-        });
-
-        const visibleWindows = await listVisibleWindows({foreground: true});
-        const selectedWindow = visibleWindows[0];
-        if (!selectedWindow) {
-          throw new Error(
-            'Agent workbench dev smoke did not find a foreground window capture target.',
-          );
-        }
-
-        console.log(
-          `[frontend-agent-workbench] dev-smoke-window-list count=${visibleWindows.length} handle=${selectedWindow.handleHex} process=${selectedWindow.processName}`,
-        );
-        logInteraction('agent-workbench.dev-smoke.window-list', {
-          scenario: devSmokeScenario,
-          count: visibleWindows.length,
-          handle: selectedWindow.handleHex,
-          processName: selectedWindow.processName,
-        });
-
-        const clientCapture = await captureWindow(
-          {
-            handle: selectedWindow.handleHex || selectedWindow.handle,
-          },
-          {
-            region: 'client',
-            backend: 'wgc',
-            format: 'png',
-          },
-        );
-        if (!clientCapture.outputPath.trim()) {
-          throw new Error(
-            'Agent workbench dev smoke did not receive an output path from captureWindow.',
-          );
-        }
-        if (clientCapture.backend !== 'wgc') {
-          throw new Error(
-            `Agent workbench dev smoke expected backend=wgc, received ${clientCapture.backend}.`,
-          );
-        }
-        if (
-          !clientCapture.cropBounds ||
-          clientCapture.cropBounds.width <= 0 ||
-          clientCapture.cropBounds.height <= 0
-        ) {
-          throw new Error(
-            'Agent workbench dev smoke did not receive valid client crop bounds from captureWindow.',
-          );
-        }
-
-        console.log(
-          `[frontend-agent-workbench] dev-smoke-capture-client backend=${clientCapture.backend} crop=${clientCapture.cropBounds.width}x${clientCapture.cropBounds.height} path=${clientCapture.outputPath}`,
-        );
-        logInteraction('agent-workbench.dev-smoke.capture-client', {
-          scenario: devSmokeScenario,
-          backend: clientCapture.backend,
-          width: clientCapture.cropBounds.width,
-          height: clientCapture.cropBounds.height,
-          path: clientCapture.outputPath,
-        });
-
-        console.log('[frontend-agent-workbench] dev-smoke-complete');
-        logInteraction('agent-workbench.dev-smoke.complete', {
-          scenario: devSmokeScenario,
-          cwd: normalizedCwd,
-        });
-      } catch (error) {
-        const normalizedError =
-          error instanceof Error
-            ? error
-            : new Error('Agent workbench dev smoke failed.');
-        logAgentWorkbenchDevSmokeFailure({
-          error: normalizedError,
-          scenario: devSmokeScenario,
-          stage: 'probe',
-        });
-      }
-    })();
-  }, [
-    devSmokeScenario,
-    loading,
-    selectedCwd,
-    selectedThreadId,
-    threads.length,
-    trustedWorkspace,
-    workspaceEntries,
-  ]);
-
   useEffect(() => () => {
     diffRequestIdRef.current += 1;
     const currentSession = diffSessionRef.current;
@@ -1149,15 +981,16 @@ export function AgentWorkbenchScreen({
   }
 
   return (
-    <View style={screenStyles.screen}>
+    <View testID='agent-workbench.screen' style={screenStyles.screen}>
       <ScrollView style={screenStyles.scroll} contentContainerStyle={screenStyles.content}>
         <AppFrame
           eyebrow={appI18n.agentWorkbench.frame.eyebrow}
           title={appI18n.agentWorkbench.frame.title}
           description={appI18n.agentWorkbench.frame.description}>
           <Stack style={screenStyles.stack}>
-            <Toolbar style={screenStyles.toolbar}>
+            <Toolbar testID='agent-workbench.toolbar' style={screenStyles.toolbar}>
               <SignalPill
+                testID='agent-workbench.status.workspace'
                 label={
                   trustedWorkspace
                     ? appI18n.agentWorkbench.workspace.ready
@@ -1167,12 +1000,14 @@ export function AgentWorkbenchScreen({
                 size='sm'
               />
               <StatusBadge
+                testID='agent-workbench.status.run'
                 label={resolveRunStatusLabel(selectedRunStatus)}
                 tone={resolveRunStatusTone(selectedRunStatus)}
                 emphasis='soft'
                 size='sm'
               />
               <ActionButton
+                testID='agent-workbench.action.run-git-status'
                 label={
                   activeRunInfo
                     ? appI18n.agentWorkbench.actions.runningGitStatus
@@ -1184,6 +1019,7 @@ export function AgentWorkbenchScreen({
                 disabled={!trustedWorkspace || activeRunInfo !== null}
               />
               <ActionButton
+                testID='agent-workbench.action.request-write-approval'
                 label={
                   approvalBusy === 'requesting'
                     ? appI18n.agentWorkbench.actions.requestingWriteApproval
@@ -1199,6 +1035,7 @@ export function AgentWorkbenchScreen({
                 }
               />
               <ActionButton
+                testID='agent-workbench.action.cancel-run'
                 label={appI18n.agentWorkbench.actions.cancelRun}
                 onPress={() => {
                   void handleCancelRun();
@@ -1207,6 +1044,7 @@ export function AgentWorkbenchScreen({
                 tone='ghost'
               />
               <ActionButton
+                testID='agent-workbench.action.refresh'
                 label={
                   refreshing
                     ? appI18n.agentWorkbench.actions.refreshing
@@ -1227,6 +1065,7 @@ export function AgentWorkbenchScreen({
 
             {statusMessage ? (
               <InfoPanel
+                testID='agent-workbench.status.panel'
                 title={appI18n.agentWorkbench.feedback.title}
                 tone={
                   statusTone === 'support'
@@ -1235,7 +1074,7 @@ export function AgentWorkbenchScreen({
                       ? 'danger'
                       : 'neutral'
                 }>
-                <Text style={[screenStyles.infoText, {color: palette.ink}]}>
+                <Text testID='agent-workbench.status.message' style={[screenStyles.infoText, {color: palette.ink}]}>
                   {statusMessage}
                 </Text>
               </InfoPanel>
@@ -1270,6 +1109,7 @@ export function AgentWorkbenchScreen({
                         <DetailField
                           label={appI18n.agentWorkbench.labels.rootPath}
                           value={trustedWorkspace.rootPath}
+                          valueTestID='agent-workbench.detail.root-path'
                         />
                         <DetailField
                           label={appI18n.agentWorkbench.labels.selectedCwd}
@@ -1277,6 +1117,7 @@ export function AgentWorkbenchScreen({
                             selectedWorkspaceStat,
                             trustedWorkspace,
                           )}
+                          valueTestID='agent-workbench.detail.selected-cwd'
                         />
                         <DetailField
                           label={appI18n.agentWorkbench.labels.currentType}
@@ -1295,6 +1136,7 @@ export function AgentWorkbenchScreen({
                         {workspaceChoices.map(choice => (
                           <ChoiceChip
                             key={choice.key || 'workspace-root'}
+                            testID={`agent-workbench.workspace.${choice.key || 'root'}`}
                             label={choice.label}
                             detail={choice.detail}
                             active={selectedCwd === choice.key}
@@ -1368,25 +1210,35 @@ export function AgentWorkbenchScreen({
                   ) : (
                     <View style={screenStyles.sectionBody}>
                       {searchInputReady ? (
-                        <TextInput
-                          value={searchQuery}
-                          onChangeText={text => {
-                            searchRequestIdRef.current += 1;
-                            setSearchQuery(text);
-                            setSearching(false);
-                            if (text.trim().length === 0) {
-                              setSearchResults([]);
-                            }
-                          }}
-                          placeholder={appI18n.agentWorkbench.search.placeholder}
-                          onClear={() => {
-                            searchRequestIdRef.current += 1;
-                            setSearchQuery('');
-                            setSearching(false);
-                            setSearchResults([]);
-                          }}
-                          style={screenStyles.searchInput}
-                        />
+                        <View
+                          style={[
+                            screenStyles.searchInputShell,
+                            {
+                              borderColor: palette.border,
+                              backgroundColor: palette.panel,
+                            },
+                          ]}>
+                          <RNTextInput
+                            testID='agent-workbench.search.input'
+                            value={searchQuery}
+                            onChangeText={text => {
+                              searchRequestIdRef.current += 1;
+                              setSearchQuery(text);
+                              setSearching(false);
+                              if (text.trim().length === 0) {
+                                setSearchResults([]);
+                              }
+                            }}
+                            placeholder={appI18n.agentWorkbench.search.placeholder}
+                            placeholderTextColor={palette.inkSoft}
+                            style={[
+                              screenStyles.searchInputField,
+                              {
+                                color: palette.ink,
+                              },
+                            ]}
+                          />
+                        </View>
                       ) : (
                         <View
                           style={[
@@ -1732,24 +1584,29 @@ export function AgentWorkbenchScreen({
                         <DetailField
                           label={appI18n.agentWorkbench.labels.threadId}
                           value={selectedRunDocument.run.threadId}
+                          valueTestID='agent-workbench.run.thread-id'
                         />
                         <DetailField
                           label={appI18n.agentWorkbench.labels.runId}
                           value={selectedRunDocument.run.runId}
+                          valueTestID='agent-workbench.run.run-id'
                         />
                         {selectedRunDocument.run.resumedFromRunId ? (
                           <DetailField
                             label={appI18n.agentWorkbench.labels.resumedFromRunId}
                             value={selectedRunDocument.run.resumedFromRunId}
+                            valueTestID='agent-workbench.run.resumed-from'
                           />
                         ) : null}
                         <DetailField
                           label={appI18n.agentWorkbench.labels.sessionId}
                           value={selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
+                          valueTestID='agent-workbench.run.session-id'
                         />
                         <DetailField
                           label={appI18n.agentWorkbench.labels.goal}
                           value={selectedRunDocument.run.goal}
+                          valueTestID='agent-workbench.run.goal'
                         />
                         <DetailField
                           label={appI18n.agentWorkbench.labels.command}
@@ -1757,6 +1614,7 @@ export function AgentWorkbenchScreen({
                             selectedRunRequest?.command ??
                             appI18n.common.unknown
                           }
+                          valueTestID='agent-workbench.run.command'
                         />
                         <DetailField
                           label={appI18n.agentWorkbench.labels.cwd}
@@ -1764,6 +1622,7 @@ export function AgentWorkbenchScreen({
                             selectedRunRequest?.cwd ??
                             appI18n.agentWorkbench.workspace.rootLabel
                           }
+                          valueTestID='agent-workbench.run.cwd'
                         />
                         <DetailField
                           label={appI18n.agentWorkbench.labels.updatedAt}
@@ -1776,6 +1635,7 @@ export function AgentWorkbenchScreen({
                       </View>
                       {selectedPendingApproval ? (
                         <InfoPanel
+                          testID='agent-workbench.approval.panel'
                           title={appI18n.agentWorkbench.approval.pendingTitle}
                           tone='accent'>
                           <View style={screenStyles.approvalPanel}>
@@ -1807,6 +1667,7 @@ export function AgentWorkbenchScreen({
                             </View>
                             <View style={screenStyles.actionRow}>
                               <ActionButton
+                                testID='agent-workbench.action.approve-request'
                                 label={
                                   approvalBusy === 'approving'
                                     ? appI18n.agentWorkbench.actions.approvingRequest
@@ -1818,6 +1679,7 @@ export function AgentWorkbenchScreen({
                                 disabled={approvalBusy !== null}
                               />
                               <ActionButton
+                                testID='agent-workbench.action.reject-request'
                                 label={
                                   approvalBusy === 'rejecting'
                                     ? appI18n.agentWorkbench.actions.rejectingRequest
@@ -1998,6 +1860,7 @@ export function AgentWorkbenchScreen({
                     ]}>
                     <ScrollView style={screenStyles.terminalScroll}>
                       <Text
+                        testID='agent-workbench.terminal.transcript'
                         style={[
                           screenStyles.terminalText,
                           {
@@ -2122,6 +1985,20 @@ function createScreenStyles(palette: AppPalette) {
     },
     searchInput: {
       width: '100%',
+    },
+    searchInputShell: {
+      width: '100%',
+      minHeight: 48,
+      borderWidth: 1,
+      borderRadius: appRadius.control,
+      justifyContent: 'center',
+      paddingHorizontal: appSpacing.md,
+    },
+    searchInputField: {
+      minHeight: 48,
+      paddingVertical: appSpacing.sm,
+      fontSize: appTypography.body.fontSize,
+      lineHeight: appTypography.body.lineHeight,
     },
     searchInputPlaceholder: {
       width: '100%',

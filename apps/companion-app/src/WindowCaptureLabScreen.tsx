@@ -42,10 +42,6 @@ import {
 } from '@opapp/ui-native-primitives';
 import type { AppPalette } from '@opapp/ui-native-primitives';
 
-type WindowCaptureLabScreenProps = {
-  devSmokeScenario?: string;
-};
-
 type SelectorDraft = {
   foreground: boolean;
   handle: string;
@@ -334,13 +330,10 @@ function upsertWindowMatch(
   return [selectedWindow, ...nextMatches];
 }
 
-export function WindowCaptureLabScreen({
-  devSmokeScenario,
-}: WindowCaptureLabScreenProps = {}) {
+export function WindowCaptureLabScreen() {
   const { palette } = useTheme();
   const styles = useMemo(() => createScreenStyles(palette), [palette]);
   const busyActionRef = useRef<BusyActionId>(null);
-  const devSmokeRanRef = useRef(false);
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
   const currentWindowPolicy = useCurrentWindowPolicy();
@@ -511,154 +504,6 @@ export function WindowCaptureLabScreen({
     }
   }
 
-  useEffect(() => {
-    if (!hostBridgeReady) {
-      return;
-    }
-
-    void refreshForegroundWindow({silentOnSuccess: true});
-  }, [hostBridgeReady]);
-
-  useEffect(() => {
-    if (devSmokeScenario !== 'window-capture-basics' || devSmokeRanRef.current) {
-      return;
-    }
-
-    if (!hostBridgeReady) {
-      return;
-    }
-
-    devSmokeRanRef.current = true;
-
-    void (async () => {
-      try {
-        console.log('[frontend-window-capture] dev-smoke-start');
-        logInteraction('window-capture-lab.dev-smoke.start', {
-          scenario: devSmokeScenario,
-          windowId: currentWindowId ?? appI18n.common.unknown,
-        });
-
-        const matches = await refreshForegroundWindow({
-          throwOnFailure: true,
-          silentOnSuccess: true,
-          selector: foregroundSelector,
-        });
-        const selectedWindow = matches[0];
-        if (!selectedWindow) {
-          throw new Error(
-            'Window Capture dev smoke did not find the current foreground window.',
-          );
-        }
-
-        console.log(
-          `[frontend-window-capture] dev-smoke-list count=${matches.length} handle=${selectedWindow.handleHex} process=${selectedWindow.processName}`,
-        );
-        logInteraction('window-capture-lab.dev-smoke.list', {
-          scenario: devSmokeScenario,
-          count: matches.length,
-          handle: selectedWindow.handleHex,
-          processName: selectedWindow.processName,
-        });
-
-        // Lock the smoke run to the first resolved foreground window so packaged
-        // startup focus changes do not retarget the second capture mid-run.
-        const smokeSelector = buildHandleSelector(selectedWindow);
-
-        const windowResult = await runCapture('capture-window', 'window', {
-          throwOnFailure: true,
-          silentOnSuccess: true,
-          selector: smokeSelector,
-        });
-        if (!windowResult) {
-          throw new Error(
-            'Window Capture dev smoke did not receive a window capture result.',
-          );
-        }
-        if (windowResult.backend !== 'wgc') {
-          throw new Error(
-            `Window Capture dev smoke expected backend=wgc for region=window, received ${windowResult.backend}.`,
-          );
-        }
-        if (
-          windowResult.captureSize.width <= 0 ||
-          windowResult.captureSize.height <= 0
-        ) {
-          throw new Error(
-            'Window Capture dev smoke returned an invalid window capture size.',
-          );
-        }
-
-        console.log(
-          `[frontend-window-capture] dev-smoke-capture-window backend=${windowResult.backend} size=${windowResult.captureSize.width}x${windowResult.captureSize.height} path=${windowResult.outputPath}`,
-        );
-        logInteraction('window-capture-lab.dev-smoke.capture-window', {
-          scenario: devSmokeScenario,
-          backend: windowResult.backend,
-          width: windowResult.captureSize.width,
-          height: windowResult.captureSize.height,
-        });
-
-        const clientResult = await runCapture('capture-client', 'client', {
-          throwOnFailure: true,
-          silentOnSuccess: true,
-          selector: smokeSelector,
-        });
-        if (!clientResult) {
-          throw new Error(
-            'Window Capture dev smoke did not receive a client capture result.',
-          );
-        }
-        if (clientResult.backend !== 'wgc') {
-          throw new Error(
-            `Window Capture dev smoke expected backend=wgc for region=client, received ${clientResult.backend}.`,
-          );
-        }
-        if (
-          !clientResult.cropBounds ||
-          clientResult.cropBounds.width <= 0 ||
-          clientResult.cropBounds.height <= 0
-        ) {
-          throw new Error(
-            'Window Capture dev smoke did not receive valid client crop bounds.',
-          );
-        }
-        if (
-          clientResult.selectedWindow.handle !== windowResult.selectedWindow.handle
-        ) {
-          throw new Error(
-            'Window Capture dev smoke switched target windows between window and client captures.',
-          );
-        }
-
-        console.log(
-          `[frontend-window-capture] dev-smoke-capture-client backend=${clientResult.backend} crop=${clientResult.cropBounds.width}x${clientResult.cropBounds.height} path=${clientResult.outputPath}`,
-        );
-        logInteraction('window-capture-lab.dev-smoke.capture-client', {
-          scenario: devSmokeScenario,
-          backend: clientResult.backend,
-          width: clientResult.cropBounds.width,
-          height: clientResult.cropBounds.height,
-        });
-
-        console.log('[frontend-window-capture] dev-smoke-complete');
-        logInteraction('window-capture-lab.dev-smoke.complete', {
-          scenario: devSmokeScenario,
-          windowId: currentWindowId ?? appI18n.common.unknown,
-        });
-      } catch (error) {
-        const normalizedError = normalizeThrownError(
-          error,
-          'Window Capture dev smoke failed.',
-        );
-        setErrorMessage(normalizedError.message);
-        logException('window-capture-lab.dev-smoke.failed', normalizedError, {
-          scenario: devSmokeScenario,
-          windowId: currentWindowId ?? appI18n.common.unknown,
-        });
-      }
-    })();
-  }, [currentWindowId, devSmokeScenario, hostBridgeReady]);
-
   async function handleReturnMain() {
     if (busyAction) {
       return;
@@ -781,7 +626,7 @@ export function WindowCaptureLabScreen({
       : 'support';
 
   return (
-    <View style={styles.screen}>
+    <View testID='window-capture.screen' style={styles.screen}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <AppFrame
           eyebrow={appI18n.windowCaptureLab.frame.eyebrow}
@@ -793,8 +638,9 @@ export function WindowCaptureLabScreen({
               description={appI18n.windowCaptureLab.sections.selectorDescription}>
               <Stack>
                 <View style={styles.choiceRow}>
-                  <ChoiceChip
-                    label={appI18n.windowCaptureLab.selectorModes.foreground.label}
+                <ChoiceChip
+                  testID='window-capture.selector.foreground'
+                  label={appI18n.windowCaptureLab.selectorModes.foreground.label}
                     detail={appI18n.windowCaptureLab.selectorModes.foreground.detail}
                     active={selectorDraft.foreground}
                     activeBadgeLabel={appI18n.common.choiceStatus.current}
@@ -806,8 +652,9 @@ export function WindowCaptureLabScreen({
                       }));
                     }}
                   />
-                  <ChoiceChip
-                    label={appI18n.windowCaptureLab.selectorModes.manual.label}
+                <ChoiceChip
+                  testID='window-capture.selector.manual'
+                  label={appI18n.windowCaptureLab.selectorModes.manual.label}
                     detail={appI18n.windowCaptureLab.selectorModes.manual.detail}
                     active={!selectorDraft.foreground}
                     activeBadgeLabel={appI18n.common.choiceStatus.current}
@@ -820,13 +667,14 @@ export function WindowCaptureLabScreen({
                     }}
                   />
                 </View>
-                {selectorEditorReady ? (
+                {selectorEditorReady && !selectorDraft.foreground ? (
                   <View style={styles.selectorGrid}>
                     <View style={styles.selectorField}>
                       <Text style={styles.selectorLabel}>
                         {appI18n.windowCaptureLab.fields.handle.label}
                       </Text>
                       <TextInput
+                        testID='window-capture.input.handle'
                         value={selectorDraft.handle}
                         onChangeText={value => {
                           setSelectorDraft(current => ({
@@ -848,6 +696,7 @@ export function WindowCaptureLabScreen({
                         {appI18n.windowCaptureLab.fields.processName.label}
                       </Text>
                       <TextInput
+                        testID='window-capture.input.process-name'
                         value={selectorDraft.processName}
                         onChangeText={value => {
                           setSelectorDraft(current => ({
@@ -869,6 +718,7 @@ export function WindowCaptureLabScreen({
                         {appI18n.windowCaptureLab.fields.titleContains.label}
                       </Text>
                       <TextInput
+                        testID='window-capture.input.title-contains'
                         value={selectorDraft.titleContains}
                         onChangeText={value => {
                           setSelectorDraft(current => ({
@@ -889,6 +739,7 @@ export function WindowCaptureLabScreen({
                         {appI18n.windowCaptureLab.fields.titleExact.label}
                       </Text>
                       <TextInput
+                        testID='window-capture.input.title-exact'
                         value={selectorDraft.titleExact}
                         onChangeText={value => {
                           setSelectorDraft(current => ({
@@ -909,6 +760,7 @@ export function WindowCaptureLabScreen({
                         {appI18n.windowCaptureLab.fields.className.label}
                       </Text>
                       <TextInput
+                        testID='window-capture.input.class-name'
                         value={selectorDraft.className}
                         onChangeText={value => {
                           setSelectorDraft(current => ({
@@ -935,18 +787,21 @@ export function WindowCaptureLabScreen({
                 </View>
                 <View style={styles.actionRow}>
                   <ActionButton
+                    testID='window-capture.action.use-foreground-defaults'
                     label={appI18n.windowCaptureLab.actions.useForegroundDefaults}
                     onPress={handleUseForegroundDefaults}
                     disabled={busyAction !== null}
                     tone="ghost"
                   />
                   <ActionButton
+                    testID='window-capture.action.clear-manual-filters'
                     label={appI18n.windowCaptureLab.actions.clearManualFilters}
                     onPress={handleClearManualSelectorFields}
                     disabled={busyAction !== null}
                     tone="ghost"
                   />
                   <ActionButton
+                    testID='window-capture.action.clear-pinned-handle'
                     label={appI18n.windowCaptureLab.actions.clearPinnedHandle}
                     onPress={handleClearPinnedHandle}
                     disabled={busyAction !== null || !pinnedHandle}
@@ -964,28 +819,36 @@ export function WindowCaptureLabScreen({
                   <InlineMetric
                     label={appI18n.windowCaptureLab.status.foregroundMatches}
                     value={String(windowMatches.length)}
+                    valueTestID='window-capture.metric.match-count'
                   />
                   <InlineMetric
                     label={appI18n.windowCaptureLab.status.selectedProcess}
                     value={targetWindow?.processName ?? appI18n.common.unknown}
+                    valueTestID='window-capture.metric.selected-process'
                   />
                   <InlineMetric
                     label={appI18n.viewShotLab.status.windowId}
                     value={currentWindowId ?? appI18n.common.unknown}
+                    valueTestID='window-capture.metric.window-id'
                   />
                   <InlineMetric
                     label={appI18n.viewShotLab.status.windowPolicy}
                     value={formatWindowTargetLabel(currentWindowPolicy)}
+                    valueTestID='window-capture.metric.window-policy'
                   />
                 </View>
                 <View style={styles.statusBlock}>
                   <MutedText>
+                    <Text testID='window-capture.selected-window'>
                     {appI18n.windowCaptureLab.status.selectedWindow}：
                     {targetWindow?.title ?? appI18n.common.unknown}
+                    </Text>
                   </MutedText>
                   <MutedText>
+                    <Text testID='window-capture.selected-handle'>
                     {appI18n.windowCaptureLab.status.selectedHandle}：
                     {targetWindow?.handleHex ?? appI18n.common.unknown}
+                    </Text>
                   </MutedText>
                   <MutedText>
                     {appI18n.windowCaptureLab.status.pinnedHandle}：
@@ -1093,6 +956,7 @@ export function WindowCaptureLabScreen({
                 )}
                 <View style={styles.actionRow}>
                   <ActionButton
+                    testID='window-capture.action.refresh'
                     label={appI18n.windowCaptureLab.actions.refreshForeground}
                     onPress={() => {
                       void refreshForegroundWindow();
@@ -1101,6 +965,7 @@ export function WindowCaptureLabScreen({
                     tone="ghost"
                   />
                   <ActionButton
+                    testID='window-capture.action.return-main'
                     label={
                       busyAction === 'return-main'
                         ? appI18n.windowCaptureLab.actions.returnMainBusy
@@ -1113,6 +978,7 @@ export function WindowCaptureLabScreen({
                     tone="ghost"
                   />
                   <ActionButton
+                    testID='window-capture.action.open-detached'
                     label={
                       busyAction === 'open-detached'
                         ? appI18n.windowCaptureLab.actions.openDetachedLabBusy
@@ -1132,6 +998,7 @@ export function WindowCaptureLabScreen({
               description={appI18n.windowCaptureLab.sections.actionDescription}>
               <View style={styles.actionRow}>
                 <ActionButton
+                  testID='window-capture.action.capture-window'
                   label={appI18n.windowCaptureLab.actions.captureWindow}
                   onPress={() => {
                     void runCapture('capture-window', 'window');
@@ -1139,6 +1006,7 @@ export function WindowCaptureLabScreen({
                   disabled={!hostBridgeReady || busyAction !== null}
                 />
                 <ActionButton
+                  testID='window-capture.action.capture-client'
                   label={appI18n.windowCaptureLab.actions.captureClient}
                   onPress={() => {
                     void runCapture('capture-client', 'client');
@@ -1165,6 +1033,7 @@ export function WindowCaptureLabScreen({
               <Stack>
                 <View style={styles.metricRow}>
                   <SignalPill
+                    testID='window-capture.status.host'
                     label={hostStatusLabel}
                     tone={hostStatusTone}
                     size="sm"
@@ -1174,33 +1043,43 @@ export function WindowCaptureLabScreen({
                     value={
                       lastResult?.backend ?? appI18n.windowCaptureLab.status.idle
                     }
+                    valueTestID='window-capture.result.backend'
                   />
                   <InlineMetric
                     label={appI18n.windowCaptureLab.status.latestRegion}
                     value={
                       lastResult?.region ?? appI18n.windowCaptureLab.status.idle
                     }
+                    valueTestID='window-capture.result.region'
                   />
                   <InlineMetric
                     label={appI18n.windowCaptureLab.status.latestCaptureSize}
                     value={formatCaptureSize(lastResult)}
+                    valueTestID='window-capture.result.capture-size'
                   />
                   <InlineMetric
                     label={appI18n.windowCaptureLab.status.latestUpdatedAt}
                     value={formatUpdatedAt(lastUpdatedAt)}
+                    valueTestID='window-capture.result.updated-at'
                   />
                 </View>
                 {errorMessage ? (
                   <InfoPanel
+                    testID='window-capture.error.panel'
                     title={appI18n.windowCaptureLab.feedback.captureFailedTitle}>
-                    <MutedText>{errorMessage}</MutedText>
+                    <MutedText>
+                      <Text testID='window-capture.error.message'>{errorMessage}</Text>
+                    </MutedText>
                   </InfoPanel>
                 ) : null}
                 {statusMessage ? (
                   <InfoPanel
+                    testID='window-capture.status.panel'
                     title={appI18n.windowCaptureLab.feedback.hostStatusTitle}
                     tone="neutral">
-                    <MutedText>{statusMessage}</MutedText>
+                    <MutedText>
+                      <Text testID='window-capture.status.message'>{statusMessage}</Text>
+                    </MutedText>
                   </InfoPanel>
                 ) : null}
                 <View style={styles.resultShell}>
@@ -1218,22 +1097,22 @@ export function WindowCaptureLabScreen({
                 </View>
                 <View style={styles.statusBlock}>
                   <Text style={styles.resultLabel}>outputPath</Text>
-                  <Text style={styles.resultValue}>
+                  <Text testID='window-capture.result.output-path' style={styles.resultValue}>
                     {lastResult?.outputPath ??
                       appI18n.windowCaptureLab.status.idle}
                   </Text>
                   <Text style={styles.resultLabel}>selectedWindow</Text>
-                  <Text style={styles.resultValue}>
+                  <Text testID='window-capture.result.selected-window' style={styles.resultValue}>
                     {lastResult
                       ? `${lastResult.selectedWindow.processName} · ${lastResult.selectedWindow.title}`
                       : appI18n.windowCaptureLab.status.idle}
                   </Text>
                   <Text style={styles.resultLabel}>cropBounds</Text>
-                  <Text style={styles.resultValue}>
+                  <Text testID='window-capture.result.crop-bounds' style={styles.resultValue}>
                     {formatCropBounds(lastResult)}
                   </Text>
                   <Text style={styles.resultLabel}>sourceItemSize</Text>
-                  <Text style={styles.resultValue}>
+                  <Text testID='window-capture.result.source-item-size' style={styles.resultValue}>
                     {formatSourceItemSize(lastResult)}
                   </Text>
                   {lastResult?.visibilityWarning ? (

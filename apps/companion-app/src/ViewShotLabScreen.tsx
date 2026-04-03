@@ -47,10 +47,6 @@ type CaptureActionId =
   | 'component-data-uri'
   | 'capture-screen-tmpfile';
 
-type ViewShotLabScreenProps = {
-  devSmokeScenario?: string;
-};
-
 type CaptureExecutionOptions = {
   throwOnFailure?: boolean;
   manageTmpfile?: boolean;
@@ -151,7 +147,7 @@ function formatUpdatedAt(value: string | null) {
   return new Date(value).toLocaleString('zh-CN', {hour12: false});
 }
 
-export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {}) {
+export function ViewShotLabScreen() {
   const { palette } = useTheme();
   const styles = useMemo(() => createScreenStyles(palette), [palette]);
   const captureTargetRef = useRef<View>(null);
@@ -160,7 +156,6 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
   const busyActionRef = useRef<
     CaptureActionId | 'release' | 'return-main' | 'open-detached' | null
   >(null);
-  const devSmokeRanRef = useRef(false);
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
   const currentWindowPolicy = useCurrentWindowPolicy();
@@ -355,339 +350,6 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
     }
   }
 
-  useEffect(() => {
-    if (devSmokeScenario !== 'view-shot-basics' || devSmokeRanRef.current) {
-      return;
-    }
-
-    devSmokeRanRef.current = true;
-    let cancelled = false;
-    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-    void (async () => {
-      const focusRetryDelaysMs = [280, 420, 560, 720];
-      const runFocusedSmokeCapture = async (
-        actionId: CaptureActionId,
-        resultKind: ViewShotResult,
-        execute: () => Promise<string>,
-        options: CaptureExecutionOptions = {},
-      ) => {
-        for (let attempt = 0; ; attempt += 1) {
-          try {
-            return await runCapture(actionId, resultKind, execute, options);
-          } catch (error) {
-            const normalizedError = normalizeThrownError(
-              error,
-              'View Shot capture failed.',
-            );
-            if (
-              cancelled ||
-              !/focused OPApp window/i.test(normalizedError.message) ||
-              attempt >= focusRetryDelaysMs.length
-            ) {
-              throw normalizedError;
-            }
-
-            const retryAttempt = attempt + 1;
-            const retryDelayMs = focusRetryDelaysMs[attempt];
-            console.log(
-              `[frontend-view-shot] dev-smoke-focus-retry attempt=${retryAttempt} delayMs=${retryDelayMs}`,
-            );
-            logInteraction('view-shot-lab.dev-smoke.focus-retry', {
-              scenario: devSmokeScenario,
-              windowId: currentWindowId ?? appI18n.common.unknown,
-              attempt: retryAttempt,
-              delayMs: retryDelayMs,
-            });
-
-            await focusWindow(currentWindowId ?? 'window.main');
-            await wait(retryDelayMs);
-            if (cancelled) {
-              return null;
-            }
-          }
-        }
-      };
-
-      if (!hostBridgeReady) {
-        throw new Error('View Shot dev smoke requires the OpappViewShot host bridge.');
-      }
-
-      console.log('[frontend-view-shot] dev-smoke-start');
-      logInteraction('view-shot-lab.dev-smoke.start', {
-        scenario: devSmokeScenario,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-
-      await wait(220);
-      if (cancelled) {
-        return;
-      }
-
-      await focusWindow(currentWindowId ?? 'window.main');
-      await wait(320);
-      if (cancelled) {
-        return;
-      }
-
-      const refCaptureResult = await runFocusedSmokeCapture(
-        'capture-ref-tmpfile',
-        'tmpfile',
-        () =>
-          captureRef(captureTargetRef, {
-            result: 'tmpfile',
-            format: 'png',
-            width: 920,
-            fileName: createCaptureFileName('view-shot-smoke-ref', 101),
-          }),
-        {throwOnFailure: true},
-      );
-
-      if (!refCaptureResult) {
-        throw new Error('View Shot dev smoke did not receive a tmpfile from captureRef.');
-      }
-
-      console.log(`[frontend-view-shot] dev-smoke-capture-ref uri=${refCaptureResult}`);
-      logInteraction('view-shot-lab.dev-smoke.capture-ref', {
-        scenario: devSmokeScenario,
-        uri: refCaptureResult,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-
-      setSampleSeed(currentSeed => currentSeed + 1);
-
-      await wait(220);
-      if (cancelled) {
-        return;
-      }
-
-      const inspectionCaptureResult = await runFocusedSmokeCapture(
-        'capture-ref-tmpfile',
-        'tmpfile',
-        () =>
-          captureRef(captureTargetRef, {
-            result: 'tmpfile',
-            format: 'png',
-            width: 920,
-            fileName: createCaptureFileName('view-shot-smoke-inspect', 103),
-          }),
-        {throwOnFailure: true, manageTmpfile: false},
-      );
-
-      if (!inspectionCaptureResult) {
-        throw new Error(
-          'View Shot dev smoke did not receive an inspection tmpfile from captureRef.',
-        );
-      }
-
-      console.log(
-        `[frontend-view-shot] dev-smoke-inspection-ref uri=${inspectionCaptureResult}`,
-      );
-      logInteraction('view-shot-lab.dev-smoke.inspection-ref', {
-        scenario: devSmokeScenario,
-        uri: inspectionCaptureResult,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-
-      await wait(220);
-      if (cancelled) {
-        return;
-      }
-
-      const componentCaptureResult = await runCapture(
-        'component-data-uri',
-        'data-uri',
-        async () => {
-          if (!viewShotRef.current) {
-            throw new Error('ViewShot target is not mounted yet.');
-          }
-
-          const options: CaptureOptions = {
-            result: 'data-uri',
-            format: 'png',
-            width: 920,
-          };
-          return viewShotRef.current.capture(options);
-        },
-        {throwOnFailure: true},
-      );
-
-      if (!componentCaptureResult) {
-        throw new Error('View Shot dev smoke did not receive a data-uri from ViewShot.capture.');
-      }
-
-      ensureDataUri(
-        componentCaptureResult,
-        'data:image/png;base64,',
-        'View Shot dev smoke PNG data-uri capture',
-      );
-      const componentCaptureSummary = summarizeDataUri(componentCaptureResult);
-      console.log(
-        `[frontend-view-shot] dev-smoke-component-data-uri prefix=${componentCaptureSummary.prefix} length=${componentCaptureSummary.length}`,
-      );
-      logInteraction('view-shot-lab.dev-smoke.component-data-uri', {
-        scenario: devSmokeScenario,
-        resultPrefix: componentCaptureSummary.prefix,
-        resultLength: componentCaptureSummary.length,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-
-      await wait(220);
-      if (cancelled) {
-        return;
-      }
-
-      const jpegLowQualityResult = await runCapture(
-        'component-data-uri',
-        'data-uri',
-        async () => {
-          if (!viewShotRef.current) {
-            throw new Error('ViewShot target is not mounted yet.');
-          }
-
-          const options: CaptureOptions = {
-            result: 'data-uri',
-            format: 'jpg',
-            quality: 0.2,
-            width: 920,
-          };
-          return viewShotRef.current.capture(options);
-        },
-        {throwOnFailure: true},
-      );
-
-      if (!jpegLowQualityResult) {
-        throw new Error('View Shot dev smoke did not receive a low-quality JPG data-uri.');
-      }
-
-      ensureDataUri(
-        jpegLowQualityResult,
-        'data:image/jpeg;base64,',
-        'View Shot dev smoke JPG low-quality capture',
-      );
-      const jpegLowQualitySummary = summarizeDataUri(jpegLowQualityResult);
-
-      await wait(220);
-      if (cancelled) {
-        return;
-      }
-
-      const jpegHighQualityResult = await runCapture(
-        'component-data-uri',
-        'data-uri',
-        async () => {
-          if (!viewShotRef.current) {
-            throw new Error('ViewShot target is not mounted yet.');
-          }
-
-          const options: CaptureOptions = {
-            result: 'data-uri',
-            format: 'jpg',
-            quality: 0.92,
-            width: 920,
-          };
-          return viewShotRef.current.capture(options);
-        },
-        {throwOnFailure: true},
-      );
-
-      if (!jpegHighQualityResult) {
-        throw new Error('View Shot dev smoke did not receive a high-quality JPG data-uri.');
-      }
-
-      ensureDataUri(
-        jpegHighQualityResult,
-        'data:image/jpeg;base64,',
-        'View Shot dev smoke JPG high-quality capture',
-      );
-      const jpegHighQualitySummary = summarizeDataUri(jpegHighQualityResult);
-
-      if (jpegHighQualitySummary.length <= jpegLowQualitySummary.length) {
-        throw new Error(
-          'View Shot dev smoke expected the high-quality JPG data-uri to be larger than the low-quality JPG data-uri.',
-        );
-      }
-
-      console.log(
-        `[frontend-view-shot] dev-smoke-jpg-quality low=${jpegLowQualitySummary.length} high=${jpegHighQualitySummary.length}`,
-      );
-      logInteraction('view-shot-lab.dev-smoke.jpg-quality', {
-        scenario: devSmokeScenario,
-        lowQuality: 0.2,
-        lowResultLength: jpegLowQualitySummary.length,
-        highQuality: 0.92,
-        highResultLength: jpegHighQualitySummary.length,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-
-      await wait(220);
-      if (cancelled) {
-        return;
-      }
-
-      const screenCaptureResult = await runFocusedSmokeCapture(
-        'capture-screen-tmpfile',
-        'tmpfile',
-        () =>
-          captureScreen({
-            result: 'tmpfile',
-            format: 'png',
-            width: 1280,
-            fileName: createCaptureFileName('view-shot-smoke-screen', 102),
-          }),
-        {throwOnFailure: true},
-      );
-
-      if (!screenCaptureResult) {
-        throw new Error('View Shot dev smoke did not receive a tmpfile from captureScreen.');
-      }
-
-      console.log(`[frontend-view-shot] dev-smoke-capture-screen uri=${screenCaptureResult}`);
-      logInteraction('view-shot-lab.dev-smoke.capture-screen', {
-        scenario: devSmokeScenario,
-        uri: screenCaptureResult,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-
-      await wait(220);
-      if (cancelled) {
-        return;
-      }
-
-      const removed = await releaseCapture(screenCaptureResult);
-      if (!removed) {
-        throw new Error('View Shot dev smoke could not delete the generated tmpfile.');
-      }
-
-      if (managedTmpfileRef.current === screenCaptureResult) {
-        clearManagedTmpfileState();
-        setPreviewUri(null);
-      }
-
-      setStatusMessage(appI18n.viewShotLab.status.released);
-      console.log('[frontend-view-shot] dev-smoke-release-complete');
-      logInteraction('view-shot-lab.dev-smoke.release-complete', {
-        scenario: devSmokeScenario,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-
-      console.log('[frontend-view-shot] dev-smoke-complete');
-      logInteraction('view-shot-lab.dev-smoke.complete', {
-        scenario: devSmokeScenario,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-    })().catch(error => {
-      logException('view-shot-lab.dev-smoke.failed', error, {
-        scenario: devSmokeScenario,
-        windowId: currentWindowId ?? appI18n.common.unknown,
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentWindowId, devSmokeScenario, hostBridgeReady]);
-
   async function handleReturnMain() {
     if (busyAction) {
       return;
@@ -762,7 +424,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
     : appI18n.viewShotLab.status.idle;
 
   return (
-    <View style={styles.screen}>
+    <View testID='view-shot.screen' style={styles.screen}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <AppFrame
           eyebrow={appI18n.viewShotLab.frame.eyebrow}
@@ -776,14 +438,17 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
                 <InlineMetric
                   label={appI18n.viewShotLab.status.sampleSeed}
                   value={String(sampleSeed).padStart(2, '0')}
+                  valueTestID='view-shot.metric.sample-seed'
                 />
                 <InlineMetric
                   label={appI18n.viewShotLab.status.captureCount}
                   value={String(captureCount)}
+                  valueTestID='view-shot.metric.capture-count'
                 />
                 <InlineMetric
                   label={appI18n.viewShotLab.status.windowId}
                   value={currentWindowId ?? appI18n.common.unknown}
+                  valueTestID='view-shot.metric.window-id'
                 />
               </View>
 
@@ -791,6 +456,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
                 <InlineMetric
                   label={appI18n.viewShotLab.status.windowPolicy}
                   value={formatWindowTargetLabel(currentWindowPolicy)}
+                  valueTestID='view-shot.metric.window-policy'
                 />
               </View>
 
@@ -866,6 +532,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
 
               <View style={styles.actionRow}>
                 <ActionButton
+                  testID='view-shot.action.bump-sample'
                   label={appI18n.viewShotLab.actions.bumpSample}
                   onPress={() => {
                     setSampleSeed(currentSeed => currentSeed + 1);
@@ -876,6 +543,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
                   tone="ghost"
                 />
                 <ActionButton
+                  testID='view-shot.action.return-main'
                   label={
                     busyAction === 'return-main'
                       ? appI18n.viewShotLab.actions.returnMainBusy
@@ -888,6 +556,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
                   tone="ghost"
                 />
                 <ActionButton
+                  testID='view-shot.action.open-detached'
                   label={
                     busyAction === 'open-detached'
                       ? appI18n.viewShotLab.actions.openDetachedLabBusy
@@ -906,6 +575,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
               description={appI18n.viewShotLab.sections.actionDescription}>
               <View style={styles.actionRow}>
                 <ActionButton
+                  testID='view-shot.action.capture-ref'
                   label={appI18n.viewShotLab.actions.captureRefTmpfile}
                   onPress={() => {
                     void handleCaptureRefTmpfile();
@@ -913,6 +583,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
                   disabled={!hostBridgeReady || Boolean(busyAction)}
                 />
                 <ActionButton
+                  testID='view-shot.action.capture-data-uri'
                   label={appI18n.viewShotLab.actions.captureComponentDataUri}
                   onPress={() => {
                     void handleCaptureComponentDataUri();
@@ -921,6 +592,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
                   tone="ghost"
                 />
                 <ActionButton
+                  testID='view-shot.action.capture-screen'
                   label={appI18n.viewShotLab.actions.captureScreenTmpfile}
                   onPress={() => {
                     void handleCaptureScreenTmpfile();
@@ -929,6 +601,7 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
                   tone="ghost"
                 />
                 <ActionButton
+                  testID='view-shot.action.release-tmpfile'
                   label={
                     busyAction === 'release'
                       ? appI18n.viewShotLab.actions.releaseTmpfileBusy
@@ -953,8 +626,9 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
               title={appI18n.viewShotLab.sections.resultTitle}
               description={appI18n.viewShotLab.sections.resultDescription}>
               <View style={styles.resultStatusRow}>
-                <SignalPill label={hostStatusLabel} tone={hostStatusTone} size="sm" />
+                <SignalPill testID='view-shot.status.host' label={hostStatusLabel} tone={hostStatusTone} size="sm" />
                 <SignalPill
+                  testID='view-shot.status.tmpfile'
                   label={
                     managedTmpfile
                       ? appI18n.viewShotLab.status.tmpfileReady
@@ -969,26 +643,33 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
                 <InlineMetric
                   label={appI18n.viewShotLab.status.latestAction}
                   value={formatCaptureActionLabel(lastAction)}
+                  valueTestID='view-shot.result.latest-action'
                 />
                 <InlineMetric
                   label={appI18n.viewShotLab.status.latestResultKind}
                   value={latestResultKindLabel}
+                  valueTestID='view-shot.result.latest-kind'
                 />
                 <InlineMetric
                   label={appI18n.viewShotLab.status.latestUpdatedAt}
                   value={formatUpdatedAt(lastUpdatedAt)}
+                  valueTestID='view-shot.result.latest-updated-at'
                 />
               </View>
 
               {errorMessage ? (
-                <InfoPanel title={appI18n.viewShotLab.feedback.captureFailedTitle}>
-                  <MutedText>{errorMessage}</MutedText>
+                <InfoPanel testID='view-shot.error.panel' title={appI18n.viewShotLab.feedback.captureFailedTitle}>
+                  <MutedText>
+                    <Text testID='view-shot.error.message'>{errorMessage}</Text>
+                  </MutedText>
                 </InfoPanel>
               ) : null}
 
               {statusMessage ? (
-                <InfoPanel title={appI18n.viewShotLab.feedback.hostStatusTitle} tone="neutral">
-                  <MutedText>{statusMessage}</MutedText>
+                <InfoPanel testID='view-shot.status.panel' title={appI18n.viewShotLab.feedback.hostStatusTitle} tone="neutral">
+                  <MutedText>
+                    <Text testID='view-shot.status.message'>{statusMessage}</Text>
+                  </MutedText>
                 </InfoPanel>
               ) : null}
 
@@ -1006,14 +687,14 @@ export function ViewShotLabScreen({devSmokeScenario}: ViewShotLabScreenProps = {
 
               <View style={styles.resultTextBlock}>
                 <Text style={styles.resultLabel}>{appI18n.viewShotLab.status.latestResultLabel}</Text>
-                <Text selectable style={styles.resultValue}>
+                <Text testID='view-shot.result.latest-result' selectable style={styles.resultValue}>
                   {lastResult ?? appI18n.viewShotLab.status.idle}
                 </Text>
               </View>
 
               <View style={styles.resultTextBlock}>
                 <Text style={styles.resultLabel}>{appI18n.viewShotLab.status.managedTmpfileLabel}</Text>
-                <Text selectable style={styles.resultValue}>
+                <Text testID='view-shot.result.managed-tmpfile' selectable style={styles.resultValue}>
                   {managedTmpfile ?? appI18n.viewShotLab.status.noTmpfile}
                 </Text>
               </View>

@@ -49,14 +49,16 @@ export function AppFrame({
   title,
   description,
   children,
+  testID,
 }: PropsWithChildren<{
   eyebrow: string;
   title: string;
   description: string;
+  testID?: string;
 }>) {
   const { palette, spacing } = useTheme();
   return (
-    <View style={[styles.frame, { backgroundColor: palette.canvas }]}>
+    <View testID={testID} style={[styles.frame, { backgroundColor: palette.canvas }]}>
       <View style={[styles.frameInner, { gap: spacing.xl }]}>
         <View
           style={[
@@ -93,13 +95,16 @@ export function SectionCard({
   title,
   description,
   children,
+  testID,
 }: PropsWithChildren<{
   title: string;
   description?: string;
+  testID?: string;
 }>) {
   const { palette, spacing } = useTheme();
   return (
     <View
+      testID={testID}
       style={[
         styles.sectionCard,
         {
@@ -144,6 +149,7 @@ export function ChoiceChip({
   activeBadgeLabel = appI18n.common.choiceStatus.selected,
   inactiveBadgeLabel = appI18n.common.choiceStatus.available,
   style,
+  testID,
 }: {
   label: string;
   active: boolean;
@@ -156,6 +162,7 @@ export function ChoiceChip({
   emphasized?: boolean;
   activationBehavior?: 'press' | 'press-in';
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }) {
   const { palette } = useTheme();
   const [hovered, setHovered] = useState(false);
@@ -173,6 +180,7 @@ export function ChoiceChip({
 
   return (
     <Pressable
+      testID={testID}
       accessibilityRole='button'
       accessibilityState={{ selected: active }}
       focusable
@@ -390,6 +398,7 @@ export function StatusBadge({
   size = 'md',
   style,
   textStyle,
+  testID,
 }: {
   label: string;
   tone?: AppTone;
@@ -397,12 +406,14 @@ export function StatusBadge({
   size?: 'sm' | 'md';
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  testID?: string;
 }) {
   const { tonePalette } = useTheme();
   const toneStyles = tonePalette[tone][emphasis];
 
   return (
     <View
+      testID={testID}
       style={[
         styles.statusBadge,
         size === 'sm' ? styles.statusBadgeSm : styles.statusBadgeMd,
@@ -431,6 +442,7 @@ export function SignalPill({
   size = 'md',
   style,
   textStyle,
+  testID,
 }: {
   label: string;
   tone?: AppTone;
@@ -438,12 +450,14 @@ export function SignalPill({
   size?: 'sm' | 'md';
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  testID?: string;
 }) {
   const { tonePalette } = useTheme();
   const toneStyles = tonePalette[tone][emphasis];
 
   return (
     <View
+      testID={testID}
       style={[
         styles.signalPill,
         size === 'sm' ? styles.signalPillSm : styles.signalPillMd,
@@ -538,10 +552,12 @@ export function InfoPanel({
   tone = 'danger',
   children,
   style,
+  testID,
 }: PropsWithChildren<{
   title: string;
   tone?: 'accent' | 'danger' | 'neutral';
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }>) {
   const { palette, tonePalette } = useTheme();
   const toneStyles = tonePalette[tone].soft;
@@ -549,7 +565,7 @@ export function InfoPanel({
     tone === 'neutral' ? { color: palette.ink } : toneStyles.label;
 
   return (
-    <View style={[styles.infoPanel, toneStyles.container, style]}>
+    <View testID={testID} style={[styles.infoPanel, toneStyles.container, style]}>
       <Text style={[styles.infoPanelTitle, titleToneStyle]}>{title}</Text>
       <View style={styles.infoPanelBody}>{children}</View>
     </View>
@@ -565,16 +581,19 @@ export function ActionButton({
   onPress,
   disabled = false,
   tone = 'accent',
+  testID,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   tone?: 'accent' | 'ghost';
+  testID?: string;
 }) {
   const { palette } = useTheme();
   const [hovered, setHovered] = useState(false);
   return (
     <Pressable
+      testID={testID}
       accessibilityRole='button'
       disabled={disabled}
       focusable
@@ -627,14 +646,21 @@ export function InlineMetric({
   label,
   value,
   tone = 'default',
+  testID,
+  labelTestID,
+  valueTestID,
 }: {
   label: string;
   value: string;
   tone?: 'default' | 'accent';
+  testID?: string;
+  labelTestID?: string;
+  valueTestID?: string;
 }) {
   const { palette } = useTheme();
   return (
     <View
+      testID={testID}
       style={[
         styles.metric,
         tone === 'accent'
@@ -645,10 +671,10 @@ export function InlineMetric({
           : { backgroundColor: palette.canvas, borderColor: palette.border },
       ]}
     >
-      <Text style={[styles.metricLabel, { color: palette.inkMuted }]}>
+      <Text testID={labelTestID} style={[styles.metricLabel, { color: palette.inkMuted }]}>
         {label}
       </Text>
-      <Text style={[styles.metricValue, { color: palette.ink }]}>{value}</Text>
+      <Text testID={valueTestID} style={[styles.metricValue, { color: palette.ink }]}>{value}</Text>
     </View>
   );
 }
@@ -676,9 +702,10 @@ export function MutedText({
 export function Stack({
   children,
   style,
-}: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+  testID,
+}: PropsWithChildren<{ style?: StyleProp<ViewStyle>; testID?: string }>) {
   const { spacing } = useTheme();
-  return <View style={[{ gap: spacing.md }, style]}>{children}</View>;
+  return <View testID={testID} style={[{ gap: spacing.md }, style]}>{children}</View>;
 }
 
 // ---------------------------------------------------------------------------
@@ -690,11 +717,13 @@ export function SurfaceSessionChrome({
   session,
   onSelectTab,
   onCloseTab,
+  testID,
 }: {
   label?: string;
   session: ResolvedSurfaceSession;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  testID?: string;
 }) {
   const { palette } = useTheme();
 
@@ -704,6 +733,7 @@ export function SurfaceSessionChrome({
 
   return (
     <View
+      testID={testID}
       style={[
         styles.surfaceHostChrome,
         {
@@ -826,16 +856,18 @@ export function EmptyState({
   actionLabel,
   onAction,
   style,
+  testID,
 }: {
   title: string;
   description: string;
   actionLabel?: string;
   onAction?: () => void;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }) {
   const { palette, spacing } = useTheme();
   return (
-    <View style={[styles.emptyState, { gap: spacing.sm2 }, style]}>
+    <View testID={testID} style={[styles.emptyState, { gap: spacing.sm2 }, style]}>
       <Text style={[styles.emptyStateTitle, { color: palette.ink }]}>
         {title}
       </Text>
@@ -862,6 +894,7 @@ export function DataRow({
   trailing,
   onPress,
   style,
+  testID,
 }: {
   title: string;
   subtitle?: string;
@@ -869,12 +902,14 @@ export function DataRow({
   trailing?: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }) {
   const { palette, spacing } = useTheme();
   const [hovered, setHovered] = useState(false);
 
   const content = (
     <View
+      testID={testID}
       style={[
         styles.dataRow,
         { borderBottomColor: palette.border, paddingVertical: spacing.sm2 },
@@ -932,11 +967,13 @@ export function Expander({
   trailing,
   children,
   style,
+  testID,
 }: PropsWithChildren<{
   title: string;
   defaultExpanded?: boolean;
   trailing?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }>) {
   const { palette, spacing } = useTheme();
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -948,7 +985,7 @@ export function Expander({
   }, []);
 
   return (
-    <View style={[styles.expander, { borderColor: palette.border }, style]}>
+    <View testID={testID} style={[styles.expander, { borderColor: palette.border }, style]}>
       <Pressable
         accessibilityRole='button'
         accessibilityState={{ expanded }}
@@ -999,10 +1036,12 @@ export function Expander({
 export function Toolbar({
   children,
   style,
-}: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+  testID,
+}: PropsWithChildren<{ style?: StyleProp<ViewStyle>; testID?: string }>) {
   const { palette, spacing } = useTheme();
   return (
     <View
+      testID={testID}
       style={[
         styles.toolbar,
         {
@@ -1074,6 +1113,7 @@ export function TextInput({
   onClear,
   invalid = false,
   style,
+  testID,
 }: {
   value: string;
   onChangeText: (text: string) => void;
@@ -1081,6 +1121,7 @@ export function TextInput({
   onClear?: () => void;
   invalid?: boolean;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }) {
   const { palette, spacing } = useTheme();
   const [focused, setFocused] = useState(false);
@@ -1101,6 +1142,7 @@ export function TextInput({
       ]}
     >
       <RNTextInput
+        testID={testID}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

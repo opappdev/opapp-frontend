@@ -101,9 +101,6 @@ const densityOptions: {
 ];
 
 type SettingsScreenProps = Record<string, unknown> & {
-  smokeSaveMainWindowMode?: WindowSizeMode;
-  smokeSaveSettingsWindowMode?: WindowSizeMode;
-  smokeSaveSettingsPresentation?: SettingsSurfacePresentation;
 };
 
 function arePreferencesEqual(left: WindowPreferences, right: WindowPreferences) {
@@ -136,45 +133,6 @@ function formatWindowTargetLabel(policy: WindowPolicyId | null) {
 
 function formatWindowMode(mode: WindowSizeMode) {
   return appI18n.settings.windowModes[mode].label;
-}
-
-function normalizeSmokeWindowMode(value: unknown): WindowSizeMode | null {
-  return typeof value === 'string' && windowSizeModes.includes(value as WindowSizeMode)
-    ? (value as WindowSizeMode)
-    : null;
-}
-
-function normalizeSmokeSettingsPresentation(
-  value: unknown,
-): SettingsSurfacePresentation | null {
-  return typeof value === 'string' &&
-    settingsSurfacePresentations.includes(value as SettingsSurfacePresentation)
-    ? (value as SettingsSurfacePresentation)
-    : null;
-}
-
-function buildSmokeSavePreferences(
-  preferences: WindowPreferences,
-  props: SettingsScreenProps,
-): WindowPreferences | null {
-  const nextMainWindowMode = normalizeSmokeWindowMode(props.smokeSaveMainWindowMode);
-  const nextSettingsWindowMode = normalizeSmokeWindowMode(
-    props.smokeSaveSettingsWindowMode,
-  );
-  const nextSettingsPresentation = normalizeSmokeSettingsPresentation(
-    props.smokeSaveSettingsPresentation,
-  );
-
-  if (!nextMainWindowMode && !nextSettingsWindowMode && !nextSettingsPresentation) {
-    return null;
-  }
-
-  return {
-    mainWindowMode: nextMainWindowMode ?? preferences.mainWindowMode,
-    settingsWindowMode: nextSettingsWindowMode ?? preferences.settingsWindowMode,
-    settingsPresentation:
-      nextSettingsPresentation ?? preferences.settingsPresentation,
-  };
 }
 
 function buildImmediateApplyHint(policy: WindowPolicyId | null) {
@@ -226,7 +184,6 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
   const [savingDraft, setSavingDraft] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState<WindowPreferences>(defaultWindowPreferences);
-  const hasRunSmokeAutoSave = useRef(false);
   const currentWindowId = useCurrentWindowId();
   const [focusingMainWindow, setFocusingMainWindow] = useState(false);
   const [closingCurrentWindow, setClosingCurrentWindow] = useState(false);
@@ -292,54 +249,6 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
     () => buildImmediateApplyHint(currentWindowPolicy),
     [currentWindowPolicy],
   );
-  const smokeSavePreferences = useMemo(
-    () => buildSmokeSavePreferences(preferences, props),
-    [
-      preferences,
-      props.smokeSaveMainWindowMode,
-      props.smokeSaveSettingsPresentation,
-      props.smokeSaveSettingsWindowMode,
-    ],
-  );
-
-  useEffect(() => {
-    if (loading || savingDraft || hasRunSmokeAutoSave.current || !smokeSavePreferences) {
-      return;
-    }
-
-    hasRunSmokeAutoSave.current = true;
-    setDraft(smokeSavePreferences);
-    setSavingDraft(true);
-    setSaveNotice(null);
-    console.log(
-      `[frontend-settings] smoke-auto-save-start main=${smokeSavePreferences.mainWindowMode} settings=${smokeSavePreferences.settingsWindowMode} presentation=${smokeSavePreferences.settingsPresentation}`,
-    );
-
-    void save(smokeSavePreferences)
-      .then(savedPreferences => {
-        setDraft(savedPreferences);
-        setSaveNotice(buildSaveNotice(currentWindowPolicy, savedPreferences));
-        console.log(
-          `[frontend-settings] smoke-auto-save-complete main=${savedPreferences.mainWindowMode} settings=${savedPreferences.settingsWindowMode} presentation=${savedPreferences.settingsPresentation}`,
-        );
-      })
-      .catch(saveError => {
-        console.error(
-          'Failed to auto-save smoke window preferences',
-          saveError,
-        );
-      })
-      .finally(() => {
-        setSavingDraft(false);
-      });
-  }, [
-    currentWindowPolicy,
-    loading,
-    save,
-    savingDraft,
-    smokeSavePreferences,
-  ]);
-
   async function handleReturnInline() {
     if (returningInline) {
       return;
@@ -494,7 +403,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
   }
 
   return (
-    <View style={styles.screen}>
+    <View testID='settings.screen' style={styles.screen}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <AppFrame
           eyebrow={appI18n.settings.frame.eyebrow}
@@ -502,12 +411,14 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
           description={appI18n.settings.frame.description}>
           <Stack>
             <SectionCard
+              testID='settings.section.display-density'
               title={appI18n.settings.sections.displayDensityTitle}
               description={appI18n.settings.sections.displayDensityDescription}>
               <View style={styles.choiceRow}>
                 {densityOptions.map(option => (
                   <ChoiceChip
                     key={`density-${option.mode}`}
+                    testID={`settings.density.${option.mode}`}
                     label={option.label}
                     detail={option.detail}
                     active={density === option.mode}
@@ -522,6 +433,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
             </SectionCard>
 
             <SectionCard
+              testID='settings.section.window-sizing'
               title={appI18n.settings.sections.windowSizingTitle}
               description={appI18n.settings.sections.windowSizingDescription}>
               <Stack>
@@ -531,6 +443,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                     {windowModeOptions.map(option => (
                       <ChoiceChip
                         key={`main-${option.mode}`}
+                        testID={`settings.main-window-mode.${option.mode}`}
                         label={option.label}
                         detail={option.detail}
                         active={draft.mainWindowMode === option.mode}
@@ -553,6 +466,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                     {windowModeOptions.map(option => (
                       <ChoiceChip
                         key={`settings-${option.mode}`}
+                        testID={`settings.settings-window-mode.${option.mode}`}
                         label={option.label}
                         detail={option.detail}
                         active={draft.settingsWindowMode === option.mode}
@@ -572,12 +486,14 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
             </SectionCard>
 
             <SectionCard
+              testID='settings.section.presentation'
               title={appI18n.settings.sections.settingsPresentationTitle}
               description={appI18n.settings.sections.settingsPresentationDescription}>
               <View style={styles.choiceRow}>
                 {settingsPresentationOptions.map(option => (
                   <ChoiceChip
                     key={option.mode}
+                    testID={`settings.presentation.${option.mode}`}
                     label={option.label}
                     detail={option.detail}
                     active={draft.settingsPresentation === option.mode}
@@ -593,27 +509,35 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                 ))}
               </View>
               <MutedText>
+                <Text testID='settings.saved-presentation'>
                 {appI18n.settings.status.currentSavedDefaultPrefix}{formatSettingsPresentation(preferences.settingsPresentation)}.
+                </Text>
               </MutedText>
             </SectionCard>
 
             <SectionCard
+              testID='settings.section.apply-preview'
               title={appI18n.settings.sections.applyPreviewTitle}
               description={appI18n.settings.sections.applyPreviewDescription}>
               <View style={styles.statusBlock}>
                 <MutedText>
+                  <Text testID='settings.current-window-policy'>
                   {appI18n.settings.status.currentHostWindowPrefix}{formatWindowTargetLabel(currentWindowPolicy)}.
+                  </Text>
                 </MutedText>
                 <MutedText>
+                  <Text testID='settings.current-draft'>
                   {appI18n.settings.status.mainWindowModePrefix}{formatWindowMode(draft.mainWindowMode)}。{appI18n.settings.status.settingsWindowModePrefix}{formatWindowMode(draft.settingsWindowMode)}。{appI18n.settings.status.settingsOpenPrefix}{formatSettingsPresentation(draft.settingsPresentation)}。
+                  </Text>
                 </MutedText>
                 {loading ? <MutedText>{appI18n.settings.status.loadingPreferences}</MutedText> : null}
-                {saveNotice ? <Text style={styles.successText}>{saveNotice}</Text> : null}
-                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                {saveNotice ? <Text testID='settings.save-notice' style={styles.successText}>{saveNotice}</Text> : null}
+                {error ? <Text testID='settings.error-message' style={styles.errorText}>{error}</Text> : null}
                 <MutedText>{immediateApplyHint}</MutedText>
               </View>
               <View style={styles.actionRow}>
                 <ActionButton
+                  testID='settings.action.return-inline'
                   label={returningInline ? appI18n.settings.actions.returnInlineBusy : appI18n.settings.actions.returnInline}
                   onPress={() => {
                     void handleReturnInline();
@@ -622,6 +546,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                   tone="ghost"
                 />
                 <ActionButton
+                  testID='settings.action.open-main-tab'
                   label={openingMainTab ? appI18n.settings.actions.openMainTabBusy : appI18n.settings.actions.openMainTab}
                   onPress={() => {
                     void handleOpenMainTab();
@@ -630,6 +555,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                   tone="ghost"
                 />
                 <ActionButton
+                  testID='settings.action.open-detached-settings'
                   label={
                     openingDetachedWindow
                       ? appI18n.settings.actions.openDetachedSettingsBusy
@@ -644,14 +570,20 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
             </SectionCard>
 
             <SectionCard
+              testID='settings.section.window-actions'
               title={appI18n.settings.sections.windowActionsTitle}
               description={appI18n.settings.sections.windowActionsDescription}>
               <View style={styles.statusBlock}>
-                <MutedText>{appI18n.settings.status.currentWindowIdPrefix}{currentWindowId ?? appI18n.common.unknown}。</MutedText>
+                <MutedText>
+                  <Text testID='settings.current-window-id'>
+                    {appI18n.settings.status.currentWindowIdPrefix}{currentWindowId ?? appI18n.common.unknown}。
+                  </Text>
+                </MutedText>
                 <MutedText>{appI18n.settings.status.mainWindowId}</MutedText>
               </View>
               <View style={styles.actionRow}>
                 <ActionButton
+                  testID='settings.action.focus-main-window'
                   label={focusingMainWindow ? appI18n.settings.actions.focusMainWindowBusy : appI18n.settings.actions.focusMainWindow}
                   onPress={() => {
                     void handleFocusMainWindow();
@@ -661,6 +593,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                 />
                 {currentWindowId && currentWindowId !== 'window.main' ? (
                   <ActionButton
+                    testID='settings.action.close-current-window'
                     label={closingCurrentWindow ? appI18n.settings.actions.closeCurrentWindowBusy : appI18n.settings.actions.closeCurrentWindow}
                     onPress={() => {
                       void handleCloseCurrentWindow();
@@ -673,6 +606,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
             </SectionCard>
 
             <SectionCard
+              testID='settings.section.view-shot-entry'
               title={appI18n.viewShotLab.sections.entryTitle}
               description={appI18n.viewShotLab.sections.entryDescription}>
               <View style={styles.statusBlock}>
@@ -680,6 +614,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
               </View>
               <View style={styles.actionRow}>
                 <ActionButton
+                  testID='settings.action.open-view-shot-current'
                   label={appI18n.viewShotLab.actions.openCurrentLab}
                   onPress={() => {
                     void handleOpenViewShotLab('current-window');
@@ -688,6 +623,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                   tone="ghost"
                 />
                 <ActionButton
+                  testID='settings.action.open-view-shot-detached'
                   label={
                     openingViewShotLab === 'new-window'
                       ? appI18n.viewShotLab.actions.openDetachedLabBusy
@@ -702,6 +638,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
             </SectionCard>
 
             <SectionCard
+              testID='settings.section.window-capture-entry'
               title={appI18n.windowCaptureLab.sections.entryTitle}
               description={appI18n.windowCaptureLab.sections.entryDescription}>
               <View style={styles.statusBlock}>
@@ -709,6 +646,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
               </View>
               <View style={styles.actionRow}>
                 <ActionButton
+                  testID='settings.action.open-window-capture-current'
                   label={appI18n.windowCaptureLab.actions.openCurrentLab}
                   onPress={() => {
                     void handleOpenWindowCaptureLab('current-window');
@@ -717,6 +655,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                   tone="ghost"
                 />
                 <ActionButton
+                  testID='settings.action.open-window-capture-detached'
                   label={
                     openingWindowCaptureLab === 'new-window'
                       ? appI18n.windowCaptureLab.actions.openDetachedLabBusy
@@ -738,15 +677,17 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
           <Text style={styles.footerEyebrow}>{appI18n.settings.sections.footerEyebrow}</Text>
           <View style={styles.footerStatusRow}>
             <SignalPill
+              testID='settings.footer.signal'
               label={footerSignal.label}
               tone={footerSignal.tone}
               size="sm"
             />
-            <Text style={styles.footerStatus}>{footerStatusDetail}</Text>
+            <Text testID='settings.footer.status' style={styles.footerStatus}>{footerStatusDetail}</Text>
           </View>
         </View>
         <View style={styles.footerActions}>
           <ActionButton
+            testID='settings.action.reset-draft'
             label={appI18n.settings.actions.resetDraft}
             onPress={() => {
               setDraft(preferences);
@@ -756,6 +697,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
             tone="ghost"
           />
           <ActionButton
+            testID='settings.action.save-preferences'
             label={
               savingDraft
                 ? appI18n.settings.actions.saveWindowPreferencesBusy

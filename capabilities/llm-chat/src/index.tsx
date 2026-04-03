@@ -9,7 +9,6 @@ import {
 import {logException, logInteraction} from '@opapp/framework-diagnostics';
 import {
   usePersistentJSON,
-  writeUserFile,
 } from '@opapp/framework-filesystem';
 import {appI18n} from '@opapp/framework-i18n';
 import {
@@ -33,102 +32,6 @@ import {llmChatStreamInterruptedErrorText} from './stream-core';
 import {streamOpenAiCompatibleChat} from './stream';
 
 const persistedConfigPath = 'llm-chat/config.v1.json';
-const nativeSseDevSmokeScenario = 'llm-chat-native-sse';
-const nativeSseServerErrorDevSmokeScenario = 'llm-chat-native-sse-server-error';
-const nativeSseMalformedChunkDevSmokeScenario =
-  'llm-chat-native-sse-malformed-chunk';
-const nativeSseStreamAbortDevSmokeScenario =
-  'llm-chat-native-sse-stream-abort';
-const nativeSseDevSmokeToken = 'fixture-token';
-const nativeSseDevSmokeModel = 'fixture-model';
-const llmChatDevSmokeRequestPrompt =
-  'Reply with exactly CHAT_TEST_OK and nothing else.';
-const llmChatMalformedChunkErrorText =
-  '服务端返回了无法解析的流式 JSON 数据。';
-const llmChatDevSmokeUiStatePath = 'llm-chat/dev-smoke-ui-state.json';
-const llmChatDevSmokeScenarios = {
-  [nativeSseDevSmokeScenario]: {
-    expectedAssistantText: 'CHAT_TEST_OK',
-    expectedErrorText: undefined,
-    prompt: llmChatDevSmokeRequestPrompt,
-  },
-  [nativeSseServerErrorDevSmokeScenario]: {
-    expectedAssistantText: undefined,
-    expectedErrorText: 'EventSource requires HTTP 200, received 500.',
-    prompt: llmChatDevSmokeRequestPrompt,
-  },
-  [nativeSseMalformedChunkDevSmokeScenario]: {
-    expectedAssistantText: undefined,
-    expectedErrorText: llmChatMalformedChunkErrorText,
-    prompt: llmChatDevSmokeRequestPrompt,
-  },
-  [nativeSseStreamAbortDevSmokeScenario]: {
-    expectedAssistantText: undefined,
-    expectedErrorText: llmChatStreamInterruptedErrorText,
-    prompt: llmChatDevSmokeRequestPrompt,
-  },
-} as const;
-
-function normalizeDevSmokeLogValue(value: string) {
-  return value.replace(/\s+/g, ' ').trim();
-}
-
-function resolveLlmChatDevSmokeConfig(devSmokeScenario?: string) {
-  if (
-    !devSmokeScenario ||
-    !Object.prototype.hasOwnProperty.call(llmChatDevSmokeScenarios, devSmokeScenario)
-  ) {
-    return null;
-  }
-
-  return llmChatDevSmokeScenarios[
-    devSmokeScenario as keyof typeof llmChatDevSmokeScenarios
-  ];
-}
-
-function logDevSmokeFailure({
-  error,
-  scenario,
-  stage,
-}: {
-  error: Error;
-  scenario: string;
-  stage: string;
-}) {
-  console.log(
-    `[frontend-llm-chat] dev-smoke-failed stage=${stage} message=${normalizeDevSmokeLogValue(
-      error.message,
-    )}`,
-  );
-  logException('llm-chat.dev-smoke.failed', error, {
-    scenario,
-    stage,
-  });
-}
-
-async function persistLlmChatDevSmokeErrorUiState({
-  errorMessage,
-  scenario,
-}: {
-  errorMessage: string;
-  scenario: string;
-}) {
-  const persisted = await writeUserFile(
-    llmChatDevSmokeUiStatePath,
-    JSON.stringify({
-      errorMessage,
-      renderedAt: new Date().toISOString(),
-      scenario,
-      state: 'error',
-    }),
-  );
-
-  if (!persisted) {
-    throw new Error(
-      `Dev smoke could not persist error UI state to ${llmChatDevSmokeUiStatePath}.`,
-    );
-  }
-}
 
 function createMessageId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -142,6 +45,7 @@ function ConfigField({
   multiline = false,
   secureTextEntry = false,
   caption,
+  inputTestID,
 }: {
   label: string;
   value: string;
@@ -150,6 +54,7 @@ function ConfigField({
   multiline?: boolean;
   secureTextEntry?: boolean;
   caption?: string;
+  inputTestID?: string;
 }) {
   const {palette, spacing} = useTheme();
 
@@ -166,6 +71,7 @@ function ConfigField({
           },
         ]}>
         <RNTextInput
+          testID={inputTestID}
           multiline={multiline}
           secureTextEntry={secureTextEntry}
           placeholder={placeholder}
@@ -194,15 +100,20 @@ function ConfigField({
 function MessageBubble({
   role,
   content,
+  bubbleTestID,
+  contentTestID,
 }: {
   role: LlmChatMessage['role'];
   content: string;
+  bubbleTestID?: string;
+  contentTestID?: string;
 }) {
   const {palette, spacing} = useTheme();
   const isUser = role === 'user';
 
   return (
     <View
+      testID={bubbleTestID}
       style={[
         styles.messageBubble,
         {
@@ -224,6 +135,7 @@ function MessageBubble({
         />
       </View>
       <Text
+        testID={contentTestID}
         style={[
           styles.messageBody,
           {
@@ -236,15 +148,7 @@ function MessageBubble({
   );
 }
 
-type LlmChatScreenProps = {
-  devSmokeBaseUrl?: string;
-  devSmokeScenario?: string;
-};
-
-export function LlmChatScreen({
-  devSmokeBaseUrl,
-  devSmokeScenario,
-}: LlmChatScreenProps = {}) {
+export function LlmChatScreen() {
   const {palette, spacing} = useTheme();
   const persistedConfig = usePersistentJSON<PersistedLlmChatConfig>({
     filePath: persistedConfigPath,
@@ -254,7 +158,6 @@ export function LlmChatScreen({
   const activeStreamRef = useRef<ReturnType<typeof streamOpenAiCompatibleChat> | null>(
     null,
   );
-  const devSmokeRanRef = useRef(false);
   const [config, setConfig] = useState(createDefaultLlmChatConfig());
   const [configLoaded, setConfigLoaded] = useState(false);
   const [token, setToken] = useState('');
@@ -328,16 +231,10 @@ export function LlmChatScreen({
     requestConfig,
     requestToken,
     requestPrompt,
-    devSmokeScenario,
-    expectedAssistantText,
-    expectedErrorText,
   }: {
     requestConfig: PersistedLlmChatConfig;
     requestToken: string;
     requestPrompt: string;
-    devSmokeScenario?: string;
-    expectedAssistantText?: string;
-    expectedErrorText?: string;
   }) {
     const normalizedPrompt = requestPrompt.trim();
     const validationError = validateLlmChatConfig(
@@ -347,13 +244,6 @@ export function LlmChatScreen({
     );
     if (validationError) {
       setErrorMessage(validationError);
-      if (devSmokeScenario) {
-        logDevSmokeFailure({
-          error: new Error(validationError),
-          scenario: devSmokeScenario,
-          stage: 'validation',
-        });
-      }
       return;
     }
 
@@ -388,12 +278,6 @@ export function LlmChatScreen({
       messages: requestMessages,
       onOpen() {
         setStatus('streaming');
-        if (devSmokeScenario) {
-          console.log('[frontend-llm-chat] dev-smoke-open');
-          logInteraction('llm-chat.dev-smoke.open', {
-            scenario: devSmokeScenario,
-          });
-        }
       },
       onDelta(text) {
         setStatus('streaming');
@@ -403,79 +287,11 @@ export function LlmChatScreen({
       onDone() {
         activeStreamRef.current = null;
         setStatus('done');
-        if (devSmokeScenario) {
-          if (expectedErrorText) {
-            const unexpectedSuccessError = new Error(
-              `Dev smoke expected stream error: ${expectedErrorText}`,
-            );
-            setErrorMessage(unexpectedSuccessError.message);
-            logDevSmokeFailure({
-              error: unexpectedSuccessError,
-              scenario: devSmokeScenario,
-              stage: 'assert-error',
-            });
-            return;
-          }
-
-          const normalizedAssistantText = assistantText.replace(/\r/g, '');
-          if (!normalizedAssistantText.includes(expectedAssistantText ?? '')) {
-            const mismatchError = new Error(
-              `Dev smoke assistant text mismatch. Received: ${normalizedAssistantText}`,
-            );
-            setErrorMessage(mismatchError.message);
-            logDevSmokeFailure({
-              error: mismatchError,
-              scenario: devSmokeScenario,
-              stage: 'assert-assistant-text',
-            });
-            return;
-          }
-
-          const normalizedExpectedAssistantText = normalizeDevSmokeLogValue(
-            expectedAssistantText ?? '',
-          );
-          console.log(
-            `[frontend-llm-chat] dev-smoke-assistant-text text=${normalizedExpectedAssistantText}`,
-          );
-          console.log('[frontend-llm-chat] dev-smoke-complete');
-          logInteraction('llm-chat.dev-smoke.complete', {
-            scenario: devSmokeScenario,
-            assistantText: normalizedExpectedAssistantText,
-            outcome: 'success',
-          });
-        }
       },
       onError(error) {
         activeStreamRef.current = null;
         setStatus('done');
         setErrorMessage(error.message);
-        if (devSmokeScenario) {
-          const normalizedErrorMessage = error.message.replace(/\r/g, '');
-          if (
-            expectedErrorText &&
-            normalizedErrorMessage.includes(expectedErrorText)
-          ) {
-            const normalizedExpectedErrorText = normalizeDevSmokeLogValue(
-              expectedErrorText,
-            );
-            console.log(
-              `[frontend-llm-chat] dev-smoke-error message=${normalizedExpectedErrorText}`,
-            );
-            console.log('[frontend-llm-chat] dev-smoke-complete');
-            logInteraction('llm-chat.dev-smoke.complete', {
-              scenario: devSmokeScenario,
-              errorMessage: normalizedExpectedErrorText,
-              outcome: 'error',
-            });
-            return;
-          }
-
-          logDevSmokeFailure({
-            error,
-            scenario: devSmokeScenario,
-            stage: 'stream',
-          });
-        }
       },
     });
   }
@@ -488,97 +304,6 @@ export function LlmChatScreen({
     });
   }
 
-  useEffect(() => {
-    if (!devSmokeScenario) {
-      return;
-    }
-    if (!errorMessage) {
-      return;
-    }
-
-    const normalizedErrorMessage = errorMessage.replace(/\r/g, '');
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        await persistLlmChatDevSmokeErrorUiState({
-          errorMessage: normalizedErrorMessage,
-          scenario: devSmokeScenario,
-        });
-        if (cancelled) {
-          return;
-        }
-
-        const normalizedLoggedErrorMessage = normalizeDevSmokeLogValue(
-          normalizedErrorMessage,
-        );
-        console.log(
-          `[frontend-llm-chat] dev-smoke-error-ui path=${llmChatDevSmokeUiStatePath} message=${normalizedLoggedErrorMessage}`,
-        );
-        logInteraction('llm-chat.dev-smoke.error-ui', {
-          errorMessage: normalizedLoggedErrorMessage,
-          path: llmChatDevSmokeUiStatePath,
-          scenario: devSmokeScenario,
-        });
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        logDevSmokeFailure({
-          error:
-            error instanceof Error
-              ? error
-              : new Error('Dev smoke failed to persist the error UI state.'),
-          scenario: devSmokeScenario,
-          stage: 'persist-error-ui',
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [devSmokeScenario, errorMessage]);
-
-  useEffect(() => {
-    const devSmokeConfig = resolveLlmChatDevSmokeConfig(devSmokeScenario);
-    if (
-      devSmokeRanRef.current ||
-      !configLoaded ||
-      persistedConfig.loaded === false
-    ) {
-      return;
-    }
-
-    if (
-      !devSmokeConfig ||
-      typeof devSmokeBaseUrl !== 'string' ||
-      devSmokeBaseUrl.trim().length === 0
-    ) {
-      return;
-    }
-
-    devSmokeRanRef.current = true;
-    console.log('[frontend-llm-chat] dev-smoke-start');
-    logInteraction('llm-chat.dev-smoke.start', {
-      scenario: devSmokeScenario,
-      baseUrl: devSmokeBaseUrl.trim(),
-    });
-    startChatRequest({
-      requestConfig: {
-        baseUrl: devSmokeBaseUrl.trim(),
-        model: nativeSseDevSmokeModel,
-        systemPrompt: '',
-      },
-      requestToken: nativeSseDevSmokeToken,
-      requestPrompt: devSmokeConfig.prompt,
-      devSmokeScenario,
-      expectedAssistantText: devSmokeConfig.expectedAssistantText,
-      expectedErrorText: devSmokeConfig.expectedErrorText,
-    });
-  }, [configLoaded, devSmokeBaseUrl, devSmokeScenario, persistedConfig.loaded]);
-
   const isStreaming = status === 'connecting' || status === 'streaming';
   const serviceReady = Boolean(
     config.baseUrl.trim() && config.model.trim() && token.trim(),
@@ -586,6 +311,7 @@ export function LlmChatScreen({
 
   return (
     <View
+      testID='llm-chat.screen'
       style={[
         styles.screen,
         {backgroundColor: palette.canvas, padding: spacing.lg, gap: spacing.lg},
@@ -635,8 +361,8 @@ export function LlmChatScreen({
       </View>
 
       {errorMessage ? (
-        <InfoPanel title={appI18n.llmChat.errorTitle} tone='danger'>
-          <Text style={[styles.panelText, {color: palette.ink}]}>
+        <InfoPanel testID='llm-chat.error.panel' title={appI18n.llmChat.errorTitle} tone='danger'>
+          <Text testID='llm-chat.error.message' style={[styles.panelText, {color: palette.ink}]}>
             {errorMessage}
           </Text>
         </InfoPanel>
@@ -649,6 +375,7 @@ export function LlmChatScreen({
             description={appI18n.llmChat.config.description}>
             <ConfigField
               label={appI18n.llmChat.config.baseUrl}
+              inputTestID='llm-chat.config.base-url'
               value={config.baseUrl}
               onChangeText={baseUrl =>
                 setConfig(currentConfig => ({...currentConfig, baseUrl}))
@@ -657,6 +384,7 @@ export function LlmChatScreen({
             />
             <ConfigField
               label={appI18n.llmChat.config.model}
+              inputTestID='llm-chat.config.model'
               value={config.model}
               onChangeText={model =>
                 setConfig(currentConfig => ({...currentConfig, model}))
@@ -665,6 +393,7 @@ export function LlmChatScreen({
             />
             <ConfigField
               label={appI18n.llmChat.config.token}
+              inputTestID='llm-chat.config.token'
               value={token}
               onChangeText={setToken}
               placeholder='sk-...'
@@ -673,6 +402,7 @@ export function LlmChatScreen({
             />
             <ConfigField
               label={appI18n.llmChat.config.systemPrompt}
+              inputTestID='llm-chat.config.system-prompt'
               value={config.systemPrompt}
               onChangeText={systemPrompt =>
                 setConfig(currentConfig => ({...currentConfig, systemPrompt}))
@@ -705,6 +435,16 @@ export function LlmChatScreen({
                     key={message.id}
                     role={message.role}
                     content={message.content}
+                    bubbleTestID={
+                      message.role === 'assistant'
+                        ? 'llm-chat.message.assistant'
+                        : 'llm-chat.message.user'
+                    }
+                    contentTestID={
+                      message.role === 'assistant'
+                        ? 'llm-chat.message.assistant.content'
+                        : 'llm-chat.message.user.content'
+                    }
                   />
                 ))
               )}
@@ -723,6 +463,7 @@ export function LlmChatScreen({
                 },
               ]}>
               <RNTextInput
+                testID='llm-chat.composer.prompt'
                 multiline
                 value={prompt}
                 onChangeText={setPrompt}
@@ -739,6 +480,7 @@ export function LlmChatScreen({
             </View>
             <View style={[styles.actionsRow, {gap: spacing.sm}]}>
               <ActionButton
+                testID='llm-chat.action.send'
                 label={
                   isStreaming
                     ? appI18n.llmChat.actions.sending
@@ -748,12 +490,14 @@ export function LlmChatScreen({
                 disabled={isStreaming}
               />
               <ActionButton
+                testID='llm-chat.action.stop'
                 label={appI18n.llmChat.actions.stop}
                 onPress={stopStreaming}
                 disabled={!isStreaming}
                 tone='ghost'
               />
               <ActionButton
+                testID='llm-chat.action.clear'
                 label={appI18n.llmChat.actions.clear}
                 onPress={clearConversation}
                 disabled={messages.length === 0 && !isStreaming}

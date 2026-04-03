@@ -60,10 +60,6 @@ import {
 } from './companion-runtime';
 import {useCompanionStartupTarget} from './useCompanionStartupTarget';
 
-type BundleLauncherScreenProps = {
-  devSmokeScenario?: string;
-};
-
 type RemoteCatalogState =
   | {
       status: 'loading';
@@ -450,9 +446,7 @@ function DetailField({
   );
 }
 
-export function BundleLauncherScreen({
-  devSmokeScenario: _devSmokeScenario,
-}: BundleLauncherScreenProps = {}) {
+export function BundleLauncherScreen() {
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
   const {width} = useWindowDimensions();
@@ -878,7 +872,7 @@ export function BundleLauncherScreen({
     : false;
 
   return (
-    <View style={styles.screen}>
+    <View testID='bundle-launcher.screen' style={styles.screen}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <AppFrame
           eyebrow={appI18n.bundleLauncher.frame.eyebrow}
@@ -890,16 +884,20 @@ export function BundleLauncherScreen({
                 <Text style={styles.serviceLabel}>
                   {appI18n.bundleLauncher.service.label}
                 </Text>
-                <Text style={styles.serviceValue}>{servicePresentation.detail}</Text>
+                <Text testID='bundle-launcher.service.detail' style={styles.serviceValue}>
+                  {servicePresentation.detail}
+                </Text>
               </View>
               <View style={styles.serviceActions}>
                 <SignalPill
+                  testID='bundle-launcher.service.status'
                   label={servicePresentation.label}
                   tone={servicePresentation.tone}
                   size="sm"
                 />
                 {supportsBundleUpdates ? (
                   <ActionButton
+                    testID='bundle-launcher.action.check-updates'
                     label={
                       checkingForUpdates
                         ? appI18n.bundleLauncher.actions.checking
@@ -1067,8 +1065,12 @@ export function BundleLauncherScreen({
                   <View style={styles.detailCard}>
                     <View style={styles.detailHeader}>
                       <View style={styles.detailHeaderCopy}>
-                        <Text style={styles.detailTitle}>{selectedEntry.displayName}</Text>
-                        <Text style={styles.detailSubtitle}>{selectedEntry.subtitle}</Text>
+                        <Text testID='bundle-launcher.detail.title' style={styles.detailTitle}>
+                          {selectedEntry.displayName}
+                        </Text>
+                        <Text testID='bundle-launcher.detail.subtitle' style={styles.detailSubtitle}>
+                          {selectedEntry.subtitle}
+                        </Text>
                       </View>
                       <SignalPill
                         label={selectedEntry.stateLabel}

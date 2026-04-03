@@ -179,14 +179,191 @@ export async function run() {
       trusted: true,
     },
   );
+  assert.deepEqual(runDocument?.run.request, {
+    command: 'git status',
+    cwd: 'opapp-frontend',
+    shell: null,
+    env: {},
+  });
   assert.deepEqual(
-    runDocument?.timeline.map(entry => entry.kind === 'terminal-event' ? entry.event : entry.kind),
+    runDocument?.timeline.map(entry =>
+      entry.kind === 'terminal-event' ? entry.event : entry.kind,
+    ),
     ['started', 'stdout', 'exit'],
   );
-  assert.equal(
-    settledDocument.timeline.at(-1)?.kind,
-    'terminal-event',
+  assert.equal(settledDocument.timeline.at(-1)?.kind, 'terminal-event');
+
+  const approvalFiles = new Map<string, string>();
+  let approvalListener:
+    | {
+        onEvent?: (event: AgentTerminalSessionEvent) => void;
+        onError?: (error: Error & {code?: string}) => void;
+      }
+    | undefined;
+
+  const approvalRuntime = createPersistedAgentTerminalRuntime({
+    readUserFile: async path => approvalFiles.get(path) ?? null,
+    writeUserFile: async (path, content) => {
+      approvalFiles.set(path, content);
+      return true;
+    },
+    getTrustedWorkspaceTarget: async () => ({
+      rootPath: 'D:/code/opappdev',
+      displayName: 'opappdev',
+      trusted: true,
+    }),
+    openAgentTerminalSession: async (_options, nextListener) => {
+      approvalListener = nextListener;
+      return {
+        sessionId: 'terminal-2',
+        async cancel() {},
+        async sendInput() {},
+      };
+    },
+    now: createClock([
+      '2026-04-03T02:00:00.000Z',
+      '2026-04-03T02:00:01.000Z',
+      '2026-04-03T02:00:01.050Z',
+    ]),
+    createId: createIdFactory([
+      'thread-2',
+      'run-2',
+      'approval-1',
+      'entry-5',
+      'entry-6',
+      'entry-7',
+      'entry-8',
+    ]),
+  });
+
+  const pendingHandle = await approvalRuntime.openRun({
+    title: 'Workspace Write Smoke',
+    goal: 'Create approval smoke file',
+    command: 'Set-Content .tmp/approval-smoke.txt ready',
+    cwd: '',
+    requiresApproval: true,
+    approvalTitle: 'Allow workspace write smoke',
+    approvalDetails: 'Need to write a temporary file inside the trusted workspace.',
+  });
+
+  await flushMicrotasks();
+  assert.equal(pendingHandle.threadId, 'thread-2');
+  assert.equal(pendingHandle.runId, 'run-2');
+  assert.equal(pendingHandle.sessionId, null);
+  await assert.rejects(
+    pendingHandle.sendInput('nope'),
+    /waiting for approval/i,
   );
+
+  const pendingRunDocument = parsePersistedAgentRunDocument(
+    approvalFiles.get(buildAgentRunDocumentPath('run-2')) ?? '',
+  );
+  assert.ok(pendingRunDocument);
+  assert.equal(pendingRunDocument?.run.status, 'needs-approval');
+  assert.equal(pendingRunDocument?.run.request?.command, 'Set-Content .tmp/approval-smoke.txt ready');
+  assert.equal(pendingRunDocument?.timeline[0]?.kind, 'approval');
+  if (pendingRunDocument?.timeline[0]?.kind === 'approval') {
+    assert.equal(pendingRunDocument.timeline[0].status, 'pending');
+    assert.equal(pendingRunDocument.timeline[0].approvalId, 'approval-1');
+  }
+
+  const approvedHandle = await approvalRuntime.approveRun({
+    runId: 'run-2',
+  });
+  await flushMicrotasks();
+  assert.equal(approvedHandle.sessionId, 'terminal-2');
+
+  approvalListener?.onEvent?.({
+    sessionId: 'terminal-2',
+    event: 'started',
+    cwd: 'D:/code/opappdev',
+    command: 'Set-Content .tmp/approval-smoke.txt ready',
+    exitCode: null,
+    text: null,
+    createdAt: '2026-04-03T02:00:02.000Z',
+  });
+  approvalListener?.onEvent?.({
+    sessionId: 'terminal-2',
+    event: 'stdout',
+    cwd: 'D:/code/opappdev',
+    command: 'Set-Content .tmp/approval-smoke.txt ready',
+    exitCode: null,
+    text: 'approval path ran\n',
+    createdAt: '2026-04-03T02:00:03.000Z',
+  });
+  approvalListener?.onEvent?.({
+    sessionId: 'terminal-2',
+    event: 'exit',
+    cwd: 'D:/code/opappdev',
+    command: 'Set-Content .tmp/approval-smoke.txt ready',
+    exitCode: 0,
+    text: null,
+    createdAt: '2026-04-03T02:00:04.000Z',
+  });
+
+  const approvedDocument = await approvedHandle.whenSettled;
+  const pendingDocumentAfterApproval = await pendingHandle.whenSettled;
+  await flushMicrotasks();
+
+  assert.equal(approvedDocument.run.status, 'completed');
+  assert.equal(pendingDocumentAfterApproval.run.status, 'completed');
+  assert.equal(approvedDocument.run.sessionId, 'terminal-2');
+  assert.deepEqual(
+    approvedDocument.timeline.map(entry =>
+      entry.kind === 'terminal-event' ? entry.event : entry.kind,
+    ),
+    ['approval', 'started', 'stdout', 'exit'],
+  );
+  if (approvedDocument.timeline[0]?.kind === 'approval') {
+    assert.equal(approvedDocument.timeline[0].status, 'approved');
+  }
+
+  const rejectedFiles = new Map<string, string>();
+  const rejectedRuntime = createPersistedAgentTerminalRuntime({
+    readUserFile: async path => rejectedFiles.get(path) ?? null,
+    writeUserFile: async (path, content) => {
+      rejectedFiles.set(path, content);
+      return true;
+    },
+    getTrustedWorkspaceTarget: async () => ({
+      rootPath: 'D:/code/opappdev',
+      displayName: 'opappdev',
+      trusted: true,
+    }),
+    openAgentTerminalSession: async () => {
+      throw new Error('approval rejection should not open a terminal session');
+    },
+    now: createClock([
+      '2026-04-03T03:00:00.000Z',
+      '2026-04-03T03:00:01.000Z',
+    ]),
+    createId: createIdFactory([
+      'thread-3',
+      'run-3',
+      'approval-2',
+      'entry-9',
+    ]),
+  });
+
+  const rejectedHandle = await rejectedRuntime.openRun({
+    title: 'Rejected Write Smoke',
+    goal: 'Create approval smoke file',
+    command: 'Set-Content .tmp/rejected-approval-smoke.txt nope',
+    requiresApproval: true,
+    approvalTitle: 'Allow rejected workspace write smoke',
+  });
+
+  const rejectedDocument = await rejectedRuntime.rejectRun({
+    runId: 'run-3',
+  });
+  const rejectedSettledDocument = await rejectedHandle.whenSettled;
+  await flushMicrotasks();
+
+  assert.equal(rejectedDocument.run.status, 'cancelled');
+  assert.equal(rejectedSettledDocument.run.status, 'cancelled');
+  if (rejectedDocument.timeline[0]?.kind === 'approval') {
+    assert.equal(rejectedDocument.timeline[0].status, 'rejected');
+  }
 
   const failureFiles = new Map<string, string>();
   const failingRuntime = createPersistedAgentTerminalRuntime({
@@ -206,9 +383,9 @@ export async function run() {
       '2026-04-03T01:10:00.050Z',
     ]),
     createId: createIdFactory([
-      'thread-2',
-      'run-2',
-      'entry-5',
+      'thread-4',
+      'run-4',
+      'entry-10',
     ]),
   });
 
@@ -222,7 +399,7 @@ export async function run() {
   await flushMicrotasks();
 
   const failedRunDocument = parsePersistedAgentRunDocument(
-    failureFiles.get(buildAgentRunDocumentPath('run-2')) ?? '',
+    failureFiles.get(buildAgentRunDocumentPath('run-4')) ?? '',
   );
   assert.ok(failedRunDocument);
   assert.equal(failedRunDocument?.run.status, 'failed');

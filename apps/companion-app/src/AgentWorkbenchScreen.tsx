@@ -10,16 +10,20 @@ import {
 } from 'react-native';
 import {logException, logInteraction} from '@opapp/framework-diagnostics';
 import {
+  approvePersistedAgentTerminalRun,
   agentThreadIndexPath,
   buildAgentRunDocumentPath,
   openAgentTerminalSession,
   openPersistedAgentTerminalRun,
   parsePersistedAgentRunDocument,
   parsePersistedAgentThreadIndex,
+  rejectPersistedAgentTerminalRun,
+  type AgentApprovalTimelineEntry,
   type AgentTerminalSessionHandle,
   type AgentRunDocument,
   type AgentRunStatus,
   type AgentTerminalEventType,
+  type AgentTimelineEntry,
   type AgentThreadSummary,
   type PersistedAgentTerminalRunHandle,
 } from '@opapp/framework-agent-runtime';
@@ -34,6 +38,7 @@ import {
   type WorkspaceEntry,
 } from '@opapp/framework-filesystem';
 import {appI18n} from '@opapp/framework-i18n';
+import {captureWindow, listVisibleWindows} from '@opapp/framework-window-capture';
 import {
   ActionButton,
   AppFrame,
@@ -57,6 +62,7 @@ import {
 import {
   buildWorkspaceGitDiffCommand,
   buildTerminalTranscript,
+  buildWorkspaceWriteApprovalCommand,
   createWorkspaceChoices,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
@@ -101,6 +107,8 @@ function resolveRunStatusTone(status: AgentRunStatus | null): AppTone {
   switch (status) {
     case 'running':
       return 'accent';
+    case 'needs-approval':
+      return 'warning';
     case 'completed':
       return 'support';
     case 'failed':
@@ -149,6 +157,92 @@ function resolveTerminalEventLabel(event: AgentTerminalEventType) {
     default:
       return event;
   }
+}
+
+function resolveApprovalStatusTone(
+  status: AgentApprovalTimelineEntry['status'],
+): AppTone {
+  switch (status) {
+    case 'approved':
+      return 'support';
+    case 'rejected':
+      return 'danger';
+    case 'expired':
+      return 'neutral';
+    default:
+      return 'warning';
+  }
+}
+
+function resolveApprovalStatusLabel(
+  status: AgentApprovalTimelineEntry['status'],
+) {
+  switch (status) {
+    case 'approved':
+      return appI18n.agentWorkbench.approval.status.approved;
+    case 'rejected':
+      return appI18n.agentWorkbench.approval.status.rejected;
+    case 'expired':
+      return appI18n.agentWorkbench.approval.status.expired;
+    default:
+      return appI18n.agentWorkbench.approval.status.pending;
+  }
+}
+
+function resolvePermissionModeLabel(
+  permissionMode: AgentApprovalTimelineEntry['permissionMode'],
+) {
+  switch (permissionMode) {
+    case 'read-only':
+      return appI18n.agentWorkbench.permissionModes.readOnly;
+    case 'danger-full-access':
+      return appI18n.agentWorkbench.permissionModes.dangerFullAccess;
+    case 'workspace-write':
+      return appI18n.agentWorkbench.permissionModes.workspaceWrite;
+    default:
+      return appI18n.common.unknown;
+  }
+}
+
+function resolveTimelineEntryTitle(entry: AgentTimelineEntry) {
+  switch (entry.kind) {
+    case 'terminal-event':
+      return resolveTerminalEventLabel(entry.event);
+    case 'approval':
+      return entry.title;
+    case 'error':
+      return appI18n.agentWorkbench.events.error;
+    default:
+      return entry.kind;
+  }
+}
+
+function resolveTimelineEntryTone(entry: AgentTimelineEntry): AppTone {
+  switch (entry.kind) {
+    case 'approval':
+      return resolveApprovalStatusTone(entry.status);
+    case 'error':
+      return 'danger';
+    case 'terminal-event':
+      return entry.event === 'stderr' ? 'warning' : 'neutral';
+    default:
+      return 'neutral';
+  }
+}
+
+function findPendingApproval(document: AgentRunDocument | null) {
+  if (!document) {
+    return null;
+  }
+
+  for (let index = document.timeline.length - 1; index >= 0; index -= 1) {
+    const entry = document.timeline[index];
+    if (entry.kind === 'approval' && entry.status === 'pending') {
+      return entry;
+    }
+  }
+
+  return null;
 }
 
 async function loadRunDocument(
@@ -273,6 +367,7 @@ export function AgentWorkbenchScreen({
     useState<WorkspaceEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [searchInputReady, setSearchInputReady] = useState(false);
   const [searchResults, setSearchResults] = useState<WorkspaceEntry[]>([]);
   const [selectedInspectorEntry, setSelectedInspectorEntry] =
     useState<WorkspaceEntry | null>(null);
@@ -294,6 +389,9 @@ export function AgentWorkbenchScreen({
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedRunDocument, setSelectedRunDocument] =
     useState<AgentRunDocument | null>(null);
+  const [approvalBusy, setApprovalBusy] = useState<
+    'requesting' | 'approving' | 'rejecting' | null
+  >(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusTone, setStatusTone] = useState<'support' | 'danger' | 'neutral'>(
     'neutral',
@@ -313,9 +411,18 @@ export function AgentWorkbenchScreen({
   const searchRequestIdRef = useRef(0);
 
   const selectedRunStatus = selectedRunDocument?.run.status ?? null;
+  const selectedPendingApproval = useMemo(
+    () => findPendingApproval(selectedRunDocument),
+    [selectedRunDocument],
+  );
+  const selectedRunRequest = selectedRunDocument?.run.request ?? null;
   const terminalTranscript = useMemo(
     () => buildTerminalTranscript(selectedRunDocument),
     [selectedRunDocument],
+  );
+  const workspaceWriteApprovalCommand = useMemo(
+    () => buildWorkspaceWriteApprovalCommand(selectedCwd),
+    [selectedCwd],
   );
   const selectedGitDiffCommand = useMemo(() => {
     if (!selectedInspectorEntry || selectedInspectorEntry.kind === 'directory') {
@@ -470,6 +577,17 @@ export function AgentWorkbenchScreen({
     };
   }, [activeRunInfo, refreshWorkbench]);
 
+  useEffect(() => {
+    if (loading || searchInputReady) {
+      return;
+    }
+
+    // Delay RN Windows TextInput mounting until after the first real screen
+    // commit. Direct main-window startup can otherwise hang before the
+    // workbench finishes its startup probes.
+    setSearchInputReady(true);
+  }, [loading, searchInputReady]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -487,6 +605,29 @@ export function AgentWorkbenchScreen({
     }
   }, [refreshWorkbench]);
 
+  const attachActiveRunHandle = useCallback(
+    (handle: PersistedAgentTerminalRunHandle) => {
+      activeRunHandleRef.current = handle;
+      setActiveRunInfo({
+        threadId: handle.threadId,
+        runId: handle.runId,
+      });
+
+      void handle.whenSettled.catch(() => {}).finally(async () => {
+        if (activeRunHandleRef.current?.runId === handle.runId) {
+          activeRunHandleRef.current = null;
+          setActiveRunInfo(null);
+        }
+
+        await refreshWorkbench({
+          preferredCwd: selectedCwdRef.current,
+          preferredThreadId: handle.threadId,
+        });
+      });
+    },
+    [refreshWorkbench],
+  );
+
   const handleRunGitStatus = useCallback(async () => {
     if (!trustedWorkspace) {
       setStatusTone('danger');
@@ -502,11 +643,7 @@ export function AgentWorkbenchScreen({
         cwd: selectedCwdRef.current || undefined,
       });
 
-      activeRunHandleRef.current = handle;
-      setActiveRunInfo({
-        threadId: handle.threadId,
-        runId: handle.runId,
-      });
+      attachActiveRunHandle(handle);
       setStatusTone('support');
       setStatusMessage(appI18n.agentWorkbench.feedback.runStarted);
       logInteraction('agent-workbench.run.started', {
@@ -519,18 +656,6 @@ export function AgentWorkbenchScreen({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: handle.threadId,
       });
-
-      void handle.whenSettled.catch(() => {}).finally(async () => {
-        if (activeRunHandleRef.current?.runId === handle.runId) {
-          activeRunHandleRef.current = null;
-          setActiveRunInfo(null);
-        }
-
-        await refreshWorkbench({
-          preferredCwd: selectedCwdRef.current,
-          preferredThreadId: handle.threadId,
-        });
-      });
     } catch (error) {
       logException('agent-workbench.run.failed', error, {
         cwd: selectedCwdRef.current,
@@ -542,7 +667,143 @@ export function AgentWorkbenchScreen({
         preferredThreadId: selectedThreadIdRef.current,
       });
     }
-  }, [refreshWorkbench, trustedWorkspace]);
+  }, [attachActiveRunHandle, refreshWorkbench, trustedWorkspace]);
+
+  const handleRequestWriteApproval = useCallback(async () => {
+    if (!trustedWorkspace) {
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.missingWorkspace);
+      return;
+    }
+
+    setApprovalBusy('requesting');
+    try {
+      const handle = await openPersistedAgentTerminalRun({
+        title: appI18n.agentWorkbench.run.writeApprovalTitle,
+        goal: appI18n.agentWorkbench.run.writeApprovalGoal,
+        command: workspaceWriteApprovalCommand.command,
+        cwd: workspaceWriteApprovalCommand.cwd,
+        shell: workspaceWriteApprovalCommand.shell,
+        requiresApproval: true,
+        approvalTitle: appI18n.agentWorkbench.approval.requestTitle,
+        approvalDetails: appI18n.agentWorkbench.approval.requestDetails(
+          workspaceWriteApprovalCommand.relativePath,
+          selectedCwdRef.current || appI18n.agentWorkbench.workspace.rootLabel,
+        ),
+      });
+
+      setStatusTone('support');
+      setStatusMessage(appI18n.agentWorkbench.feedback.approvalRequested);
+      logInteraction('agent-workbench.approval.requested', {
+        threadId: handle.threadId,
+        runId: handle.runId,
+        requestedCwd: selectedCwdRef.current,
+        targetPath: workspaceWriteApprovalCommand.relativePath,
+      });
+
+      await refreshWorkbench({
+        preferredCwd: selectedCwdRef.current,
+        preferredThreadId: handle.threadId,
+      });
+    } catch (error) {
+      logException('agent-workbench.approval.request.failed', error, {
+        cwd: selectedCwdRef.current,
+        targetPath: workspaceWriteApprovalCommand.relativePath,
+      });
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.approvalRequestFailed);
+      await refreshWorkbench({
+        preferredCwd: selectedCwdRef.current,
+        preferredThreadId: selectedThreadIdRef.current,
+      });
+    } finally {
+      setApprovalBusy(null);
+    }
+  }, [refreshWorkbench, trustedWorkspace, workspaceWriteApprovalCommand]);
+
+  const handleApproveSelectedRun = useCallback(async () => {
+    if (!selectedRunDocument || !selectedPendingApproval) {
+      return;
+    }
+
+    setApprovalBusy('approving');
+    try {
+      const handle = await approvePersistedAgentTerminalRun({
+        runId: selectedRunDocument.run.runId,
+        approvalId: selectedPendingApproval.approvalId,
+      });
+
+      attachActiveRunHandle(handle);
+      setStatusTone('support');
+      setStatusMessage(appI18n.agentWorkbench.feedback.approvalApproved);
+      logInteraction('agent-workbench.approval.approved', {
+        threadId: handle.threadId,
+        runId: handle.runId,
+        approvalId: selectedPendingApproval.approvalId,
+      });
+
+      await refreshWorkbench({
+        preferredCwd: selectedCwdRef.current,
+        preferredThreadId: handle.threadId,
+      });
+    } catch (error) {
+      logException('agent-workbench.approval.approve.failed', error, {
+        runId: selectedRunDocument.run.runId,
+        approvalId: selectedPendingApproval.approvalId,
+      });
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.approvalDecisionFailed);
+      await refreshWorkbench({
+        preferredCwd: selectedCwdRef.current,
+        preferredThreadId: selectedThreadIdRef.current,
+      });
+    } finally {
+      setApprovalBusy(null);
+    }
+  }, [
+    attachActiveRunHandle,
+    refreshWorkbench,
+    selectedPendingApproval,
+    selectedRunDocument,
+  ]);
+
+  const handleRejectSelectedRun = useCallback(async () => {
+    if (!selectedRunDocument || !selectedPendingApproval) {
+      return;
+    }
+
+    setApprovalBusy('rejecting');
+    try {
+      await rejectPersistedAgentTerminalRun({
+        runId: selectedRunDocument.run.runId,
+        approvalId: selectedPendingApproval.approvalId,
+      });
+      setStatusTone('neutral');
+      setStatusMessage(appI18n.agentWorkbench.feedback.approvalRejected);
+      logInteraction('agent-workbench.approval.rejected', {
+        runId: selectedRunDocument.run.runId,
+        approvalId: selectedPendingApproval.approvalId,
+      });
+
+      await refreshWorkbench({
+        preferredCwd: selectedCwdRef.current,
+        preferredThreadId: selectedRunDocument.run.threadId,
+      });
+    } catch (error) {
+      logException('agent-workbench.approval.reject.failed', error, {
+        runId: selectedRunDocument.run.runId,
+        approvalId: selectedPendingApproval.approvalId,
+      });
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.approvalDecisionFailed);
+      await refreshWorkbench({
+        preferredCwd: selectedCwdRef.current,
+        preferredThreadId: selectedThreadIdRef.current,
+      });
+    } finally {
+      setApprovalBusy(null);
+    }
+  }, [refreshWorkbench, selectedPendingApproval, selectedRunDocument]);
 
   const handleCancelRun = useCallback(async () => {
     const handle = activeRunHandleRef.current;
@@ -711,7 +972,8 @@ export function AgentWorkbenchScreen({
     if (
       devSmokeScenario !== agentWorkbenchDevSmokeScenario ||
       devSmokeRanRef.current ||
-      !trustedWorkspace
+      !trustedWorkspace ||
+      loading
     ) {
       return;
     }
@@ -757,6 +1019,73 @@ export function AgentWorkbenchScreen({
           command: diffCandidate.gitDiffCommand.command,
         });
 
+        console.log('[frontend-agent-workbench] dev-smoke-ui-ready');
+        logInteraction('agent-workbench.dev-smoke.ui-ready', {
+          scenario: devSmokeScenario,
+          cwd: normalizedCwd,
+          selectedThreadId,
+          threadCount: threads.length,
+        });
+
+        const visibleWindows = await listVisibleWindows({foreground: true});
+        const selectedWindow = visibleWindows[0];
+        if (!selectedWindow) {
+          throw new Error(
+            'Agent workbench dev smoke did not find a foreground window capture target.',
+          );
+        }
+
+        console.log(
+          `[frontend-agent-workbench] dev-smoke-window-list count=${visibleWindows.length} handle=${selectedWindow.handleHex} process=${selectedWindow.processName}`,
+        );
+        logInteraction('agent-workbench.dev-smoke.window-list', {
+          scenario: devSmokeScenario,
+          count: visibleWindows.length,
+          handle: selectedWindow.handleHex,
+          processName: selectedWindow.processName,
+        });
+
+        const clientCapture = await captureWindow(
+          {
+            handle: selectedWindow.handleHex || selectedWindow.handle,
+          },
+          {
+            region: 'client',
+            backend: 'wgc',
+            format: 'png',
+          },
+        );
+        if (!clientCapture.outputPath.trim()) {
+          throw new Error(
+            'Agent workbench dev smoke did not receive an output path from captureWindow.',
+          );
+        }
+        if (clientCapture.backend !== 'wgc') {
+          throw new Error(
+            `Agent workbench dev smoke expected backend=wgc, received ${clientCapture.backend}.`,
+          );
+        }
+        if (
+          !clientCapture.cropBounds ||
+          clientCapture.cropBounds.width <= 0 ||
+          clientCapture.cropBounds.height <= 0
+        ) {
+          throw new Error(
+            'Agent workbench dev smoke did not receive valid client crop bounds from captureWindow.',
+          );
+        }
+
+        console.log(
+          `[frontend-agent-workbench] dev-smoke-capture-client backend=${clientCapture.backend} crop=${clientCapture.cropBounds.width}x${clientCapture.cropBounds.height} path=${clientCapture.outputPath}`,
+        );
+        logInteraction('agent-workbench.dev-smoke.capture-client', {
+          scenario: devSmokeScenario,
+          backend: clientCapture.backend,
+          width: clientCapture.cropBounds.width,
+          height: clientCapture.cropBounds.height,
+          path: clientCapture.outputPath,
+        });
+
         console.log('[frontend-agent-workbench] dev-smoke-complete');
         logInteraction('agent-workbench.dev-smoke.complete', {
           scenario: devSmokeScenario,
@@ -774,7 +1103,15 @@ export function AgentWorkbenchScreen({
         });
       }
     })();
-  }, [devSmokeScenario, selectedCwd, trustedWorkspace, workspaceEntries]);
+  }, [
+    devSmokeScenario,
+    loading,
+    selectedCwd,
+    selectedThreadId,
+    threads.length,
+    trustedWorkspace,
+    workspaceEntries,
+  ]);
 
   useEffect(() => () => {
     diffRequestIdRef.current += 1;
@@ -837,6 +1174,21 @@ export function AgentWorkbenchScreen({
                   void handleRunGitStatus();
                 }}
                 disabled={!trustedWorkspace || activeRunInfo !== null}
+              />
+              <ActionButton
+                label={
+                  approvalBusy === 'requesting'
+                    ? appI18n.agentWorkbench.actions.requestingWriteApproval
+                    : appI18n.agentWorkbench.actions.requestWriteApproval
+                }
+                onPress={() => {
+                  void handleRequestWriteApproval();
+                }}
+                disabled={
+                  !trustedWorkspace ||
+                  activeRunInfo !== null ||
+                  approvalBusy !== null
+                }
               />
               <ActionButton
                 label={appI18n.agentWorkbench.actions.cancelRun}
@@ -1007,25 +1359,40 @@ export function AgentWorkbenchScreen({
                     />
                   ) : (
                     <View style={screenStyles.sectionBody}>
-                      <TextInput
-                        value={searchQuery}
-                        onChangeText={text => {
-                          searchRequestIdRef.current += 1;
-                          setSearchQuery(text);
-                          setSearching(false);
-                          if (text.trim().length === 0) {
+                      {searchInputReady ? (
+                        <TextInput
+                          value={searchQuery}
+                          onChangeText={text => {
+                            searchRequestIdRef.current += 1;
+                            setSearchQuery(text);
+                            setSearching(false);
+                            if (text.trim().length === 0) {
+                              setSearchResults([]);
+                            }
+                          }}
+                          placeholder={appI18n.agentWorkbench.search.placeholder}
+                          onClear={() => {
+                            searchRequestIdRef.current += 1;
+                            setSearchQuery('');
+                            setSearching(false);
                             setSearchResults([]);
-                          }
-                        }}
-                        placeholder={appI18n.agentWorkbench.search.placeholder}
-                        onClear={() => {
-                          searchRequestIdRef.current += 1;
-                          setSearchQuery('');
-                          setSearching(false);
-                          setSearchResults([]);
-                        }}
-                        style={screenStyles.searchInput}
-                      />
+                          }}
+                          style={screenStyles.searchInput}
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            screenStyles.searchInputPlaceholder,
+                            {
+                              borderColor: palette.border,
+                              backgroundColor: palette.panel,
+                            },
+                          ]}>
+                          <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+                            {appI18n.agentWorkbench.search.placeholder}
+                          </Text>
+                        </View>
+                      )}
                       <ActionButton
                         label={
                           searching
@@ -1035,7 +1402,11 @@ export function AgentWorkbenchScreen({
                         onPress={() => {
                           void handleSearch();
                         }}
-                        disabled={searching || searchQuery.trim().length === 0}
+                        disabled={
+                          !searchInputReady ||
+                          searching ||
+                          searchQuery.trim().length === 0
+                        }
                         tone='ghost'
                       />
                       {searchResults.length === 0 ? (
@@ -1348,32 +1719,107 @@ export function AgentWorkbenchScreen({
                   </Text>
 
                   {selectedRunDocument ? (
-                    <View style={screenStyles.detailGrid}>
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.threadId}
-                        value={selectedRunDocument.run.threadId}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.runId}
-                        value={selectedRunDocument.run.runId}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.sessionId}
-                        value={selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.goal}
-                        value={selectedRunDocument.run.goal}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.updatedAt}
-                        value={formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.timelineCount}
-                        value={`${selectedRunDocument.timeline.length}`}
-                      />
-                    </View>
+                    <>
+                      <View style={screenStyles.detailGrid}>
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.threadId}
+                          value={selectedRunDocument.run.threadId}
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.runId}
+                          value={selectedRunDocument.run.runId}
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.sessionId}
+                          value={selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.goal}
+                          value={selectedRunDocument.run.goal}
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.command}
+                          value={
+                            selectedRunRequest?.command ??
+                            appI18n.common.unknown
+                          }
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.cwd}
+                          value={
+                            selectedRunRequest?.cwd ??
+                            appI18n.agentWorkbench.workspace.rootLabel
+                          }
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.updatedAt}
+                          value={formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
+                        />
+                        <DetailField
+                          label={appI18n.agentWorkbench.labels.timelineCount}
+                          value={`${selectedRunDocument.timeline.length}`}
+                        />
+                      </View>
+                      {selectedPendingApproval ? (
+                        <InfoPanel
+                          title={appI18n.agentWorkbench.approval.pendingTitle}
+                          tone='accent'>
+                          <View style={screenStyles.approvalPanel}>
+                            <Text style={[screenStyles.infoText, {color: palette.ink}]}>
+                              {selectedPendingApproval.title}
+                            </Text>
+                            {selectedPendingApproval.details ? (
+                              <Text
+                                style={[
+                                  screenStyles.sectionDescription,
+                                  {color: palette.inkMuted},
+                                ]}>
+                                {selectedPendingApproval.details}
+                              </Text>
+                            ) : null}
+                            <View style={screenStyles.detailGrid}>
+                              <DetailField
+                                label={appI18n.agentWorkbench.labels.approvalStatus}
+                                value={resolveApprovalStatusLabel(
+                                  selectedPendingApproval.status,
+                                )}
+                              />
+                              <DetailField
+                                label={appI18n.agentWorkbench.labels.permissionMode}
+                                value={resolvePermissionModeLabel(
+                                  selectedPendingApproval.permissionMode,
+                                )}
+                              />
+                            </View>
+                            <View style={screenStyles.actionRow}>
+                              <ActionButton
+                                label={
+                                  approvalBusy === 'approving'
+                                    ? appI18n.agentWorkbench.actions.approvingRequest
+                                    : appI18n.agentWorkbench.actions.approveRequest
+                                }
+                                onPress={() => {
+                                  void handleApproveSelectedRun();
+                                }}
+                                disabled={approvalBusy !== null}
+                              />
+                              <ActionButton
+                                label={
+                                  approvalBusy === 'rejecting'
+                                    ? appI18n.agentWorkbench.actions.rejectingRequest
+                                    : appI18n.agentWorkbench.actions.rejectRequest
+                                }
+                                onPress={() => {
+                                  void handleRejectSelectedRun();
+                                }}
+                                disabled={approvalBusy !== null}
+                                tone='ghost'
+                              />
+                            </View>
+                          </View>
+                        </InfoPanel>
+                      ) : null}
+                    </>
                   ) : (
                     <EmptyState
                       title={appI18n.agentWorkbench.empty.runTitle}
@@ -1400,23 +1846,18 @@ export function AgentWorkbenchScreen({
                       {selectedRunDocument.timeline.map(entry => (
                         <Expander
                           key={entry.entryId}
-                          title={
-                            entry.kind === 'terminal-event'
-                              ? resolveTerminalEventLabel(entry.event)
-                              : appI18n.agentWorkbench.events.error
+                          title={resolveTimelineEntryTitle(entry)}
+                          defaultExpanded={
+                            entry.kind === 'error' || entry.kind === 'approval'
                           }
-                          defaultExpanded={entry.kind === 'error'}
                           trailing={
                             <SignalPill
-                              label={formatIsoTimestamp(entry.createdAt)}
-                              tone={
-                                entry.kind === 'error'
-                                  ? 'danger'
-                                  : entry.kind === 'terminal-event' &&
-                                      entry.event === 'stderr'
-                                    ? 'warning'
-                                    : 'neutral'
+                              label={
+                                entry.kind === 'approval'
+                                  ? resolveApprovalStatusLabel(entry.status)
+                                  : formatIsoTimestamp(entry.createdAt)
                               }
+                              tone={resolveTimelineEntryTone(entry)}
                               size='sm'
                             />
                           }>
@@ -1462,6 +1903,43 @@ export function AgentWorkbenchScreen({
                                       },
                                     ]}>
                                     {entry.text}
+                                  </Text>
+                                </View>
+                              ) : null}
+                            </View>
+                          ) : entry.kind === 'approval' ? (
+                            <View style={screenStyles.expanderBody}>
+                              <View style={screenStyles.detailGrid}>
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.approvalStatus}
+                                  value={resolveApprovalStatusLabel(entry.status)}
+                                />
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.permissionMode}
+                                  value={resolvePermissionModeLabel(
+                                    entry.permissionMode,
+                                  )}
+                                />
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.updatedAt}
+                                  value={formatIsoTimestamp(entry.createdAt)}
+                                />
+                              </View>
+                              {entry.details ? (
+                                <View
+                                  style={[
+                                    screenStyles.terminalBox,
+                                    {
+                                      backgroundColor: palette.canvas,
+                                      borderColor: palette.border,
+                                    },
+                                  ]}>
+                                  <Text
+                                    style={[
+                                      screenStyles.infoText,
+                                      {color: palette.ink},
+                                    ]}>
+                                    {entry.details}
                                   </Text>
                                 </View>
                               ) : null}
@@ -1607,10 +2085,18 @@ function createScreenStyles(palette: AppPalette) {
     sectionBody: {
       gap: appSpacing.md,
     },
+    approvalPanel: {
+      gap: appSpacing.md,
+    },
     detailGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: appSpacing.md,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: appSpacing.sm,
     },
     choiceGrid: {
       flexDirection: 'row',
@@ -1622,6 +2108,15 @@ function createScreenStyles(palette: AppPalette) {
     },
     searchInput: {
       width: '100%',
+    },
+    searchInputPlaceholder: {
+      width: '100%',
+      minHeight: 48,
+      borderWidth: 1,
+      borderRadius: appRadius.control,
+      justifyContent: 'center',
+      paddingHorizontal: appSpacing.md,
+      paddingVertical: appSpacing.sm,
     },
     threadList: {
       gap: appSpacing.sm,

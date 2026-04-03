@@ -1,12 +1,12 @@
 import {
   agentTerminalEventTypes,
+  agentTerminalShells,
   type AgentTerminalEventType,
+  type AgentTerminalShell,
   type AgentTerminalTimelineEntry,
 } from './model';
-
-export const agentTerminalShells = ['powershell', 'cmd'] as const;
-
-export type AgentTerminalShell = (typeof agentTerminalShells)[number];
+export {agentTerminalShells};
+export type {AgentTerminalShell};
 
 export type AgentTerminalSessionEvent = Omit<
   AgentTerminalTimelineEntry,

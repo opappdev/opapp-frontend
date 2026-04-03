@@ -6,6 +6,7 @@ export {
   agentPlanStepStatuses,
   agentProviderApiFamilies,
   agentRunStatuses,
+  agentTerminalShells,
   agentTerminalEventTypes,
   agentTimelineEntryKinds,
   agentToolCallStatuses,
@@ -43,6 +44,8 @@ export type {
   AgentRunStatus,
   AgentRunSummary,
   AgentTerminalEventType,
+  AgentTerminalRunRequest,
+  AgentTerminalShell,
   AgentTerminalTimelineEntry,
   AgentThreadDocument,
   AgentThreadIndex,
@@ -68,10 +71,11 @@ export {
 export {
   createAgentTerminalTimelineEntry,
   createNativeAgentTerminalRuntime,
-  agentTerminalShells,
 } from './terminal-core';
 export {
   createPersistedAgentTerminalRuntime,
+  approvePersistedAgentTerminalRun,
+  rejectPersistedAgentTerminalRun,
   openPersistedAgentTerminalRun,
 } from './run-coordinator';
 export {
@@ -82,12 +86,13 @@ export type {
   AgentTerminalSessionEvent,
   AgentTerminalSessionHandle,
   AgentTerminalSessionListener,
-  AgentTerminalShell,
   NativeAgentTerminalBridge,
   NativeAgentTerminalEventPayload,
   OpenAgentTerminalSessionOptions,
 } from './terminal-core';
 export type {
+  ApprovePersistedAgentTerminalRunOptions,
   OpenPersistedAgentTerminalRunOptions,
   PersistedAgentTerminalRunHandle,
+  RejectPersistedAgentTerminalRunOptions,
 } from './run-coordinator';

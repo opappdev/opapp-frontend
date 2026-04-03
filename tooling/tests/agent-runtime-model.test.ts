@@ -168,6 +168,14 @@ export function run() {
           permissionMode: 'workspace-write',
           approvalMode: 'manual',
         },
+        request: {
+          command: 'corepack pnpm commit:check',
+          cwd: 'opapp-frontend',
+          shell: 'powershell',
+          env: {
+            NODE_ENV: 'test',
+          },
+        },
       },
       timeline: [
         {
@@ -284,6 +292,14 @@ export function run() {
   assert.equal(runDocument?.run.settings.workspace.rootPath, 'D:/code/opappdev');
   assert.equal(runDocument?.run.settings.workspace.trusted, true);
   assert.equal(runDocument?.run.settings.provider.apiFamily, 'chat-completions');
+  assert.deepEqual(runDocument?.run.request, {
+    command: 'corepack pnpm commit:check',
+    cwd: 'opapp-frontend',
+    shell: 'powershell',
+    env: {
+      NODE_ENV: 'test',
+    },
+  });
   assert.deepEqual(
     runDocument?.timeline.map(entry => entry.kind),
     [

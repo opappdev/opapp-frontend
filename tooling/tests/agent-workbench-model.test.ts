@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   buildWorkspaceGitDiffCommand,
+  buildWorkspaceWriteApprovalCommand,
   buildTerminalTranscript,
   createWorkspaceChoices,
   resolveWorkspaceGitDiffCandidate,
@@ -61,6 +62,25 @@ export function run() {
     },
   );
   assert.equal(buildWorkspaceGitDiffCommand('AGENT.md'), null);
+  assert.deepEqual(buildWorkspaceWriteApprovalCommand('opapp-frontend'), {
+    cwd: '',
+    shell: 'powershell',
+    relativePath: '.tmp/agent-workbench/approval-write-smoke.txt',
+    command: [
+      "$requestedCwd = 'opapp-frontend'",
+      "$targetDir = Join-Path '.tmp' 'agent-workbench'",
+      'New-Item -ItemType Directory -Path $targetDir -Force | Out-Null',
+      "$targetPath = Join-Path $targetDir 'approval-write-smoke.txt'",
+      '$lines = @(',
+      "  ('approvedAt=' + (Get-Date).ToUniversalTime().ToString('o'))",
+      "  ('requestedCwd=' + $requestedCwd)",
+      "  'executor=agent-workbench'",
+      ')',
+      'Set-Content -LiteralPath $targetPath -Value $lines -Encoding utf8',
+      "Write-Output ('workspace write smoke saved to ' + $targetPath)",
+      'Get-Content -LiteralPath $targetPath',
+    ].join('; '),
+  });
   assert.deepEqual(
     resolveWorkspaceGitDiffCandidate([
       {
@@ -142,6 +162,12 @@ export function run() {
           },
           permissionMode: 'workspace-write',
           approvalMode: 'manual',
+        },
+        request: {
+          command: 'git status',
+          cwd: 'opapp-frontend',
+          shell: 'powershell',
+          env: {},
         },
       },
       timeline: [

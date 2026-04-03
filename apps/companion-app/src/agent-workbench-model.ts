@@ -158,6 +158,31 @@ export function buildWorkspaceGitDiffCommand(relativePath: string) {
   };
 }
 
+export function buildWorkspaceWriteApprovalCommand(requestedCwd: string) {
+  const normalizedRequestedCwd = requestedCwd.trim() || '.';
+  const relativePath = '.tmp/agent-workbench/approval-write-smoke.txt';
+
+  return {
+    cwd: '',
+    shell: 'powershell' as const,
+    relativePath,
+    command: [
+      `$requestedCwd = ${quotePowerShellLiteral(normalizedRequestedCwd)}`,
+      "$targetDir = Join-Path '.tmp' 'agent-workbench'",
+      'New-Item -ItemType Directory -Path $targetDir -Force | Out-Null',
+      "$targetPath = Join-Path $targetDir 'approval-write-smoke.txt'",
+      "$lines = @(",
+      "  ('approvedAt=' + (Get-Date).ToUniversalTime().ToString('o'))",
+      "  ('requestedCwd=' + $requestedCwd)",
+      "  'executor=agent-workbench'",
+      ')',
+      'Set-Content -LiteralPath $targetPath -Value $lines -Encoding utf8',
+      "Write-Output ('workspace write smoke saved to ' + $targetPath)",
+      'Get-Content -LiteralPath $targetPath',
+    ].join('; '),
+  };
+}
+
 function resolveWorkspaceGitDiffEntryPriority(entry: WorkspaceEntry) {
   const preferredIndex = preferredWorkspaceGitDiffEntryNames.indexOf(entry.name);
   return preferredIndex >= 0 ? preferredIndex : preferredWorkspaceGitDiffEntryNames.length;

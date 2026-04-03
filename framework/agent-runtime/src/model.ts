@@ -2,6 +2,7 @@ export const agentProviderApiFamilies = [
   'chat-completions',
   'responses',
 ] as const;
+export const agentTerminalShells = ['powershell', 'cmd'] as const;
 export const agentPermissionModes = [
   'read-only',
   'workspace-write',
@@ -69,6 +70,7 @@ const agentStorageIdPattern = /^[A-Za-z0-9._:-]+$/;
 
 export type AgentProviderApiFamily =
   (typeof agentProviderApiFamilies)[number];
+export type AgentTerminalShell = (typeof agentTerminalShells)[number];
 export type AgentPermissionMode = (typeof agentPermissionModes)[number];
 export type AgentApprovalMode = (typeof agentApprovalModes)[number];
 export type AgentRunStatus = (typeof agentRunStatuses)[number];
@@ -105,6 +107,13 @@ export type AgentRunSettings = {
   approvalMode: AgentApprovalMode;
 };
 
+export type AgentTerminalRunRequest = {
+  command: string;
+  cwd: string | null;
+  shell: AgentTerminalShell | null;
+  env: Record<string, string>;
+};
+
 export type AgentThreadSummary = {
   threadId: string;
   title: string;
@@ -127,6 +136,7 @@ export type AgentRunSummary = {
   completedAt: string | null;
   resumedFromRunId: string | null;
   settings: AgentRunSettings;
+  request: AgentTerminalRunRequest | null;
 };
 
 export type AgentPlanStep = {
@@ -293,6 +303,24 @@ function readBoolean(value: unknown) {
   return value === true;
 }
 
+function readStringRecord(value: unknown) {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const record: Record<string, string> = {};
+  for (const [rawKey, rawValue] of Object.entries(value)) {
+    const key = rawKey.trim();
+    if (!key || typeof rawValue !== 'string') {
+      continue;
+    }
+
+    record[key] = rawValue;
+  }
+
+  return record;
+}
+
 function parseAgentWorkspaceTarget(value: unknown): AgentWorkspaceTarget {
   const record = isRecord(value) ? value : {};
 
@@ -326,6 +354,26 @@ function parseAgentProviderProfile(value: unknown): AgentProviderProfile {
       defaults.apiFamily,
     baseUrl: readOptionalTrimmedString(record.baseUrl),
     model: readOptionalTrimmedString(record.model),
+  };
+}
+
+function parseAgentTerminalRunRequest(
+  value: unknown,
+): AgentTerminalRunRequest | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const command = readOptionalString(value.command)?.trim();
+  if (!command) {
+    return null;
+  }
+
+  return {
+    command,
+    cwd: readOptionalTrimmedString(value.cwd),
+    shell: readEnumValue(agentTerminalShells, value.shell),
+    env: readStringRecord(value.env),
   };
 }
 
@@ -426,6 +474,7 @@ function parseAgentRunSummaryRecord(value: unknown): AgentRunSummary | null {
     completedAt: readOptionalTrimmedString(value.completedAt),
     resumedFromRunId: readRequiredStorageId(value.resumedFromRunId),
     settings: parseAgentRunSettings(value.settings),
+    request: parseAgentTerminalRunRequest(value.request),
   };
 }
 

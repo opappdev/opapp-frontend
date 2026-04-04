@@ -248,6 +248,21 @@ function findPendingApproval(document: AgentRunDocument | null) {
   return null;
 }
 
+function findLatestApproval(document: AgentRunDocument | null) {
+  if (!document) {
+    return null;
+  }
+
+  for (let index = document.timeline.length - 1; index >= 0; index -= 1) {
+    const entry = document.timeline[index];
+    if (entry.kind === 'approval') {
+      return entry;
+    }
+  }
+
+  return null;
+}
+
 async function loadThreadRunHistory(
   threadId: string | null,
   threads: ReadonlyArray<AgentThreadSummary>,
@@ -399,6 +414,7 @@ export function AgentWorkbenchScreen() {
   const [approvalBusy, setApprovalBusy] = useState<
     'requesting' | 'approving' | 'rejecting' | null
   >(null);
+  const [retryBusy, setRetryBusy] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusTone, setStatusTone] = useState<'support' | 'danger' | 'neutral'>(
     'neutral',
@@ -427,7 +443,23 @@ export function AgentWorkbenchScreen() {
     () => findPendingApproval(selectedRunDocument),
     [selectedRunDocument],
   );
+  const latestSelectedApproval = useMemo(
+    () => findLatestApproval(selectedRunDocument),
+    [selectedRunDocument],
+  );
   const selectedRunRequest = selectedRunDocument?.run.request ?? null;
+  const selectedRunWorkspacePath = selectedRunRequest?.cwd ?? '';
+  const canRestoreSelectedRunWorkspace =
+    trustedWorkspace !== null &&
+    selectedRunRequest !== null &&
+    selectedRunWorkspacePath !== selectedCwd;
+  const canRetrySelectedRun =
+    selectedRunDocument !== null &&
+    selectedRunRequest !== null &&
+    selectedPendingApproval === null &&
+    activeRunInfo === null &&
+    approvalBusy === null &&
+    !retryBusy;
   const terminalTranscript = useMemo(
     () => buildTerminalTranscript(selectedRunDocument),
     [selectedRunDocument],
@@ -871,6 +903,86 @@ export function AgentWorkbenchScreen() {
       setStatusMessage(appI18n.agentWorkbench.feedback.cancelFailed);
     }
   }, []);
+
+  const handleRestoreSelectedRunWorkspace = useCallback(async () => {
+    if (!selectedRunRequest) {
+      return;
+    }
+
+    await handleBrowseDirectory(selectedRunWorkspacePath);
+    setStatusTone('neutral');
+    setStatusMessage(appI18n.agentWorkbench.feedback.runWorkspaceRestored);
+  }, [handleBrowseDirectory, selectedRunRequest, selectedRunWorkspacePath]);
+
+  const handleRetrySelectedRun = useCallback(async () => {
+    if (!selectedRunDocument || !selectedRunRequest) {
+      return;
+    }
+
+    setRetryBusy(true);
+    try {
+      const handle = await openPersistedAgentTerminalRun({
+        threadId: selectedRunDocument.run.threadId,
+        title: selectedRunDocument.run.goal,
+        goal: selectedRunDocument.run.goal,
+        command: selectedRunRequest.command,
+        cwd: selectedRunRequest.cwd ?? undefined,
+        shell: selectedRunRequest.shell ?? undefined,
+        env: selectedRunRequest.env,
+        permissionMode: selectedRunDocument.run.settings.permissionMode,
+        approvalMode: selectedRunDocument.run.settings.approvalMode,
+        provider: selectedRunDocument.run.settings.provider,
+        requiresApproval: latestSelectedApproval !== null,
+        approvalTitle: latestSelectedApproval?.title,
+        approvalDetails: latestSelectedApproval?.details,
+      });
+      const snapshot = handle.getSnapshot();
+      const continuedFromRunId = snapshot.run.resumedFromRunId;
+
+      if (snapshot.run.status !== 'needs-approval') {
+        attachActiveRunHandle(handle);
+      }
+
+      setStatusTone('support');
+      setStatusMessage(appI18n.agentWorkbench.feedback.runRetried);
+      logInteraction('agent-workbench.run.retried', {
+        sourceRunId: selectedRunDocument.run.runId,
+        threadId: handle.threadId,
+        runId: handle.runId,
+        resumedFromRunId: continuedFromRunId,
+        sourceStatus: selectedRunDocument.run.status,
+        cwd: selectedRunRequest.cwd,
+      });
+
+      await refreshWorkbench({
+        preferredCwd: selectedRunRequest.cwd ?? selectedCwdRef.current,
+        preferredThreadId: handle.threadId,
+        preferredRunId: handle.runId,
+      });
+    } catch (error) {
+      logException('agent-workbench.run.retry.failed', error, {
+        sourceRunId: selectedRunDocument.run.runId,
+        threadId: selectedRunDocument.run.threadId,
+        command: selectedRunRequest.command,
+        cwd: selectedRunRequest.cwd,
+      });
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.retryRunFailed);
+      await refreshWorkbench({
+        preferredCwd: selectedCwdRef.current,
+        preferredThreadId: selectedThreadIdRef.current,
+        preferredRunId: selectedRunIdRef.current,
+      });
+    } finally {
+      setRetryBusy(false);
+    }
+  }, [
+    attachActiveRunHandle,
+    latestSelectedApproval,
+    refreshWorkbench,
+    selectedRunDocument,
+    selectedRunRequest,
+  ]);
 
   const handleSearch = useCallback(async () => {
     const normalizedQuery = searchQuery.trim();
@@ -1727,6 +1839,33 @@ export function AgentWorkbenchScreen() {
 
                   {selectedRunDocument ? (
                     <>
+                      {selectedRunRequest ? (
+                        <View style={screenStyles.actionRow}>
+                          <ActionButton
+                            testID='agent-workbench.action.retry-selected-run'
+                            label={
+                              retryBusy
+                                ? appI18n.agentWorkbench.actions.retryingRun
+                                : appI18n.agentWorkbench.actions.retryRun
+                            }
+                            onPress={() => {
+                              void handleRetrySelectedRun();
+                            }}
+                            disabled={!canRetrySelectedRun}
+                          />
+                          <ActionButton
+                            testID='agent-workbench.action.restore-run-workspace'
+                            label={
+                              appI18n.agentWorkbench.actions.restoreRunWorkspace
+                            }
+                            onPress={() => {
+                              void handleRestoreSelectedRunWorkspace();
+                            }}
+                            disabled={!canRestoreSelectedRunWorkspace}
+                            tone='ghost'
+                          />
+                        </View>
+                      ) : null}
                       <View style={screenStyles.detailGrid}>
                         <DetailField
                           label={appI18n.agentWorkbench.labels.threadId}

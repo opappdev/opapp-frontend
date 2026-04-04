@@ -1,1 +1,1 @@
-export {useCompanionStartupTarget} from '@opapp/framework-companion-runtime';
+export {useCompanionStartupTarget} from '../../../framework/companion-runtime/src/useCompanionStartupTarget';

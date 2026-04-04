@@ -1,1 +1,1 @@
-export * from '@opapp/framework-companion-runtime';
+export * from '../../../framework/companion-runtime/src/companion-runtime';

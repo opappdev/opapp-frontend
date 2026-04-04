@@ -1,1 +1,1 @@
-export {createCompanionApp} from '@opapp/framework-companion-runtime';
+export {createCompanionApp} from '../../../framework/companion-runtime/src/createCompanionApp';

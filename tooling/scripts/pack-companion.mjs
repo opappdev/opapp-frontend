@@ -59,6 +59,29 @@ async function copyPackage(sourceDir, targetDir, packageJson, extraFiles = []) {
   }
 }
 
+async function rewritePackagedCompanionBridgeFiles(targetDir) {
+  const packagedBridgeFiles = new Map([
+    [
+      'src/companion-runtime.ts',
+      "export * from '@opapp/framework-companion-runtime';\n",
+    ],
+    [
+      'src/createCompanionApp.tsx',
+      "export {createCompanionApp} from '@opapp/framework-companion-runtime';\n",
+    ],
+    [
+      'src/useCompanionStartupTarget.ts',
+      "export {useCompanionStartupTarget} from '@opapp/framework-companion-runtime';\n",
+    ],
+  ]);
+
+  await Promise.all(
+    [...packagedBridgeFiles].map(([relativePath, source]) =>
+      writeFile(path.join(targetDir, relativePath), source, 'utf8'),
+    ),
+  );
+}
+
 function normalizeWorkspaceDependencyVersions(dependencies, packageVersionByName) {
   if (!dependencies) {
     return dependencies;
@@ -129,6 +152,7 @@ async function main() {
     'babel.config.js',
     'metro.config.js',
   ]);
+  await rewritePackagedCompanionBridgeFiles(packageRoot);
   await copyPackage(
     packageMap.capabilityLlmChat,
     path.join(internalPackagesRoot, 'capability-llm-chat'),

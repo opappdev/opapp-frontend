@@ -317,18 +317,38 @@ export function run() {
   );
   assert.equal(
     appCompanionRuntimeBridgeSource.includes('../../../framework/companion-runtime/'),
-    false,
-    'app companion-runtime bridge must not reach into workspace-relative framework paths that disappear from the packed tarball.',
+    true,
+    'app companion-runtime bridge should keep resolving directly to workspace source during local test builds.',
   );
   assert.equal(
     appCreateCompanionAppBridgeSource.includes('../../../framework/companion-runtime/'),
-    false,
-    'app createCompanionApp bridge must not reach into workspace-relative framework paths that disappear from the packed tarball.',
+    true,
+    'app createCompanionApp bridge should keep resolving directly to workspace source during local test builds.',
   );
   assert.equal(
     appUseCompanionStartupTargetBridgeSource.includes('../../../framework/companion-runtime/'),
-    false,
-    'app startup-target bridge must not reach into workspace-relative framework paths that disappear from the packed tarball.',
+    true,
+    'app startup-target bridge should keep resolving directly to workspace source during local test builds.',
+  );
+  assert.equal(
+    packScript.includes('rewritePackagedCompanionBridgeFiles'),
+    true,
+    'pack-companion must rewrite companion bridge files inside the staged package so published tarballs resolve through bundled framework dependencies.',
+  );
+  assert.equal(
+    packScript.includes('src/companion-runtime.ts'),
+    true,
+    'pack-companion must explicitly rewrite the packaged companion-runtime bridge file.',
+  );
+  assert.equal(
+    packScript.includes('src/createCompanionApp.tsx'),
+    true,
+    'pack-companion must explicitly rewrite the packaged createCompanionApp bridge file.',
+  );
+  assert.equal(
+    packScript.includes('src/useCompanionStartupTarget.ts'),
+    true,
+    'pack-companion must explicitly rewrite the packaged startup-target bridge file.',
   );
   assert.equal(
     packScript.includes(legacyPrivateDirName),

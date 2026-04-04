@@ -18,6 +18,8 @@ const packageMap = {
   capabilityLlmChat: path.join(repoRoot, 'capabilities', 'llm-chat'),
   capabilitySettings: path.join(repoRoot, 'capabilities', 'settings'),
   contractsWindowing: path.join(repoRoot, 'contracts', 'windowing'),
+  frameworkAgentRuntime: path.join(repoRoot, 'framework', 'agent-runtime'),
+  frameworkCompanionRuntime: path.join(repoRoot, 'framework', 'companion-runtime'),
   frameworkI18n: path.join(repoRoot, 'framework', 'i18n'),
   frameworkDiagnostics: path.join(repoRoot, 'framework', 'diagnostics'),
   frameworkFilesystem: path.join(repoRoot, 'framework', 'filesystem'),
@@ -57,157 +59,65 @@ async function copyPackage(sourceDir, targetDir, packageJson, extraFiles = []) {
   }
 }
 
+function normalizeWorkspaceDependencyVersions(dependencies, packageVersionByName) {
+  if (!dependencies) {
+    return dependencies;
+  }
+
+  return Object.fromEntries(
+    Object.entries(dependencies).map(([dependencyName, version]) => {
+      if (typeof version !== 'string' || !version.startsWith('workspace:')) {
+        return [dependencyName, version];
+      }
+
+      return [dependencyName, packageVersionByName.get(dependencyName) ?? version];
+    }),
+  );
+}
+
+function normalizePackageManifest(packageJson, packageVersionByName) {
+  return {
+    ...packageJson,
+    private: false,
+    dependencies: normalizeWorkspaceDependencyVersions(
+      packageJson.dependencies,
+      packageVersionByName,
+    ),
+    peerDependencies: normalizeWorkspaceDependencyVersions(
+      packageJson.peerDependencies,
+      packageVersionByName,
+    ),
+    optionalDependencies: normalizeWorkspaceDependencyVersions(
+      packageJson.optionalDependencies,
+      packageVersionByName,
+    ),
+  };
+}
+
 async function main() {
-  const appPkg = await readJson(path.join(packageMap.app, 'package.json'));
-  const capabilitySettingsPkg = await readJson(
-    path.join(packageMap.capabilitySettings, 'package.json'),
+  const packageJsonByKey = Object.fromEntries(
+    await Promise.all(
+      Object.entries(packageMap).map(async ([key, packageRoot]) => [
+        key,
+        await readJson(path.join(packageRoot, 'package.json')),
+      ]),
+    ),
   );
-  const capabilityLlmChatPkg = await readJson(
-    path.join(packageMap.capabilityLlmChat, 'package.json'),
+  const appPkg = packageJsonByKey.app;
+  const packageVersionByName = new Map(
+    Object.values(packageJsonByKey).map(packageJson => [packageJson.name, packageJson.version]),
   );
-  const contractsWindowingPkg = await readJson(
-    path.join(packageMap.contractsWindowing, 'package.json'),
-  );
-  const frameworkI18nPkg = await readJson(
-    path.join(packageMap.frameworkI18n, 'package.json'),
-  );
-  const frameworkDiagnosticsPkg = await readJson(
-    path.join(packageMap.frameworkDiagnostics, 'package.json'),
-  );
-  const frameworkFilesystemPkg = await readJson(
-    path.join(packageMap.frameworkFilesystem, 'package.json'),
-  );
-  const frameworkSsePkg = await readJson(
-    path.join(packageMap.frameworkSse, 'package.json'),
-  );
-  const frameworkSurfacesPkg = await readJson(
-    path.join(packageMap.frameworkSurfaces, 'package.json'),
-  );
-  const frameworkViewShotPkg = await readJson(
-    path.join(packageMap.frameworkViewShot, 'package.json'),
-  );
-  const frameworkWindowCapturePkg = await readJson(
-    path.join(packageMap.frameworkWindowCapture, 'package.json'),
-  );
-  const frameworkWindowingPkg = await readJson(
-    path.join(packageMap.frameworkWindowing, 'package.json'),
-  );
-  const uiPkg = await readJson(path.join(packageMap.ui, 'package.json'));
 
   await rm(stageRoot, {recursive: true, force: true});
   await mkdir(internalPackagesRoot, {recursive: true});
   await mkdir(distRoot, {recursive: true});
 
-  const normalizedUiPkg = {
-    ...uiPkg,
-    private: false,
-  };
-
-  const normalizedContractsWindowingPkg = {
-    ...contractsWindowingPkg,
-    private: false,
-  };
-
-  const normalizedFrameworkI18nPkg = {
-    ...frameworkI18nPkg,
-    private: false,
-  };
-
-  const normalizedFrameworkDiagnosticsPkg = {
-    ...frameworkDiagnosticsPkg,
-    private: false,
-  };
-
-  const normalizedFrameworkFilesystemPkg = {
-    ...frameworkFilesystemPkg,
-    private: false,
-  };
-
-  const normalizedFrameworkSsePkg = {
-    ...frameworkSsePkg,
-    private: false,
-  };
-
-  const normalizedFrameworkSurfacesPkg = {
-    ...frameworkSurfacesPkg,
-    private: false,
-    dependencies: {
-      '@opapp/contracts-windowing': contractsWindowingPkg.version,
-    },
-  };
-
-  const normalizedFrameworkViewShotPkg = {
-    ...frameworkViewShotPkg,
-    private: false,
-  };
-
-  const normalizedFrameworkWindowCapturePkg = {
-    ...frameworkWindowCapturePkg,
-    private: false,
-  };
-
-  const normalizedFrameworkWindowingPkg = {
-    ...frameworkWindowingPkg,
-    private: false,
-    dependencies: {
-      '@opapp/contracts-windowing': contractsWindowingPkg.version,
-      '@opapp/framework-surfaces': frameworkSurfacesPkg.version,
-    },
-  };
-
-  const normalizedCapabilitySettingsPkg = {
-    ...capabilitySettingsPkg,
-    private: false,
-    dependencies: {
-      '@opapp/contracts-windowing': contractsWindowingPkg.version,
-      '@opapp/framework-i18n': frameworkI18nPkg.version,
-      '@opapp/framework-windowing': frameworkWindowingPkg.version,
-      '@opapp/ui-native-primitives': uiPkg.version,
-    },
-  };
-
-  const normalizedCapabilityLlmChatPkg = {
-    ...capabilityLlmChatPkg,
-    private: false,
-    dependencies: {
-      '@opapp/framework-filesystem': frameworkFilesystemPkg.version,
-      '@opapp/framework-i18n': frameworkI18nPkg.version,
-      '@opapp/framework-sse': frameworkSsePkg.version,
-      '@opapp/ui-native-primitives': uiPkg.version,
-    },
-  };
-
   const normalizedAppPkg = {
-    ...appPkg,
-    private: false,
-    dependencies: {
-      '@opapp/capability-llm-chat': capabilityLlmChatPkg.version,
-      '@opapp/capability-settings': capabilitySettingsPkg.version,
-      '@opapp/contracts-windowing': contractsWindowingPkg.version,
-      '@opapp/framework-i18n': frameworkI18nPkg.version,
-      '@opapp/framework-filesystem': frameworkFilesystemPkg.version,
-      '@opapp/framework-diagnostics': frameworkDiagnosticsPkg.version,
-      '@opapp/framework-sse': frameworkSsePkg.version,
-      '@opapp/framework-surfaces': frameworkSurfacesPkg.version,
-      '@opapp/framework-view-shot': frameworkViewShotPkg.version,
-      '@opapp/framework-window-capture': frameworkWindowCapturePkg.version,
-      '@opapp/framework-windowing': frameworkWindowingPkg.version,
-      '@opapp/ui-native-primitives': uiPkg.version,
-    },
-    bundledDependencies: [
-      '@opapp/capability-llm-chat',
-      '@opapp/capability-settings',
-      '@opapp/contracts-windowing',
-      '@opapp/framework-i18n',
-      '@opapp/framework-filesystem',
-      '@opapp/framework-diagnostics',
-      '@opapp/framework-sse',
-      '@opapp/framework-surfaces',
-      '@opapp/framework-view-shot',
-      '@opapp/framework-window-capture',
-      '@opapp/framework-windowing',
-      '@opapp/ui-native-primitives',
-    ],
+    ...normalizePackageManifest(appPkg, packageVersionByName),
+    bundledDependencies: Object.values(packageJsonByKey)
+      .filter(packageJson => packageJson.name !== appPkg.name)
+      .map(packageJson => packageJson.name)
+      .sort(),
   };
 
   await copyPackage(packageMap.app, packageRoot, normalizedAppPkg, [
@@ -222,62 +132,81 @@ async function main() {
   await copyPackage(
     packageMap.capabilityLlmChat,
     path.join(internalPackagesRoot, 'capability-llm-chat'),
-    normalizedCapabilityLlmChatPkg,
+    normalizePackageManifest(packageJsonByKey.capabilityLlmChat, packageVersionByName),
   );
   await copyPackage(
     packageMap.capabilitySettings,
     path.join(internalPackagesRoot, 'capability-settings'),
-    normalizedCapabilitySettingsPkg,
+    normalizePackageManifest(packageJsonByKey.capabilitySettings, packageVersionByName),
   );
   await copyPackage(
     packageMap.contractsWindowing,
     path.join(internalPackagesRoot, 'contracts-windowing'),
-    normalizedContractsWindowingPkg,
+    normalizePackageManifest(packageJsonByKey.contractsWindowing, packageVersionByName),
+  );
+  await copyPackage(
+    packageMap.frameworkAgentRuntime,
+    path.join(internalPackagesRoot, 'framework-agent-runtime'),
+    normalizePackageManifest(packageJsonByKey.frameworkAgentRuntime, packageVersionByName),
+  );
+  await copyPackage(
+    packageMap.frameworkCompanionRuntime,
+    path.join(internalPackagesRoot, 'framework-companion-runtime'),
+    normalizePackageManifest(
+      packageJsonByKey.frameworkCompanionRuntime,
+      packageVersionByName,
+    ),
   );
   await copyPackage(
     packageMap.frameworkI18n,
     path.join(internalPackagesRoot, 'framework-i18n'),
-    normalizedFrameworkI18nPkg,
+    normalizePackageManifest(packageJsonByKey.frameworkI18n, packageVersionByName),
   );
   await copyPackage(
     packageMap.frameworkDiagnostics,
     path.join(internalPackagesRoot, 'framework-diagnostics'),
-    normalizedFrameworkDiagnosticsPkg,
+    normalizePackageManifest(
+      packageJsonByKey.frameworkDiagnostics,
+      packageVersionByName,
+    ),
   );
   await copyPackage(
     packageMap.frameworkFilesystem,
     path.join(internalPackagesRoot, 'framework-filesystem'),
-    normalizedFrameworkFilesystemPkg,
+    normalizePackageManifest(packageJsonByKey.frameworkFilesystem, packageVersionByName),
   );
   await copyPackage(
     packageMap.frameworkSse,
     path.join(internalPackagesRoot, 'framework-sse'),
-    normalizedFrameworkSsePkg,
+    normalizePackageManifest(packageJsonByKey.frameworkSse, packageVersionByName),
   );
   await copyPackage(
     packageMap.frameworkSurfaces,
     path.join(internalPackagesRoot, 'framework-surfaces'),
-    normalizedFrameworkSurfacesPkg,
+    normalizePackageManifest(packageJsonByKey.frameworkSurfaces, packageVersionByName),
   );
   await copyPackage(
     packageMap.frameworkViewShot,
     path.join(internalPackagesRoot, 'framework-view-shot'),
-    normalizedFrameworkViewShotPkg,
+    normalizePackageManifest(packageJsonByKey.frameworkViewShot, packageVersionByName),
   );
   await copyPackage(
     packageMap.frameworkWindowCapture,
     path.join(internalPackagesRoot, 'framework-window-capture'),
-    normalizedFrameworkWindowCapturePkg,
+    normalizePackageManifest(
+      packageJsonByKey.frameworkWindowCapture,
+      packageVersionByName,
+    ),
   );
   await copyPackage(
     packageMap.frameworkWindowing,
     path.join(internalPackagesRoot, 'framework-windowing'),
-    normalizedFrameworkWindowingPkg,
+    normalizePackageManifest(packageJsonByKey.frameworkWindowing, packageVersionByName),
   );
   await copyPackage(
     packageMap.ui,
     path.join(internalPackagesRoot, 'ui-native-primitives'),
-    normalizedUiPkg,
+    normalizePackageManifest(packageJsonByKey.ui, packageVersionByName),
   );
 
   const env = {

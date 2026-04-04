@@ -27,6 +27,7 @@
     "@opapp/capability-settings": "workspace:*",
     "@opapp/contracts-windowing": "workspace:*",
     "@opapp/framework-agent-runtime": "workspace:*",
+    "@opapp/framework-companion-runtime": "workspace:*",
     "@opapp/framework-view-shot": "workspace:*",
     "@opapp/framework-window-capture": "workspace:*",
     "@opapp/framework-filesystem": "workspace:*",

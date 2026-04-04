@@ -122,7 +122,7 @@ export function run() {
   );
   const runtimeBundles = JSON.parse(
     fs.readFileSync(
-      path.join(repoRoot, 'apps', 'companion-app', 'src', 'runtime-bundles.json'),
+      path.join(repoRoot, 'framework', 'companion-runtime', 'src', 'runtime-bundles.json'),
       'utf8',
     ),
   ) as Record<string, unknown>;
@@ -135,12 +135,30 @@ export function run() {
     : [];
   const surfaceIds = JSON.parse(
     fs.readFileSync(
-      path.join(repoRoot, 'apps', 'companion-app', 'src', 'surface-ids.json'),
+      path.join(repoRoot, 'framework', 'companion-runtime', 'src', 'surface-ids.json'),
       'utf8',
     ),
   ) as Record<string, unknown>;
   const companionRuntimeSource = fs.readFileSync(
+    path.join(repoRoot, 'framework', 'companion-runtime', 'src', 'companion-runtime.ts'),
+    'utf8',
+  );
+  const appCompanionRuntimeBridgeSource = fs.readFileSync(
     path.join(repoRoot, 'apps', 'companion-app', 'src', 'companion-runtime.ts'),
+    'utf8',
+  );
+  const appCreateCompanionAppBridgeSource = fs.readFileSync(
+    path.join(repoRoot, 'apps', 'companion-app', 'src', 'createCompanionApp.tsx'),
+    'utf8',
+  );
+  const appUseCompanionStartupTargetBridgeSource = fs.readFileSync(
+    path.join(
+      repoRoot,
+      'apps',
+      'companion-app',
+      'src',
+      'useCompanionStartupTarget.ts',
+    ),
     'utf8',
   );
   const packScript = fs.readFileSync(
@@ -286,6 +304,31 @@ export function run() {
     packScript.includes(legacyPrivateDomainPackageName),
     false,
     'pack-companion must not keep bundling the removed private domain logic into the public companion artifact.',
+  );
+  assert.equal(
+    packScript.includes('frameworkAgentRuntime'),
+    true,
+    'pack-companion must keep staging framework-agent-runtime once companion app depends on it.',
+  );
+  assert.equal(
+    packScript.includes('frameworkCompanionRuntime'),
+    true,
+    'pack-companion must keep staging framework-companion-runtime once companion bootstrap is extracted from app internals.',
+  );
+  assert.equal(
+    appCompanionRuntimeBridgeSource.includes('../../../framework/companion-runtime/'),
+    false,
+    'app companion-runtime bridge must not reach into workspace-relative framework paths that disappear from the packed tarball.',
+  );
+  assert.equal(
+    appCreateCompanionAppBridgeSource.includes('../../../framework/companion-runtime/'),
+    false,
+    'app createCompanionApp bridge must not reach into workspace-relative framework paths that disappear from the packed tarball.',
+  );
+  assert.equal(
+    appUseCompanionStartupTargetBridgeSource.includes('../../../framework/companion-runtime/'),
+    false,
+    'app startup-target bridge must not reach into workspace-relative framework paths that disappear from the packed tarball.',
   );
   assert.equal(
     packScript.includes(legacyPrivateDirName),

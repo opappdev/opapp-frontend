@@ -14,8 +14,8 @@ const outputRoot = path.join(repoRoot, '.dist', 'bundles', 'companion-app', 'and
 const bundleOutput = path.join(outputRoot, 'index.android.bundle');
 const runtimeBundlesPath = path.join(
   repoRoot,
-  'apps',
-  'companion-app',
+  'framework',
+  'companion-runtime',
   'src',
   'runtime-bundles.json',
 );

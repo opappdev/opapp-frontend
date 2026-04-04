@@ -5,7 +5,7 @@ import {
   getCompanionRuntimeBundle,
   resolveCompanionRestoredSessionAutoOpen,
   resolveCompanionStartupTargetAutoOpen,
-} from '../../apps/companion-app/src/companion-runtime';
+} from '../../framework/companion-runtime/src/companion-runtime';
 
 export function run() {
   assert.deepEqual(getCompanionRuntimeBundle(companionBundleIds.chat), {

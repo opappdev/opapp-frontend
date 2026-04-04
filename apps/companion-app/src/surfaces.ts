@@ -10,22 +10,16 @@ import {
 } from '@opapp/framework-surfaces';
 import {appI18n} from '@opapp/framework-i18n';
 import {SettingsScreen} from '@opapp/capability-settings';
-import {AgentWorkbenchScreen} from './AgentWorkbenchScreen';
-import {BundleLauncherScreen} from './BundleLauncherScreen';
 import {
   companionBundleIds,
+  companionSurfaceIds,
   getCompanionRuntimeBundle,
-} from './companion-runtime';
-import surfaceIds from './surface-ids.json';
+  type CompanionBundleConfig,
+} from '@opapp/framework-companion-runtime';
+import {AgentWorkbenchScreen} from './AgentWorkbenchScreen';
+import {BundleLauncherScreen} from './BundleLauncherScreen';
 import {ViewShotLabScreen} from './ViewShotLabScreen';
 import {WindowCaptureLabScreen} from './WindowCaptureLabScreen';
-
-type CompanionBundleConfig = {
-  bundleId: string;
-  defaultSurfaceId: string;
-  surfaceIds: string[];
-  surfaceRegistry: SurfaceRegistry;
-};
 
 const launcherSurfaceComponent =
   BundleLauncherScreen as ComponentType<Record<string, unknown>>;
@@ -42,7 +36,7 @@ const llmChatSurfaceComponent =
 
 const companionSurfaceDefinitions = {
   launcher: defineSurface<Record<string, unknown>>({
-    surfaceId: surfaceIds.companionMain,
+    surfaceId: companionSurfaceIds.companionMain,
     title: appI18n.surfaces.launcher,
     capabilityId: 'bundle-launcher',
     defaultPolicy: 'main',
@@ -51,7 +45,7 @@ const companionSurfaceDefinitions = {
     Component: launcherSurfaceComponent,
   }),
   agentWorkbench: defineSurface<Record<string, unknown>>({
-    surfaceId: surfaceIds.companionAgentWorkbench,
+    surfaceId: companionSurfaceIds.companionAgentWorkbench,
     title: appI18n.surfaces.agentWorkbench,
     capabilityId: 'agent-workbench',
     defaultPolicy: 'main',
@@ -60,7 +54,7 @@ const companionSurfaceDefinitions = {
     Component: agentWorkbenchSurfaceComponent,
   }),
   settings: defineSurface<Record<string, unknown>>({
-    surfaceId: surfaceIds.companionSettings,
+    surfaceId: companionSurfaceIds.companionSettings,
     title: appI18n.surfaces.settings,
     capabilityId: 'settings',
     defaultPolicy: 'settings',
@@ -70,7 +64,7 @@ const companionSurfaceDefinitions = {
     Component: settingsSurfaceComponent,
   }),
   viewShotLab: defineSurface<Record<string, unknown>>({
-    surfaceId: surfaceIds.companionViewShot,
+    surfaceId: companionSurfaceIds.companionViewShot,
     title: appI18n.surfaces.viewShotLab,
     capabilityId: 'view-shot-lab',
     defaultPolicy: 'tool',
@@ -79,7 +73,7 @@ const companionSurfaceDefinitions = {
     Component: viewShotLabSurfaceComponent,
   }),
   windowCaptureLab: defineSurface<Record<string, unknown>>({
-    surfaceId: surfaceIds.companionWindowCapture,
+    surfaceId: companionSurfaceIds.companionWindowCapture,
     title: appI18n.surfaces.windowCaptureLab,
     capabilityId: 'window-capture-lab',
     defaultPolicy: 'tool',
@@ -88,7 +82,7 @@ const companionSurfaceDefinitions = {
     Component: windowCaptureLabSurfaceComponent,
   }),
   llmChat: defineSurface<Record<string, unknown>>({
-    surfaceId: surfaceIds.companionChatMain,
+    surfaceId: companionSurfaceIds.companionChatMain,
     title: appI18n.surfaces.llmChat,
     capabilityId: 'llm-chat',
     defaultPolicy: 'main',
@@ -131,7 +125,7 @@ export const mainCompanionSurfaceRegistry = createCompanionSurfaceRegistry([
 
 export const mainCompanionBundleConfig = createCompanionBundleConfig(
   companionBundleIds.main,
-  surfaceIds.companionMain,
+  companionSurfaceIds.companionMain,
   mainCompanionSurfaceRegistry,
 );
 
@@ -141,7 +135,7 @@ export const chatCompanionSurfaceRegistry = createCompanionSurfaceRegistry([
 
 export const chatCompanionBundleConfig = createCompanionBundleConfig(
   companionBundleIds.chat,
-  surfaceIds.companionChatMain,
+  companionSurfaceIds.companionChatMain,
   chatCompanionSurfaceRegistry,
 );
 

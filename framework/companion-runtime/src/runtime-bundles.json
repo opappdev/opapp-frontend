@@ -1,0 +1,35 @@
+{
+  "mainBundleId": "opapp.companion.main",
+  "bundles": [
+    {
+      "bundleId": "opapp.companion.main",
+      "defaultSurfaceId": "companion.main",
+      "entryFile": "index.main.js",
+      "bundleFile": "index.main.windows.bundle",
+      "platforms": [
+        "windows"
+      ],
+      "minHostVersion": "1.0.0.0",
+      "surfaces": [
+        "companion.main",
+        "companion.agent-workbench",
+        "companion.settings",
+        "companion.view-shot",
+        "companion.window-capture"
+      ]
+    },
+    {
+      "bundleId": "opapp.companion.chat",
+      "defaultSurfaceId": "companion.chat.main",
+      "entryFile": "index.chat.js",
+      "bundleFile": "index.chat.windows.bundle",
+      "platforms": [
+        "windows"
+      ],
+      "minHostVersion": "1.0.0.0",
+      "surfaces": [
+        "companion.chat.main"
+      ]
+    }
+  ]
+}

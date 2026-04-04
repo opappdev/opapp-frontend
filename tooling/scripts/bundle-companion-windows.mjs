@@ -18,8 +18,8 @@ const optionalPrivateBundleDescriptorPath = path.join(
 );
 const runtimeBundlesPath = path.join(
   repoRoot,
-  'apps',
-  'companion-app',
+  'framework',
+  'companion-runtime',
   'src',
   'runtime-bundles.json',
 );

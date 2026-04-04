@@ -1,0 +1,8 @@
+{
+  "companionMain": "companion.main",
+  "companionChatMain": "companion.chat.main",
+  "companionAgentWorkbench": "companion.agent-workbench",
+  "companionSettings": "companion.settings",
+  "companionViewShot": "companion.view-shot",
+  "companionWindowCapture": "companion.window-capture"
+}

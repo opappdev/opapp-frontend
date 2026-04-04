@@ -1,0 +1,21 @@
+{
+  "name": "@opapp/framework-companion-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@opapp/contracts-windowing": "workspace:*",
+    "@opapp/framework-diagnostics": "workspace:*",
+    "@opapp/framework-filesystem": "workspace:*",
+    "@opapp/framework-i18n": "workspace:*",
+    "@opapp/framework-surfaces": "workspace:*",
+    "@opapp/framework-windowing": "workspace:*",
+    "@opapp/ui-native-primitives": "workspace:*"
+  },
+  "license": "MPL-2.0"
+}

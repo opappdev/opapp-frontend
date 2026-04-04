@@ -1,4 +1,4 @@
-import {createCompanionApp} from '../createCompanionApp';
+import {createCompanionApp} from '@opapp/framework-companion-runtime';
 import {mainCompanionBundleConfig} from '../surfaces';
 
 const MainBundleCompanionApp = createCompanionApp(mainCompanionBundleConfig);

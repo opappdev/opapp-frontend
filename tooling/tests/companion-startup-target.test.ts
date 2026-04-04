@@ -9,7 +9,7 @@ import {
   resolveCompanionStartupTargetMigration,
   resolveCompanionStartupTargetAutoOpen,
   shouldCompanionStartupTargetWaitForBundleReload,
-} from '../../apps/companion-app/src/companion-runtime';
+} from '../../framework/companion-runtime/src/companion-runtime';
 
 export function run() {
   const privateSurfaceId = 'private.surface';

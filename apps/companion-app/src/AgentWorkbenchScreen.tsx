@@ -60,6 +60,7 @@ export function AgentWorkbenchScreen() {
           title={appI18n.agentWorkbench.frame.title}
           description={appI18n.agentWorkbench.frame.description}>
           <Stack style={screenStyles.stack}>
+            {/* ── Compact toolbar: status + primary controls ── */}
             <Toolbar
               testID='agent-workbench.toolbar'
               style={screenStyles.toolbar}>
@@ -80,6 +81,11 @@ export function AgentWorkbenchScreen() {
                 emphasis='soft'
                 size='sm'
               />
+              {state.activeRunInfo ? (
+                <View style={screenStyles.toolbarBusy}>
+                  <ActivityIndicator size='small' color={palette.accent} />
+                </View>
+              ) : null}
               <ActionButton
                 testID='agent-workbench.action.run-git-status'
                 label={
@@ -108,6 +114,15 @@ export function AgentWorkbenchScreen() {
                   state.approvalBusy !== null
                 }
               />
+              <ActionButton
+                testID='agent-workbench.action.cancel-run'
+                label={appI18n.agentWorkbench.actions.cancelRun}
+                onPress={() => {
+                  void state.handleCancelRun();
+                }}
+                disabled={state.activeRunInfo === null}
+                tone='ghost'
+              />
               {state.selectedCwd ? (
                 <ActionButton
                   testID='agent-workbench.action.browse-workspace-root'
@@ -127,15 +142,6 @@ export function AgentWorkbenchScreen() {
                 />
               ) : null}
               <ActionButton
-                testID='agent-workbench.action.cancel-run'
-                label={appI18n.agentWorkbench.actions.cancelRun}
-                onPress={() => {
-                  void state.handleCancelRun();
-                }}
-                disabled={state.activeRunInfo === null}
-                tone='ghost'
-              />
-              <ActionButton
                 testID='agent-workbench.action.refresh'
                 label={
                   state.refreshing
@@ -148,13 +154,9 @@ export function AgentWorkbenchScreen() {
                 disabled={state.refreshing}
                 tone='ghost'
               />
-              {state.activeRunInfo ? (
-                <View style={screenStyles.toolbarBusy}>
-                  <ActivityIndicator size='small' color={palette.accent} />
-                </View>
-              ) : null}
             </Toolbar>
 
+            {/* ── Feedback panel ── */}
             {state.statusMessage ? (
               <InfoPanel
                 testID='agent-workbench.status.panel'
@@ -174,11 +176,14 @@ export function AgentWorkbenchScreen() {
               </InfoPanel>
             ) : null}
 
+            {/* ── 3-zone layout: sidebar | main | context ── */}
             <View
               style={[
                 screenStyles.contentShell,
                 isCompactLayout ? screenStyles.contentShellCompact : null,
               ]}>
+
+              {/* ── LEFT: Sidebar (threads, workspace) ── */}
               <View
                 style={[
                   screenStyles.sidebar,
@@ -195,6 +200,28 @@ export function AgentWorkbenchScreen() {
                   screenStyles={screenStyles}
                 />
 
+                <WorkbenchThreadsSection
+                  threads={state.threads}
+                  selectedThreadId={state.selectedThreadId}
+                  onSelectThread={state.handleSelectThread}
+                  screenStyles={screenStyles}
+                />
+
+                <WorkbenchRunHistorySection
+                  threadRunDocuments={state.threadRunDocuments}
+                  selectedRunId={state.selectedRunId}
+                  latestThreadRunDocument={state.latestThreadRunDocument}
+                  onSelectRun={state.handleSelectRun}
+                  screenStyles={screenStyles}
+                />
+              </View>
+
+              {/* ── CENTRE: Main (task draft + timeline + terminal) ── */}
+              <View
+                style={[
+                  screenStyles.mainPane,
+                  isCompactLayout ? screenStyles.mainPaneCompact : null,
+                ]}>
                 <WorkbenchTaskDraftSection
                   trustedWorkspace={state.trustedWorkspace}
                   textInputsReady={state.textInputsReady}
@@ -215,77 +242,6 @@ export function AgentWorkbenchScreen() {
                   onStartDraftTask={() => {
                     void state.handleStartDraftTask();
                   }}
-                  screenStyles={screenStyles}
-                />
-
-                <WorkbenchDirectorySection
-                  trustedWorkspace={state.trustedWorkspace}
-                  workspaceEntries={state.workspaceEntries}
-                  selectedInspectorEntry={state.selectedInspectorEntry}
-                  onInspectEntry={entry => {
-                    void state.handleInspectWorkspaceEntry(entry);
-                  }}
-                  screenStyles={screenStyles}
-                />
-
-                <WorkbenchSearchSection
-                  trustedWorkspace={state.trustedWorkspace}
-                  textInputsReady={state.textInputsReady}
-                  searchQuery={state.searchQuery}
-                  searching={state.searching}
-                  searchResults={state.searchResults}
-                  selectedInspectorEntry={state.selectedInspectorEntry}
-                  onSearchQueryChange={state.handleSearchQueryChange}
-                  onSearch={() => {
-                    void state.handleSearch();
-                  }}
-                  onInspectEntry={entry => {
-                    void state.handleInspectWorkspaceEntry(entry);
-                  }}
-                  screenStyles={screenStyles}
-                />
-
-                <WorkbenchThreadsSection
-                  threads={state.threads}
-                  selectedThreadId={state.selectedThreadId}
-                  onSelectThread={state.handleSelectThread}
-                  screenStyles={screenStyles}
-                />
-              </View>
-
-              <View
-                style={[
-                  screenStyles.detailPane,
-                  isCompactLayout ? screenStyles.detailPaneCompact : null,
-                ]}>
-                <WorkbenchInspectorSection
-                  selectedInspectorEntry={state.selectedInspectorEntry}
-                  selectedInspectorChildren={state.selectedInspectorChildren}
-                  selectedInspectorContent={state.selectedInspectorContent}
-                  inspectorLoading={state.inspectorLoading}
-                  selectedCwd={state.selectedCwd}
-                  selectedDiffPath={state.selectedDiffPath}
-                  selectedDiffOutput={state.selectedDiffOutput}
-                  selectedDiffError={state.selectedDiffError}
-                  diffLoading={state.diffLoading}
-                  selectedGitDiffCommand={state.selectedGitDiffCommand}
-                  onInspectEntry={entry => {
-                    void state.handleInspectWorkspaceEntry(entry);
-                  }}
-                  onBrowseDirectory={relativePath => {
-                    void state.handleBrowseDirectory(relativePath);
-                  }}
-                  onLoadDiff={() => {
-                    void state.handleLoadSelectedDiff();
-                  }}
-                  screenStyles={screenStyles}
-                />
-
-                <WorkbenchRunHistorySection
-                  threadRunDocuments={state.threadRunDocuments}
-                  selectedRunId={state.selectedRunId}
-                  latestThreadRunDocument={state.latestThreadRunDocument}
-                  onSelectRun={state.handleSelectRun}
                   screenStyles={screenStyles}
                 />
 
@@ -338,6 +294,63 @@ export function AgentWorkbenchScreen() {
 
                 <WorkbenchTerminalSection
                   terminalTranscript={state.terminalTranscript}
+                  screenStyles={screenStyles}
+                />
+              </View>
+
+              {/* ── RIGHT: Context (inspector, directory, search) ── */}
+              <View
+                style={[
+                  screenStyles.detailPane,
+                  isCompactLayout ? screenStyles.detailPaneCompact : null,
+                ]}>
+                <WorkbenchInspectorSection
+                  selectedInspectorEntry={state.selectedInspectorEntry}
+                  selectedInspectorChildren={state.selectedInspectorChildren}
+                  selectedInspectorContent={state.selectedInspectorContent}
+                  inspectorLoading={state.inspectorLoading}
+                  selectedCwd={state.selectedCwd}
+                  selectedDiffPath={state.selectedDiffPath}
+                  selectedDiffOutput={state.selectedDiffOutput}
+                  selectedDiffError={state.selectedDiffError}
+                  diffLoading={state.diffLoading}
+                  selectedGitDiffCommand={state.selectedGitDiffCommand}
+                  onInspectEntry={entry => {
+                    void state.handleInspectWorkspaceEntry(entry);
+                  }}
+                  onBrowseDirectory={relativePath => {
+                    void state.handleBrowseDirectory(relativePath);
+                  }}
+                  onLoadDiff={() => {
+                    void state.handleLoadSelectedDiff();
+                  }}
+                  screenStyles={screenStyles}
+                />
+
+                <WorkbenchDirectorySection
+                  trustedWorkspace={state.trustedWorkspace}
+                  workspaceEntries={state.workspaceEntries}
+                  selectedInspectorEntry={state.selectedInspectorEntry}
+                  onInspectEntry={entry => {
+                    void state.handleInspectWorkspaceEntry(entry);
+                  }}
+                  screenStyles={screenStyles}
+                />
+
+                <WorkbenchSearchSection
+                  trustedWorkspace={state.trustedWorkspace}
+                  textInputsReady={state.textInputsReady}
+                  searchQuery={state.searchQuery}
+                  searching={state.searching}
+                  searchResults={state.searchResults}
+                  selectedInspectorEntry={state.selectedInspectorEntry}
+                  onSearchQueryChange={state.handleSearchQueryChange}
+                  onSearch={() => {
+                    void state.handleSearch();
+                  }}
+                  onInspectEntry={entry => {
+                    void state.handleInspectWorkspaceEntry(entry);
+                  }}
                   screenStyles={screenStyles}
                 />
               </View>

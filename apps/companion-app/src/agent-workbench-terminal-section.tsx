@@ -16,19 +16,16 @@ export function WorkbenchTerminalSection({
   const {palette} = useTheme();
 
   return (
-    <View style={screenStyles.sectionCard}>
+    <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.terminalTitle}
-      </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.terminalDescription}
       </Text>
 
       <View
         style={[
           screenStyles.terminalBox,
           {
-            backgroundColor: palette.canvas,
+            backgroundColor: palette.canvasShade,
             borderColor: palette.border,
           },
         ]}>
@@ -38,7 +35,7 @@ export function WorkbenchTerminalSection({
             style={[
               screenStyles.terminalText,
               {
-                color: palette.ink,
+                color: palette.inkMuted,
                 fontFamily: terminalFontFamily,
               },
             ]}>

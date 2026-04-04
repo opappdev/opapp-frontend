@@ -58,12 +58,9 @@ export function WorkbenchInspectorSection({
   const {palette} = useTheme();
 
   return (
-    <View style={screenStyles.sectionCard}>
+    <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.inspectorTitle}
-      </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.inspectorDescription}
       </Text>
 
       {!selectedInspectorEntry ? (
@@ -150,7 +147,7 @@ export function WorkbenchInspectorSection({
               style={[
                 screenStyles.terminalBox,
                 {
-                  backgroundColor: palette.canvas,
+                  backgroundColor: palette.canvasShade,
                   borderColor: palette.border,
                 },
               ]}>
@@ -246,7 +243,7 @@ export function WorkbenchInspectorSection({
                               style={[
                                 screenStyles.terminalBox,
                                 {
-                                  backgroundColor: palette.canvas,
+                                  backgroundColor: palette.canvasShade,
                                   borderColor: palette.border,
                                 },
                               ]}>

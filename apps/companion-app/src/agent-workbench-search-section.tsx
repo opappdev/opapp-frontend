@@ -39,12 +39,9 @@ export function WorkbenchSearchSection({
   const {palette} = useTheme();
 
   return (
-    <View style={screenStyles.sectionCard}>
+    <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.searchTitle}
-      </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.searchDescription}
       </Text>
 
       {!trustedWorkspace ? (

@@ -56,12 +56,9 @@ export function WorkbenchTaskDraftSection({
   const {palette} = useTheme();
 
   return (
-    <View style={screenStyles.sectionCard}>
+    <View style={screenStyles.sectionCardPrimary}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.taskDraftTitle}
-      </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.taskDraftDescription}
       </Text>
 
       {!trustedWorkspace ? (

@@ -25,12 +25,9 @@ export function WorkbenchDirectorySection({
   screenStyles,
 }: WorkbenchDirectorySectionProps) {
   return (
-    <View style={screenStyles.sectionCard}>
+    <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.directoryTitle}
-      </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.directoryDescription}
       </Text>
 
       {!trustedWorkspace ? (

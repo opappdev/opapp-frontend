@@ -28,12 +28,9 @@ export function WorkbenchRunHistorySection({
   screenStyles,
 }: WorkbenchRunHistorySectionProps) {
   return (
-    <View style={screenStyles.sectionCard}>
+    <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.runHistoryTitle}
-      </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.runHistoryDescription}
       </Text>
 
       {threadRunDocuments.length === 0 ? (

@@ -23,12 +23,9 @@ export function WorkbenchThreadsSection({
   screenStyles,
 }: WorkbenchThreadsSectionProps) {
   return (
-    <View style={screenStyles.sectionCard}>
+    <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.threadsTitle}
-      </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.threadsDescription}
       </Text>
 
       {threads.length === 0 ? (

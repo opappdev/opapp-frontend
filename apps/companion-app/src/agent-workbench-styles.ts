@@ -11,8 +11,17 @@ export const terminalFontFamily =
   Platform.OS === 'windows' ? 'Consolas' : undefined;
 export const textInputWarmupDelayMs = Platform.OS === 'windows' ? 1200 : 0;
 
+/**
+ * Three-zone layout widths used by the workbench shell.
+ * sidebar (threads/workspace) | main (task input + timeline) | context (inspector/run-detail)
+ */
+const sidebarFlex = 0.22;
+const mainFlex = 0.50;
+const contextFlex = 0.28;
+
 export function createScreenStyles(palette: AppPalette) {
   return StyleSheet.create({
+    /* ── Screen chrome ────────────────────────────────── */
     screen: {
       flex: 1,
       backgroundColor: palette.canvas,
@@ -22,10 +31,10 @@ export function createScreenStyles(palette: AppPalette) {
     },
     content: {
       flexGrow: 1,
-      paddingBottom: appSpacing.xl,
+      paddingBottom: appSpacing.lg,
     },
     stack: {
-      gap: appSpacing.lg,
+      gap: appSpacing.md,
     },
     loadingShell: {
       flex: 1,
@@ -33,161 +42,220 @@ export function createScreenStyles(palette: AppPalette) {
       justifyContent: 'center',
       backgroundColor: palette.canvas,
     },
+
+    /* ── Toolbar ──────────────────────────────────────── */
     toolbar: {
-      justifyContent: 'space-between',
+      justifyContent: 'flex-start',
     },
     toolbarBusy: {
-      minWidth: 28,
+      minWidth: 24,
       alignItems: 'center',
       justifyContent: 'center',
     },
+
+    /* ── Info / feedback ──────────────────────────────── */
     infoText: {
       ...appTypography.body,
     },
     loadingInline: {
-      minHeight: 32,
+      minHeight: 28,
       alignItems: 'center',
       justifyContent: 'center',
     },
+
+    /* ── 3-zone layout ────────────────────────────────── */
     contentShell: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: appSpacing.lg,
+      gap: appSpacing.md,
     },
     contentShellCompact: {
       flexDirection: 'column',
     },
+    /** Left sidebar: threads + workspace selector */
     sidebar: {
-      flex: 0.95,
-      gap: appSpacing.lg,
+      flex: sidebarFlex,
+      gap: appSpacing.md,
     },
     sidebarCompact: {
       width: '100%',
     },
+    /** Centre main: task input + timeline + terminal */
+    mainPane: {
+      flex: mainFlex,
+      gap: appSpacing.md,
+    },
+    mainPaneCompact: {
+      width: '100%',
+    },
+    /** Right context: inspector + run detail + run history */
     detailPane: {
-      flex: 1.05,
-      gap: appSpacing.lg,
+      flex: contextFlex,
+      gap: appSpacing.md,
     },
     detailPaneCompact: {
       width: '100%',
     },
+
+    /* ── Section cards ────────────────────────────────── */
     sectionCard: {
-      gap: appSpacing.md,
+      gap: appSpacing.sm,
       borderRadius: appRadius.panel,
       borderWidth: 1,
       borderColor: palette.border,
       backgroundColor: palette.panel,
       paddingHorizontal: appSpacing.lg,
-      paddingVertical: appSpacing.lg,
+      paddingVertical: appSpacing.md,
+    },
+    /** Minimised section used in sidebar – tighter padding */
+    sectionCardCompact: {
+      gap: appSpacing.xs,
+      borderRadius: appRadius.compact,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.md,
+      paddingVertical: appSpacing.sm,
+    },
+    /** Primary section – slightly stronger panel to anchor attention */
+    sectionCardPrimary: {
+      gap: appSpacing.sm,
+      borderRadius: appRadius.panel,
+      borderWidth: 1,
+      borderColor: palette.borderStrong,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.md,
     },
     sectionTitle: {
       color: palette.ink,
-      ...appTypography.sectionTitle,
+      ...appTypography.captionBold,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.8,
+      opacity: 0.7,
     },
     sectionDescription: {
       color: palette.inkMuted,
-      ...appTypography.body,
+      ...appTypography.caption,
     },
     sectionBody: {
-      gap: appSpacing.md,
+      gap: appSpacing.sm,
     },
+
+    /* ── Approval / detail grids ──────────────────────── */
     approvalPanel: {
-      gap: appSpacing.md,
+      gap: appSpacing.sm,
     },
     detailGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: appSpacing.md,
+      gap: appSpacing.sm,
     },
     actionRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: appSpacing.sm,
+      gap: appSpacing.xs,
     },
     choiceGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: appSpacing.md,
+      gap: appSpacing.sm,
     },
     choiceChip: {
       maxWidth: '100%',
     },
+
+    /* ── Input fields ─────────────────────────────────── */
     inputFieldGroup: {
-      gap: appSpacing.xs,
+      gap: appSpacing.xxs,
     },
     inputLabel: {
       ...appTypography.captionStrong,
+      opacity: 0.6,
     },
     textInputShell: {
       width: '100%',
-      minHeight: 48,
+      minHeight: 40,
       borderWidth: 1,
       borderRadius: appRadius.control,
       justifyContent: 'center',
-      paddingHorizontal: appSpacing.md,
+      paddingHorizontal: appSpacing.sm,
     },
     textInputField: {
-      minHeight: 48,
-      paddingVertical: appSpacing.sm,
+      minHeight: 40,
+      paddingVertical: appSpacing.xs,
       fontSize: appTypography.body.fontSize,
       lineHeight: appTypography.body.lineHeight,
     },
     textInputPlaceholder: {
       width: '100%',
-      minHeight: 48,
+      minHeight: 40,
       borderWidth: 1,
       borderRadius: appRadius.control,
       justifyContent: 'center',
-      paddingHorizontal: appSpacing.md,
-      paddingVertical: appSpacing.sm,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
     },
     textInputMultilineShell: {
-      minHeight: 96,
+      minHeight: 72,
       alignItems: 'stretch',
       justifyContent: 'flex-start',
-      paddingVertical: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
     },
     textInputMultiline: {
-      minHeight: 76,
+      minHeight: 56,
     },
+
+    /* ── Lists ────────────────────────────────────────── */
     threadList: {
-      gap: appSpacing.sm,
+      gap: appSpacing.xs,
     },
     timelineList: {
-      gap: appSpacing.sm,
+      gap: appSpacing.xs,
     },
     timelineStepList: {
-      gap: appSpacing.sm,
+      gap: appSpacing.xs,
     },
     timelineStepRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: appSpacing.sm,
-      borderRadius: appRadius.control,
+      gap: appSpacing.xs,
+      borderRadius: appRadius.compact,
       borderWidth: 1,
-      paddingHorizontal: appSpacing.md,
-      paddingVertical: appSpacing.sm,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
     },
     timelineStepText: {
       flex: 1,
       minWidth: 0,
     },
+
+    /* ── Expander body ────────────────────────────────── */
     expanderBody: {
-      gap: appSpacing.md,
-      paddingTop: appSpacing.sm,
+      gap: appSpacing.sm,
+      paddingTop: appSpacing.xs,
     },
+
+    /* ── Terminal / code output ────────────────────────── */
     terminalBox: {
-      borderRadius: appRadius.control,
+      borderRadius: appRadius.compact,
       borderWidth: 1,
       paddingHorizontal: appSpacing.md,
-      paddingVertical: appSpacing.md,
+      paddingVertical: appSpacing.sm,
     },
     terminalScroll: {
-      maxHeight: 260,
+      maxHeight: 320,
     },
     terminalText: {
       fontSize: 12,
-      lineHeight: 18,
+      lineHeight: 17,
+    },
+
+    /* ── Summary pill row ─────────────────────────────── */
+    summaryPillRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: appSpacing.xs,
     },
   });
 }
@@ -195,17 +263,18 @@ export function createScreenStyles(palette: AppPalette) {
 export const baseStyles = StyleSheet.create({
   detailField: {
     flexGrow: 1,
-    minWidth: 180,
-    gap: appSpacing.xs,
-    borderRadius: appRadius.control,
+    minWidth: 140,
+    gap: appSpacing.xxs,
+    borderRadius: appRadius.compact,
     borderWidth: 1,
-    paddingHorizontal: appSpacing.md,
-    paddingVertical: appSpacing.sm,
+    paddingHorizontal: appSpacing.sm,
+    paddingVertical: appSpacing.xs,
   },
   detailFieldLabel: {
-    ...appTypography.captionStrong,
+    ...appTypography.label,
+    opacity: 0.6,
   },
   detailFieldValue: {
-    ...appTypography.body,
+    ...appTypography.caption,
   },
 });

@@ -75,9 +75,6 @@ export function WorkbenchRunDetailSection({
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.runTitle}
       </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.runDescription}
-      </Text>
 
       {viewingHistoricalRun && latestThreadRunDocument ? (
         <InfoPanel

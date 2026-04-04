@@ -62,9 +62,6 @@ export function WorkbenchTimelineSection({
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.timelineTitle}
       </Text>
-      <Text style={screenStyles.sectionDescription}>
-        {appI18n.agentWorkbench.sections.timelineDescription}
-      </Text>
 
       {!selectedRunDocument || selectedRunDocument.timeline.length === 0 ? (
         <EmptyState
@@ -73,7 +70,7 @@ export function WorkbenchTimelineSection({
         />
       ) : (
         <View style={screenStyles.timelineList}>
-          <View style={screenStyles.choiceGrid}>
+          <View style={screenStyles.summaryPillRow}>
             <SignalPill
               label={appI18n.agentWorkbench.timelineSummary.messages(
                 selectedTimelineSummary.messageCount,
@@ -279,7 +276,7 @@ export function WorkbenchTimelineSection({
                       style={[
                         screenStyles.terminalBox,
                         {
-                          backgroundColor: palette.canvas,
+                          backgroundColor: palette.canvasShade,
                           borderColor: palette.border,
                         },
                       ]}>
@@ -308,7 +305,7 @@ export function WorkbenchTimelineSection({
                       style={[
                         screenStyles.terminalBox,
                         {
-                          backgroundColor: palette.canvas,
+                          backgroundColor: palette.canvasShade,
                           borderColor: palette.border,
                         },
                       ]}>
@@ -370,7 +367,7 @@ export function WorkbenchTimelineSection({
                     style={[
                       screenStyles.terminalBox,
                       {
-                        backgroundColor: palette.canvas,
+                        backgroundColor: palette.canvasShade,
                         borderColor: palette.border,
                       },
                     ]}>
@@ -463,7 +460,7 @@ export function WorkbenchTimelineSection({
                       style={[
                         screenStyles.terminalBox,
                         {
-                          backgroundColor: palette.canvas,
+                          backgroundColor: palette.canvasShade,
                           borderColor: palette.border,
                         },
                       ]}>
@@ -534,7 +531,7 @@ export function WorkbenchTimelineSection({
                       style={[
                         screenStyles.terminalBox,
                         {
-                          backgroundColor: palette.canvas,
+                          backgroundColor: palette.canvasShade,
                           borderColor: palette.border,
                         },
                       ]}>
@@ -568,7 +565,7 @@ export function WorkbenchTimelineSection({
                     style={[
                       screenStyles.terminalBox,
                       {
-                        backgroundColor: palette.canvas,
+                        backgroundColor: palette.canvasShade,
                         borderColor: palette.border,
                       },
                     ]}>
@@ -586,7 +583,7 @@ export function WorkbenchTimelineSection({
                   style={[
                     screenStyles.terminalBox,
                     {
-                      backgroundColor: palette.canvas,
+                      backgroundColor: palette.canvasShade,
                       borderColor: palette.border,
                     },
                   ]}>

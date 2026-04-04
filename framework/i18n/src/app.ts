@@ -414,6 +414,10 @@ export const zhCNApp = {
       runningGitStatus: '正在运行 git status...',
       requestWriteApproval: '请求写入审批',
       requestingWriteApproval: '正在请求写入审批...',
+      runDraftTask: '启动当前任务',
+      runningDraftTask: '正在启动当前任务...',
+      requestDraftApproval: '为当前任务请求审批',
+      requestingDraftApproval: '正在创建任务审批...',
       approveRequest: '批准并执行',
       approvingRequest: '正在批准...',
       rejectRequest: '拒绝请求',
@@ -444,11 +448,18 @@ export const zhCNApp = {
       cancelRequested: '已请求停止当前运行，等待宿主回传 exit 事件。',
       cancelFailed: '停止当前运行失败，请稍后重试。',
       refreshFailed: '刷新工作台失败，请稍后重试。',
+      interruptedRecovered: (count: number) =>
+        count === 1
+          ? '检测到 1 条未正常收口的 run，已标记为“已中断”，可直接恢复目录或重试。'
+          : `检测到 ${count} 条未正常收口的 run，已统一标记为“已中断”，可直接恢复目录或重试。`,
     },
     sections: {
       workspaceTitle: 'Trusted Workspace',
       workspaceDescription:
         '读取宿主当前保存的 trusted workspace，并把 terminal cwd 约束在这个范围内。',
+      taskDraftTitle: '任务草稿',
+      taskDraftDescription:
+        '直接在当前执行目录下起草一条真实命令任务，把 goal、command、approval 和 run 持久化串到同一条 workbench 路径里。',
       directoryTitle: '当前目录内容',
       directoryDescription:
         '显示当前执行目录下的一层文件和子目录，便于从 workbench 直接选中路径做检查。',
@@ -510,11 +521,29 @@ export const zhCNApp = {
       writeApprovalTitle: 'Workspace Write Approval',
       writeApprovalGoal: '请求在 trusted workspace 下写入临时 smoke 文件',
     },
+    taskDraft: {
+      goalPlaceholder: '例如：检查 agent workbench 当前改动',
+      commandPlaceholder: '例如：git status --short',
+      directMode: '直接运行',
+      approvalMode: '先请求审批',
+      directModeDetail: '仅适用于 git status / git diff / rg 这类只读命令',
+      approvalModeDetail: '先落 needs-approval，再由你批准执行',
+      activeBadge: '当前模式',
+      availableBadge: '可切换',
+      commandMissing: '先输入要执行的命令，再启动当前任务。',
+      directModeBlocked: '当前命令不属于只读直跑范围，请切换到审批模式后再执行。',
+      directModeGuardTitle: '当前命令需要审批',
+      directModeGuardDetail:
+        '任务草稿的 direct mode 目前只允许只读诊断命令。涉及写入、重定向、管道或其他复杂 shell 组合的命令，请切换到“先请求审批”。',
+    },
     approval: {
       pendingTitle: '待处理审批',
       requestTitle: '允许写入 trusted workspace 临时文件',
       requestDetails: (relativePath: string, requestedCwd: string) =>
         `批准后会在 trusted workspace 根目录写入 ${relativePath}，用于验证 workspace-write 审批链路。发起请求时的目录为：${requestedCwd}。`,
+      commandRequestTitle: (goal: string) => `允许执行任务：${goal}`,
+      commandRequestDetails: (command: string, requestedCwd: string) =>
+        `批准后会在 ${requestedCwd} 下执行以下命令：${command}`,
       status: {
         pending: '待审批',
         approved: '已批准',
@@ -537,6 +566,8 @@ export const zhCNApp = {
       currentType: '当前类型',
       size: '大小',
       childCount: '子项数',
+      draftGoal: '任务目标',
+      draftCommand: '执行命令',
       threadId: 'Thread ID',
       runId: 'Run ID',
       resumedFromRunId: '承接自 Run ID',

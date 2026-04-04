@@ -69,6 +69,10 @@ export type RejectPersistedAgentTerminalRunOptions = {
   approvalId?: string | null;
 };
 
+export type ReconcileInterruptedAgentRunsResult = {
+  interruptedRunIds: string[];
+};
+
 export type PersistedAgentTerminalRunHandle = {
   threadId: string;
   runId: string;
@@ -1001,10 +1005,50 @@ export function createPersistedAgentTerminalRuntime({
     return cloneRunDocument(state.runDocument);
   }
 
+  async function reconcileInterruptedRuns(): Promise<ReconcileInterruptedAgentRunsResult> {
+    const threadIndex = await loadThreadIndex(readUserFile);
+    const interruptedRunIds: string[] = [];
+
+    for (const thread of threadIndex.threads) {
+      if (
+        !thread.lastRunId ||
+        (thread.lastRunStatus !== 'queued' && thread.lastRunStatus !== 'running')
+      ) {
+        continue;
+      }
+
+      const state = await loadPersistedRunState(thread.lastRunId);
+      const currentStatus = state.runDocument.run.status;
+      if (currentStatus !== 'queued' && currentStatus !== 'running') {
+        continue;
+      }
+
+      const interruptedAt = now();
+      state.runDocument.run.status = 'interrupted';
+      state.runDocument.run.updatedAt = interruptedAt;
+      state.runDocument.run.completedAt =
+        state.runDocument.run.completedAt ?? interruptedAt;
+      state.thread.updatedAt = interruptedAt;
+      state.thread.lastRunStatus = 'interrupted';
+      state.thread.lastRunId = state.runDocument.run.runId;
+
+      await persistRunState({
+        ...state,
+      });
+      resolveSettlement(state.runDocument.run.runId, state.runDocument);
+      interruptedRunIds.push(state.runDocument.run.runId);
+    }
+
+    return {
+      interruptedRunIds,
+    };
+  }
+
   return {
     openRun,
     approveRun,
     rejectRun,
+    reconcileInterruptedRuns,
   };
 }
 
@@ -1015,3 +1059,5 @@ export const approvePersistedAgentTerminalRun =
   persistedAgentTerminalRuntime.approveRun;
 export const rejectPersistedAgentTerminalRun =
   persistedAgentTerminalRuntime.rejectRun;
+export const reconcileInterruptedAgentRuns =
+  persistedAgentTerminalRuntime.reconcileInterruptedRuns;

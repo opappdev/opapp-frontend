@@ -20,6 +20,7 @@ import {
   parsePersistedAgentRunDocument,
   parsePersistedAgentThreadDocument,
   parsePersistedAgentThreadIndex,
+  reconcileInterruptedAgentRuns,
   rejectPersistedAgentTerminalRun,
   type AgentApprovalTimelineEntry,
   type AgentTerminalSessionHandle,
@@ -66,6 +67,7 @@ import {
   buildTerminalTranscript,
   buildWorkspaceWriteApprovalCommand,
   createWorkspaceChoices,
+  resolveWorkbenchTaskDraft,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
   resolveThreadRunHistorySelection,
@@ -73,7 +75,7 @@ import {
 } from './agent-workbench-model';
 
 const terminalFontFamily = Platform.OS === 'windows' ? 'Consolas' : undefined;
-const searchInputWarmupDelayMs = Platform.OS === 'windows' ? 1200 : 0;
+const textInputWarmupDelayMs = Platform.OS === 'windows' ? 1200 : 0;
 
 function formatIsoTimestamp(value: string | null) {
   if (!value) {
@@ -385,7 +387,10 @@ export function AgentWorkbenchScreen() {
     useState<WorkspaceEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
-  const [searchInputReady, setSearchInputReady] = useState(false);
+  const [textInputsReady, setTextInputsReady] = useState(false);
+  const [draftGoal, setDraftGoal] = useState('');
+  const [draftCommand, setDraftCommand] = useState('git status');
+  const [draftRequiresApproval, setDraftRequiresApproval] = useState(false);
   const [searchResults, setSearchResults] = useState<WorkspaceEntry[]>([]);
   const [selectedInspectorEntry, setSelectedInspectorEntry] =
     useState<WorkspaceEntry | null>(null);
@@ -415,6 +420,9 @@ export function AgentWorkbenchScreen() {
     'requesting' | 'approving' | 'rejecting' | null
   >(null);
   const [retryBusy, setRetryBusy] = useState(false);
+  const [taskDraftBusy, setTaskDraftBusy] = useState<
+    'running' | 'requesting' | null
+  >(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusTone, setStatusTone] = useState<'support' | 'danger' | 'neutral'>(
     'neutral',
@@ -432,6 +440,7 @@ export function AgentWorkbenchScreen() {
   const diffRequestIdRef = useRef(0);
   const inspectorRequestIdRef = useRef(0);
   const searchRequestIdRef = useRef(0);
+  const interruptedRunsReconciledRef = useRef(false);
 
   const selectedRunStatus = selectedRunDocument?.run.status ?? null;
   const latestThreadRunDocument = threadRunDocuments[0] ?? null;
@@ -468,6 +477,16 @@ export function AgentWorkbenchScreen() {
   const workspaceWriteApprovalCommand = useMemo(
     () => buildWorkspaceWriteApprovalCommand(selectedCwd),
     [selectedCwd],
+  );
+  const draftTask = useMemo(
+    () =>
+      resolveWorkbenchTaskDraft({
+        goal: draftGoal,
+        command: draftCommand,
+        cwd: selectedCwd,
+        requiresApproval: draftRequiresApproval,
+      }),
+    [draftCommand, draftGoal, draftRequiresApproval, selectedCwd],
   );
   const selectedGitDiffCommand = useMemo(() => {
     if (!selectedInspectorEntry || selectedInspectorEntry.kind === 'directory') {
@@ -563,6 +582,19 @@ export function AgentWorkbenchScreen() {
         directories,
         preferredWorkspacePath,
       );
+      let interruptedRunCount = 0;
+      if (
+        !interruptedRunsReconciledRef.current &&
+        activeRunHandleRef.current === null
+      ) {
+        try {
+          const reconciliation = await reconcileInterruptedAgentRuns();
+          interruptedRunCount = reconciliation.interruptedRunIds.length;
+          interruptedRunsReconciledRef.current = true;
+        } catch (error) {
+          logException('agent-workbench.interrupted-reconcile.failed', error, {});
+        }
+      }
       const rawThreadIndex = await readUserFile(agentThreadIndexPath);
       const nextThreads = rawThreadIndex
         ? parsePersistedAgentThreadIndex(rawThreadIndex)?.threads ?? []
@@ -601,7 +633,14 @@ export function AgentWorkbenchScreen() {
       setSelectedRunId(nextSelectedRunId);
       setSelectedRunDocument(runDocument);
 
-      if (showRefreshFeedback) {
+      if (interruptedRunCount > 0) {
+        setStatusTone('neutral');
+        setStatusMessage(
+          appI18n.agentWorkbench.feedback.interruptedRecovered(
+            interruptedRunCount,
+          ),
+        );
+      } else if (showRefreshFeedback) {
         setStatusTone('neutral');
         setStatusMessage(appI18n.agentWorkbench.feedback.refreshed);
       }
@@ -638,7 +677,7 @@ export function AgentWorkbenchScreen() {
   }, [activeRunInfo, refreshWorkbench]);
 
   useEffect(() => {
-    if (loading || searchInputReady) {
+    if (loading || textInputsReady) {
       return;
     }
 
@@ -646,13 +685,13 @@ export function AgentWorkbenchScreen() {
     // commit and a short startup warmup. Direct main-window startup can
     // otherwise crash before the workbench finishes its startup probes.
     const timer = setTimeout(() => {
-      setSearchInputReady(true);
-    }, searchInputWarmupDelayMs);
+      setTextInputsReady(true);
+    }, textInputWarmupDelayMs);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [loading, searchInputReady]);
+  }, [loading, textInputsReady]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -743,6 +782,92 @@ export function AgentWorkbenchScreen() {
       });
     }
   }, [attachActiveRunHandle, refreshWorkbench, trustedWorkspace]);
+
+  const handleStartDraftTask = useCallback(async () => {
+    if (!trustedWorkspace) {
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.missingWorkspace);
+      return;
+    }
+
+    if (!draftTask) {
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.taskDraft.commandMissing);
+      return;
+    }
+
+    if (!draftRequiresApproval && !draftTask.canRunDirect) {
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.taskDraft.directModeBlocked);
+      return;
+    }
+
+    setTaskDraftBusy(draftTask.requiresApproval ? 'requesting' : 'running');
+    try {
+      const continuedThreadId = selectedThreadIdRef.current || undefined;
+      const handle = await openPersistedAgentTerminalRun({
+        threadId: continuedThreadId,
+        title: draftTask.title,
+        goal: draftTask.goal,
+        command: draftTask.command,
+        cwd: draftTask.cwd,
+        requiresApproval: draftTask.requiresApproval,
+        approvalTitle: draftTask.approvalTitle,
+        approvalDetails: draftTask.approvalDetails,
+      });
+      const snapshot = handle.getSnapshot();
+      const continuedFromRunId = snapshot.run.resumedFromRunId;
+
+      if (snapshot.run.status !== 'needs-approval') {
+        attachActiveRunHandle(handle);
+      }
+
+      setStatusTone('support');
+      setStatusMessage(
+        snapshot.run.status === 'needs-approval'
+          ? appI18n.agentWorkbench.feedback.approvalRequested
+          : appI18n.agentWorkbench.feedback.runStarted,
+      );
+      logInteraction(
+        snapshot.run.status === 'needs-approval'
+          ? 'agent-workbench.approval.requested'
+          : 'agent-workbench.run.started',
+        {
+          threadId: handle.threadId,
+          runId: handle.runId,
+          resumedFromRunId: continuedFromRunId,
+          cwd: draftTask.cwd ?? '',
+          command: draftTask.command,
+          requiresApproval: draftTask.requiresApproval,
+        },
+      );
+
+      await refreshWorkbench({
+        preferredCwd: draftTask.cwd ?? selectedCwdRef.current,
+        preferredThreadId: handle.threadId,
+        preferredRunId: handle.runId,
+      });
+    } catch (error) {
+      logException('agent-workbench.task.start.failed', error, {
+        cwd: draftTask.cwd ?? selectedCwdRef.current,
+        command: draftTask.command,
+        requiresApproval: draftTask.requiresApproval,
+      });
+      setStatusTone('danger');
+      setStatusMessage(
+        draftTask.requiresApproval
+          ? appI18n.agentWorkbench.feedback.approvalRequestFailed
+          : appI18n.agentWorkbench.feedback.runFailed,
+      );
+      await refreshWorkbench({
+        preferredCwd: selectedCwdRef.current,
+        preferredThreadId: selectedThreadIdRef.current,
+        preferredRunId: selectedRunIdRef.current,
+      });
+    } finally {
+      setTaskDraftBusy(null);
+    }
+  }, [attachActiveRunHandle, draftTask, refreshWorkbench, trustedWorkspace]);
 
   const handleRequestWriteApproval = useCallback(async () => {
     if (!trustedWorkspace) {
@@ -1356,6 +1481,185 @@ export function AgentWorkbenchScreen() {
 
                 <View style={screenStyles.sectionCard}>
                   <Text style={screenStyles.sectionTitle}>
+                    {appI18n.agentWorkbench.sections.taskDraftTitle}
+                  </Text>
+                  <Text style={screenStyles.sectionDescription}>
+                    {appI18n.agentWorkbench.sections.taskDraftDescription}
+                  </Text>
+
+                  {!trustedWorkspace ? (
+                    <EmptyState
+                      title={appI18n.agentWorkbench.empty.workspaceTitle}
+                      description={appI18n.agentWorkbench.empty.workspaceDescription}
+                    />
+                  ) : (
+                    <View style={screenStyles.sectionBody}>
+                      <View style={screenStyles.inputFieldGroup}>
+                        <Text style={[screenStyles.inputLabel, {color: palette.inkSoft}]}>
+                          {appI18n.agentWorkbench.labels.draftGoal}
+                        </Text>
+                        {textInputsReady ? (
+                          <View
+                            style={[
+                              screenStyles.textInputShell,
+                              {
+                                borderColor: palette.border,
+                                backgroundColor: palette.panel,
+                              },
+                            ]}>
+                            <RNTextInput
+                              testID='agent-workbench.task.goal-input'
+                              value={draftGoal}
+                              onChangeText={setDraftGoal}
+                              placeholder={
+                                appI18n.agentWorkbench.taskDraft.goalPlaceholder
+                              }
+                              placeholderTextColor={palette.inkSoft}
+                              style={[
+                                screenStyles.textInputField,
+                                {
+                                  color: palette.ink,
+                                },
+                              ]}
+                            />
+                          </View>
+                        ) : (
+                          <View
+                            style={[
+                              screenStyles.textInputPlaceholder,
+                              {
+                                borderColor: palette.border,
+                                backgroundColor: palette.panel,
+                              },
+                            ]}>
+                            <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+                              {appI18n.agentWorkbench.taskDraft.goalPlaceholder}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={screenStyles.inputFieldGroup}>
+                        <Text style={[screenStyles.inputLabel, {color: palette.inkSoft}]}>
+                          {appI18n.agentWorkbench.labels.draftCommand}
+                        </Text>
+                        {textInputsReady ? (
+                          <View
+                            style={[
+                              screenStyles.textInputShell,
+                              screenStyles.textInputMultilineShell,
+                              {
+                                borderColor: palette.border,
+                                backgroundColor: palette.panel,
+                              },
+                            ]}>
+                            <RNTextInput
+                              testID='agent-workbench.task.command-input'
+                              value={draftCommand}
+                              onChangeText={setDraftCommand}
+                              placeholder={
+                                appI18n.agentWorkbench.taskDraft.commandPlaceholder
+                              }
+                              placeholderTextColor={palette.inkSoft}
+                              multiline
+                              textAlignVertical='top'
+                              style={[
+                                screenStyles.textInputField,
+                                screenStyles.textInputMultiline,
+                                {
+                                  color: palette.ink,
+                                },
+                              ]}
+                            />
+                          </View>
+                        ) : (
+                          <View
+                            style={[
+                              screenStyles.textInputPlaceholder,
+                              screenStyles.textInputMultilineShell,
+                              {
+                                borderColor: palette.border,
+                                backgroundColor: palette.panel,
+                              },
+                            ]}>
+                            <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+                              {appI18n.agentWorkbench.taskDraft.commandPlaceholder}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={screenStyles.choiceGrid}>
+                        <ChoiceChip
+                          testID='agent-workbench.task.mode.direct'
+                          label={appI18n.agentWorkbench.taskDraft.directMode}
+                          detail={appI18n.agentWorkbench.taskDraft.directModeDetail}
+                          active={!draftRequiresApproval}
+                          activeBadgeLabel={appI18n.agentWorkbench.taskDraft.activeBadge}
+                          inactiveBadgeLabel={appI18n.agentWorkbench.taskDraft.availableBadge}
+                          onPress={() => {
+                            setDraftRequiresApproval(false);
+                          }}
+                          style={screenStyles.choiceChip}
+                        />
+                        <ChoiceChip
+                          testID='agent-workbench.task.mode.approval'
+                          label={appI18n.agentWorkbench.taskDraft.approvalMode}
+                          detail={appI18n.agentWorkbench.taskDraft.approvalModeDetail}
+                          active={draftRequiresApproval}
+                          activeBadgeLabel={appI18n.agentWorkbench.taskDraft.activeBadge}
+                          inactiveBadgeLabel={appI18n.agentWorkbench.taskDraft.availableBadge}
+                          onPress={() => {
+                            setDraftRequiresApproval(true);
+                          }}
+                          style={screenStyles.choiceChip}
+                        />
+                      </View>
+
+                      {!draftRequiresApproval && draftTask && !draftTask.canRunDirect ? (
+                        <InfoPanel
+                          title={appI18n.agentWorkbench.taskDraft.directModeGuardTitle}
+                          tone='accent'>
+                          <Text
+                            style={[
+                              screenStyles.sectionDescription,
+                              {color: palette.inkMuted},
+                            ]}>
+                            {appI18n.agentWorkbench.taskDraft.directModeGuardDetail}
+                          </Text>
+                        </InfoPanel>
+                      ) : null}
+
+                      <ActionButton
+                        testID='agent-workbench.action.start-draft-task'
+                        label={
+                          draftRequiresApproval
+                            ? taskDraftBusy === 'requesting'
+                              ? appI18n.agentWorkbench.actions.requestingDraftApproval
+                              : appI18n.agentWorkbench.actions.requestDraftApproval
+                            : taskDraftBusy === 'running'
+                              ? appI18n.agentWorkbench.actions.runningDraftTask
+                              : appI18n.agentWorkbench.actions.runDraftTask
+                        }
+                        onPress={() => {
+                          void handleStartDraftTask();
+                        }}
+                        disabled={
+                          !textInputsReady ||
+                          !trustedWorkspace ||
+                          activeRunInfo !== null ||
+                          approvalBusy !== null ||
+                          taskDraftBusy !== null ||
+                          draftTask === null ||
+                          (!draftRequiresApproval && !draftTask.canRunDirect)
+                        }
+                      />
+                    </View>
+                  )}
+                </View>
+
+                <View style={screenStyles.sectionCard}>
+                  <Text style={screenStyles.sectionTitle}>
                     {appI18n.agentWorkbench.sections.directoryTitle}
                   </Text>
                   <Text style={screenStyles.sectionDescription}>
@@ -1410,10 +1714,10 @@ export function AgentWorkbenchScreen() {
                     />
                   ) : (
                     <View style={screenStyles.sectionBody}>
-                      {searchInputReady ? (
+                      {textInputsReady ? (
                         <View
                           style={[
-                            screenStyles.searchInputShell,
+                            screenStyles.textInputShell,
                             {
                               borderColor: palette.border,
                               backgroundColor: palette.panel,
@@ -1433,7 +1737,7 @@ export function AgentWorkbenchScreen() {
                             placeholder={appI18n.agentWorkbench.search.placeholder}
                             placeholderTextColor={palette.inkSoft}
                             style={[
-                              screenStyles.searchInputField,
+                              screenStyles.textInputField,
                               {
                                 color: palette.ink,
                               },
@@ -1443,7 +1747,7 @@ export function AgentWorkbenchScreen() {
                       ) : (
                         <View
                           style={[
-                            screenStyles.searchInputPlaceholder,
+                            screenStyles.textInputPlaceholder,
                             {
                               borderColor: palette.border,
                               backgroundColor: palette.panel,
@@ -1464,7 +1768,7 @@ export function AgentWorkbenchScreen() {
                           void handleSearch();
                         }}
                         disabled={
-                          !searchInputReady ||
+                          !textInputsReady ||
                           searching ||
                           searchQuery.trim().length === 0
                         }
@@ -2297,10 +2601,13 @@ function createScreenStyles(palette: AppPalette) {
     choiceChip: {
       maxWidth: '100%',
     },
-    searchInput: {
-      width: '100%',
+    inputFieldGroup: {
+      gap: appSpacing.xs,
     },
-    searchInputShell: {
+    inputLabel: {
+      ...appTypography.captionStrong,
+    },
+    textInputShell: {
       width: '100%',
       minHeight: 48,
       borderWidth: 1,
@@ -2308,13 +2615,13 @@ function createScreenStyles(palette: AppPalette) {
       justifyContent: 'center',
       paddingHorizontal: appSpacing.md,
     },
-    searchInputField: {
+    textInputField: {
       minHeight: 48,
       paddingVertical: appSpacing.sm,
       fontSize: appTypography.body.fontSize,
       lineHeight: appTypography.body.lineHeight,
     },
-    searchInputPlaceholder: {
+    textInputPlaceholder: {
       width: '100%',
       minHeight: 48,
       borderWidth: 1,
@@ -2322,6 +2629,15 @@ function createScreenStyles(palette: AppPalette) {
       justifyContent: 'center',
       paddingHorizontal: appSpacing.md,
       paddingVertical: appSpacing.sm,
+    },
+    textInputMultilineShell: {
+      minHeight: 96,
+      alignItems: 'stretch',
+      justifyContent: 'flex-start',
+      paddingVertical: appSpacing.sm,
+    },
+    textInputMultiline: {
+      minHeight: 76,
     },
     threadList: {
       gap: appSpacing.sm,

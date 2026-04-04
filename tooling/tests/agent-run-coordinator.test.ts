@@ -462,6 +462,95 @@ export async function run() {
   assert.equal(failedRunDocument?.run.completedAt, '2026-04-03T01:10:00.050Z');
   assert.equal(failedRunDocument?.timeline.at(-1)?.kind, 'error');
 
+  const interruptedFiles = new Map<string, string>();
+  let interruptedListener:
+    | {
+        onEvent?: (event: AgentTerminalSessionEvent) => void;
+        onError?: (error: Error & {code?: string}) => void;
+      }
+    | undefined;
+
+  const runningRuntime = createPersistedAgentTerminalRuntime({
+    readUserFile: async path => interruptedFiles.get(path) ?? null,
+    writeUserFile: async (path, content) => {
+      interruptedFiles.set(path, content);
+      return true;
+    },
+    getTrustedWorkspaceTarget: async () => ({
+      rootPath: 'D:/code/opappdev',
+      displayName: 'opappdev',
+      trusted: true,
+    }),
+    openAgentTerminalSession: async (_options, nextListener) => {
+      interruptedListener = nextListener;
+      return {
+        sessionId: 'terminal-9',
+        async cancel() {},
+        async sendInput() {},
+      };
+    },
+    now: createClock([
+      '2026-04-03T04:00:00.000Z',
+      '2026-04-03T04:00:00.050Z',
+    ]),
+    createId: createIdFactory([
+      'thread-9',
+      'run-9',
+      'entry-11',
+    ]),
+  });
+
+  await runningRuntime.openRun({
+    title: 'Interrupted run',
+    goal: 'Repro interrupted recovery',
+    command: 'git status',
+    cwd: 'opapp-frontend',
+  });
+  await flushMicrotasks();
+
+  interruptedListener?.onEvent?.({
+    sessionId: 'terminal-9',
+    event: 'started',
+    cwd: 'D:/code/opappdev/opapp-frontend',
+    command: 'git status',
+    exitCode: null,
+    text: null,
+    createdAt: '2026-04-03T04:00:01.000Z',
+  });
+  await flushMicrotasks();
+
+  const recoveryRuntime = createPersistedAgentTerminalRuntime({
+    readUserFile: async path => interruptedFiles.get(path) ?? null,
+    writeUserFile: async (path, content) => {
+      interruptedFiles.set(path, content);
+      return true;
+    },
+    now: createClock([
+      '2026-04-03T04:05:00.000Z',
+    ]),
+  });
+
+  const interruptedResult = await recoveryRuntime.reconcileInterruptedRuns();
+  assert.deepEqual(interruptedResult, {
+    interruptedRunIds: ['run-9'],
+  });
+
+  const interruptedRunDocument = parsePersistedAgentRunDocument(
+    interruptedFiles.get(buildAgentRunDocumentPath('run-9')) ?? '',
+  );
+  assert.ok(interruptedRunDocument);
+  assert.equal(interruptedRunDocument?.run.status, 'interrupted');
+  assert.equal(
+    interruptedRunDocument?.run.completedAt,
+    '2026-04-03T04:05:00.000Z',
+  );
+
+  const interruptedThreadIndex = parsePersistedAgentThreadIndex(
+    interruptedFiles.get(agentThreadIndexPath) ?? '',
+  );
+  assert.ok(interruptedThreadIndex);
+  assert.equal(interruptedThreadIndex?.threads[0]?.lastRunStatus, 'interrupted');
+
   await handle.cancel();
   assert.equal(cancelCount, 1);
 }

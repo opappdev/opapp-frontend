@@ -77,6 +77,7 @@ export {
   approvePersistedAgentTerminalRun,
   rejectPersistedAgentTerminalRun,
   openPersistedAgentTerminalRun,
+  reconcileInterruptedAgentRuns,
 } from './run-coordinator';
 export {
   isNativeAgentTerminalRuntimeAvailable,
@@ -94,5 +95,6 @@ export type {
   ApprovePersistedAgentTerminalRunOptions,
   OpenPersistedAgentTerminalRunOptions,
   PersistedAgentTerminalRunHandle,
+  ReconcileInterruptedAgentRunsResult,
   RejectPersistedAgentTerminalRunOptions,
 } from './run-coordinator';

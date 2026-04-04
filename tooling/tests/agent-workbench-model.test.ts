@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {
   buildWorkspaceGitDiffCommand,
+  canRunWorkbenchTaskDirect,
+  resolveWorkbenchTaskDraft,
   buildWorkspaceWriteApprovalCommand,
   buildTerminalTranscript,
   createWorkspaceChoices,
@@ -110,6 +112,74 @@ export function run() {
       'Get-Content -LiteralPath $targetPath',
     ].join('; '),
   });
+  assert.deepEqual(
+    resolveWorkbenchTaskDraft({
+      goal: '整理当前变更',
+      command: '  git status --short  ',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+    }),
+    {
+      title: '整理当前变更',
+      goal: '整理当前变更',
+      command: 'git status --short',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+      canRunDirect: true,
+      approvalTitle: undefined,
+      approvalDetails: undefined,
+    },
+  );
+  assert.deepEqual(
+    resolveWorkbenchTaskDraft({
+      goal: '',
+      command: 'Set-Content note.txt ready',
+      cwd: '',
+      requiresApproval: true,
+    }),
+    {
+      title: 'Set-Content note.txt ready',
+      goal: 'Set-Content note.txt ready',
+      command: 'Set-Content note.txt ready',
+      cwd: undefined,
+      requiresApproval: true,
+      canRunDirect: false,
+      approvalTitle: '允许执行任务：Set-Content note.txt ready',
+      approvalDetails:
+        '批准后会在 工作区根目录 下执行以下命令：Set-Content note.txt ready',
+    },
+  );
+  assert.deepEqual(
+    resolveWorkbenchTaskDraft({
+      goal: '尝试直接写入',
+      command: 'Set-Content note.txt ready',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+    }),
+    {
+      title: '尝试直接写入',
+      goal: '尝试直接写入',
+      command: 'Set-Content note.txt ready',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+      canRunDirect: false,
+      approvalTitle: undefined,
+      approvalDetails: undefined,
+    },
+  );
+  assert.equal(
+    resolveWorkbenchTaskDraft({
+      goal: '空命令',
+      command: '   ',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+    }),
+    null,
+  );
+  assert.equal(canRunWorkbenchTaskDirect('git diff --stat'), true);
+  assert.equal(canRunWorkbenchTaskDirect('rg agent-workbench src'), true);
+  assert.equal(canRunWorkbenchTaskDirect('Set-Content note.txt ready'), false);
+  assert.equal(canRunWorkbenchTaskDirect('git status; Write-Output done'), false);
   assert.deepEqual(
     resolveWorkspaceGitDiffCandidate([
       {

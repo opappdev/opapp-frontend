@@ -14,6 +14,17 @@ export type WorkspaceChoiceItem = {
   detail: string;
 };
 
+export type WorkbenchTaskDraft = {
+  title: string;
+  goal: string;
+  command: string;
+  cwd: string | undefined;
+  requiresApproval: boolean;
+  canRunDirect: boolean;
+  approvalTitle: string | undefined;
+  approvalDetails: string | undefined;
+};
+
 const workspaceRepoRoots = ['opapp-frontend', 'opapp-desktop', 'opapp-mobile'];
 const preferredWorkspaceGitDiffEntryNames = [
   'package.json',
@@ -199,6 +210,56 @@ function quotePowerShellLiteral(value: string) {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+const directShellReadonlyCommands = new Set([
+  'cat',
+  'dir',
+  'gc',
+  'gci',
+  'get-childitem',
+  'get-content',
+  'ls',
+  'pwd',
+  'rg',
+  'type',
+]);
+const directGitReadonlySubcommands = new Set([
+  'branch',
+  'diff',
+  'log',
+  'ls-files',
+  'rev-parse',
+  'show',
+  'status',
+]);
+
+function tokenizeWorkbenchCommand(command: string) {
+  return command.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+}
+
+export function canRunWorkbenchTaskDirect(command: string) {
+  const normalizedCommand = command.trim();
+  if (
+    !normalizedCommand ||
+    /[\r\n]/.test(normalizedCommand) ||
+    /[;&|><]/.test(normalizedCommand)
+  ) {
+    return false;
+  }
+
+  const tokens = tokenizeWorkbenchCommand(normalizedCommand);
+  const executable = tokens[0]?.toLowerCase();
+  if (!executable) {
+    return false;
+  }
+
+  if (executable === 'git') {
+    const subcommand = tokens[1]?.toLowerCase();
+    return subcommand ? directGitReadonlySubcommands.has(subcommand) : false;
+  }
+
+  return directShellReadonlyCommands.has(executable);
+}
+
 export function buildWorkspaceGitDiffCommand(relativePath: string) {
   const segments = relativePath
     .trim()
@@ -242,6 +303,47 @@ export function buildWorkspaceWriteApprovalCommand(requestedCwd: string) {
       "Write-Output ('workspace write smoke saved to ' + $targetPath)",
       'Get-Content -LiteralPath $targetPath',
     ].join('; '),
+  };
+}
+
+export function resolveWorkbenchTaskDraft({
+  goal,
+  command,
+  cwd,
+  requiresApproval,
+}: {
+  goal: string;
+  command: string;
+  cwd: string;
+  requiresApproval: boolean;
+}): WorkbenchTaskDraft | null {
+  const normalizedCommand = command.trim();
+  if (!normalizedCommand) {
+    return null;
+  }
+
+  const normalizedGoal = goal.trim() || normalizedCommand;
+  const normalizedCwd = cwd.trim();
+  const cwdLabel =
+    normalizedCwd || appI18n.agentWorkbench.workspace.rootLabel;
+  const canRunDirect = canRunWorkbenchTaskDirect(normalizedCommand);
+
+  return {
+    title: normalizedGoal,
+    goal: normalizedGoal,
+    command: normalizedCommand,
+    cwd: normalizedCwd || undefined,
+    requiresApproval,
+    canRunDirect,
+    approvalTitle: requiresApproval
+      ? appI18n.agentWorkbench.approval.commandRequestTitle(normalizedGoal)
+      : undefined,
+    approvalDetails: requiresApproval
+      ? appI18n.agentWorkbench.approval.commandRequestDetails(
+          normalizedCommand,
+          cwdLabel,
+        )
+      : undefined,
   };
 }
 

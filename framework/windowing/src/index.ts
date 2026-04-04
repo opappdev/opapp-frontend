@@ -557,6 +557,12 @@ function createInitialAutoOpenRequest(
   };
 }
 
+function shouldSkipStoredWindowSessionHydration(
+  initialProps: Record<string, unknown> | undefined,
+) {
+  return createInitialAutoOpenRequest(initialProps)?.presentation === 'current-window';
+}
+
 const launchOnlyInitialPropKeys = new Set([
   'autoOpenSurfaceId',
   'autoOpenBundleId',
@@ -677,6 +683,10 @@ export function useManagedSurfaceWindowSession(
   const [initialAutoOpenRequest, setInitialAutoOpenRequest] = useState<
     OpenSurfaceRequest | null
   >(() => createInitialAutoOpenRequest(props.initialProps));
+  const skipStoredSessionHydration = useMemo(
+    () => shouldSkipStoredWindowSessionHydration(props.initialProps),
+    [props.initialProps],
+  );
 
   const resolvedSession = useMemo(
     () => resolveSurfaceSession(hostState.session, hostState.windowPolicy),
@@ -687,6 +697,15 @@ export function useManagedSurfaceWindowSession(
   useEffect(() => {
     let cancelled = false;
     setHydratedStoredSession(false);
+
+    if (skipStoredSessionHydration) {
+      // Launch-config current-window auto-open should win over any persisted
+      // session snapshot instead of waiting for native session hydration.
+      setHydratedStoredSession(true);
+      return () => {
+        cancelled = true;
+      };
+    }
 
     void loadStoredWindowSessionState(hostState.session.windowId)
       .then(storedSession => {
@@ -715,7 +734,7 @@ export function useManagedSurfaceWindowSession(
     return () => {
       cancelled = true;
     };
-  }, [hostState.session.windowId]);
+  }, [hostState.session.windowId, skipStoredSessionHydration]);
 
   useEffect(() => {
     if (!hydratedStoredSession) {

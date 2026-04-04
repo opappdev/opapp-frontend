@@ -1,0 +1,4 @@
+# Agent Workbench Approval Smoke Fixture
+approvedAt=baseline
+requestedCwd=baseline
+executor=baseline

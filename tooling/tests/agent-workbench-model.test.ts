@@ -10,6 +10,8 @@ import {
   resolveWorkspaceGitDiffCandidate,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
+  workbenchArtifactKindEnvVar,
+  workbenchArtifactPathEnvVar,
 } from '../../apps/companion-app/src/agent-workbench-model';
 
 export function run() {
@@ -92,24 +94,36 @@ export function run() {
         "git diff --no-ext-diff --no-color HEAD -- 'apps/companion-app/src/user''s-note.tsx'",
     },
   );
+  assert.deepEqual(
+    buildWorkspaceGitDiffCommand(
+      'opapp-frontend/tooling/tests/fixtures/agent-workbench-approval-smoke.txt',
+    ),
+    {
+      cwd: 'opapp-frontend',
+      command:
+        "git diff --no-ext-diff --no-color HEAD -- 'tooling/tests/fixtures/agent-workbench-approval-smoke.txt'",
+    },
+  );
   assert.equal(buildWorkspaceGitDiffCommand('AGENT.md'), null);
   assert.deepEqual(buildWorkspaceWriteApprovalCommand('opapp-frontend'), {
-    cwd: '',
+    cwd: 'opapp-frontend',
     shell: 'powershell',
-    relativePath: '.tmp/agent-workbench/approval-write-smoke.txt',
+    relativePath:
+      'opapp-frontend/tooling/tests/fixtures/agent-workbench-approval-smoke.txt',
+    env: {
+      [workbenchArtifactPathEnvVar]:
+        'opapp-frontend/tooling/tests/fixtures/agent-workbench-approval-smoke.txt',
+      [workbenchArtifactKindEnvVar]: 'diff',
+    },
     command: [
       "$requestedCwd = 'opapp-frontend'",
-      "$targetDir = Join-Path '.tmp' 'agent-workbench'",
-      'New-Item -ItemType Directory -Path $targetDir -Force | Out-Null',
-      "$targetPath = Join-Path $targetDir 'approval-write-smoke.txt'",
-      '$lines = @(',
-      "  ('approvedAt=' + (Get-Date).ToUniversalTime().ToString('o'))",
-      "  ('requestedCwd=' + $requestedCwd)",
-      "  'executor=agent-workbench'",
-      ')',
-      'Set-Content -LiteralPath $targetPath -Value $lines -Encoding utf8',
-      "Write-Output ('workspace write smoke saved to ' + $targetPath)",
+      "$targetPath = 'tooling/tests/fixtures/agent-workbench-approval-smoke.txt'",
+      '$newline = [Environment]::NewLine',
+      "$content = '# Agent Workbench Approval Smoke Fixture' + $newline + ('approvedAt=' + (Get-Date).ToUniversalTime().ToString('o')) + $newline + ('requestedCwd=' + $requestedCwd) + $newline + 'executor=agent-workbench'",
+      'Set-Content -LiteralPath $targetPath -Value $content -Encoding utf8',
+      "Write-Output ('approval smoke fixture saved to ' + $targetPath)",
       'Get-Content -LiteralPath $targetPath',
+      "git diff --no-ext-diff --no-color HEAD -- 'tooling/tests/fixtures/agent-workbench-approval-smoke.txt'",
     ].join('; '),
   });
   assert.deepEqual(
@@ -147,6 +161,32 @@ export function run() {
       approvalTitle: '允许执行任务：Set-Content note.txt ready',
       approvalDetails:
         '批准后会在 工作区根目录 下执行以下命令：Set-Content note.txt ready',
+    },
+  );
+  const frameworkApprovalCommand = buildWorkspaceWriteApprovalCommand(
+    'opapp-frontend/framework',
+  );
+  assert.deepEqual(
+    resolveWorkbenchTaskDraft({
+      goal: '更新审批 smoke fixture',
+      command: frameworkApprovalCommand.command,
+      cwd: 'opapp-frontend/framework',
+      cwdOverride: 'opapp-frontend',
+      shell: 'powershell',
+      env: frameworkApprovalCommand.env,
+      requiresApproval: true,
+    }),
+    {
+      title: '更新审批 smoke fixture',
+      goal: '更新审批 smoke fixture',
+      command: frameworkApprovalCommand.command,
+      cwd: 'opapp-frontend',
+      shell: 'powershell',
+      env: frameworkApprovalCommand.env,
+      requiresApproval: true,
+      canRunDirect: false,
+      approvalTitle: '允许执行任务：更新审批 smoke fixture',
+      approvalDetails: `批准后会在 opapp-frontend 下执行以下命令：${frameworkApprovalCommand.command}`,
     },
   );
   assert.deepEqual(

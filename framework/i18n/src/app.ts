@@ -414,6 +414,7 @@ export const zhCNApp = {
       runningGitStatus: '正在运行 git status...',
       requestWriteApproval: '请求写入审批',
       requestingWriteApproval: '正在请求写入审批...',
+      populateWriteApprovalDraft: '填入审批改动示例',
       runDraftTask: '启动当前任务',
       runningDraftTask: '正在启动当前任务...',
       requestDraftApproval: '为当前任务请求审批',
@@ -425,6 +426,7 @@ export const zhCNApp = {
       retryRun: '重试选中 run',
       retryingRun: '正在重试选中 run...',
       restoreRunWorkspace: '恢复此 run 目录',
+      inspectRunArtifact: '打开本次变更并加载 diff',
       browseWorkspaceRoot: '回到工作区根目录',
       viewPreviousRun: '查看上一条 run',
       cancelRun: '停止当前运行',
@@ -445,6 +447,12 @@ export const zhCNApp = {
       runRetried: '已按选中 run 的请求创建新的 run。',
       retryRunFailed: '重试选中 run 失败，请查看最新 run 文档或宿主日志。',
       runWorkspaceRestored: '已恢复到选中 run 的工作目录。',
+      writeApprovalDraftReady:
+        '已填入一个可控的审批改动示例，可直接为当前任务请求审批。',
+      runArtifactInspected: (relativePath: string) =>
+        `已定位到 ${relativePath}，并加载它的 diff 预览。`,
+      runArtifactInspectFailed:
+        '打开本次变更文件失败，请检查路径是否仍存在，或查看宿主日志。',
       cancelRequested: '已请求停止当前运行，等待宿主回传 exit 事件。',
       cancelFailed: '停止当前运行失败，请稍后重试。',
       refreshFailed: '刷新工作台失败，请稍后重试。',
@@ -518,8 +526,8 @@ export const zhCNApp = {
     run: {
       gitStatusTitle: 'Git Status',
       gitStatusGoal: '检查工作区状态',
-      writeApprovalTitle: 'Workspace Write Approval',
-      writeApprovalGoal: '请求在 trusted workspace 下写入临时 smoke 文件',
+      writeApprovalTitle: 'Tracked Approval Fixture Update',
+      writeApprovalGoal: '请求修改 tracked approval smoke fixture 并生成 diff 预览',
     },
     taskDraft: {
       goalPlaceholder: '例如：检查 agent workbench 当前改动',
@@ -538,9 +546,9 @@ export const zhCNApp = {
     },
     approval: {
       pendingTitle: '待处理审批',
-      requestTitle: '允许写入 trusted workspace 临时文件',
+      requestTitle: '允许修改 tracked approval smoke fixture',
       requestDetails: (relativePath: string, requestedCwd: string) =>
-        `批准后会在 trusted workspace 根目录写入 ${relativePath}，用于验证 workspace-write 审批链路。发起请求时的目录为：${requestedCwd}。`,
+        `批准后会在 ${requestedCwd} 下修改 ${relativePath}，并输出可复现的 diff 预览，用于验证 repo-write 审批链路。`,
       commandRequestTitle: (goal: string) => `允许执行任务：${goal}`,
       commandRequestDetails: (command: string, requestedCwd: string) =>
         `批准后会在 ${requestedCwd} 下执行以下命令：${command}`,
@@ -575,6 +583,7 @@ export const zhCNApp = {
       goal: 'Goal',
       updatedAt: '最后更新',
       timelineCount: '时间线事件数',
+      runArtifactPath: '本次变更路径',
       event: '事件',
       command: '命令',
       cwd: '工作目录',

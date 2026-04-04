@@ -67,6 +67,7 @@ import {
   buildTerminalTranscript,
   buildWorkspaceWriteApprovalCommand,
   createWorkspaceChoices,
+  workbenchArtifactPathEnvVar,
   resolveWorkbenchTaskDraft,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
@@ -391,6 +392,9 @@ export function AgentWorkbenchScreen() {
   const [draftGoal, setDraftGoal] = useState('');
   const [draftCommand, setDraftCommand] = useState('git status');
   const [draftRequiresApproval, setDraftRequiresApproval] = useState(false);
+  const [draftPresetId, setDraftPresetId] = useState<
+    'workspace-write-approval' | null
+  >(null);
   const [searchResults, setSearchResults] = useState<WorkspaceEntry[]>([]);
   const [selectedInspectorEntry, setSelectedInspectorEntry] =
     useState<WorkspaceEntry | null>(null);
@@ -458,11 +462,15 @@ export function AgentWorkbenchScreen() {
     [selectedRunDocument],
   );
   const selectedRunRequest = selectedRunDocument?.run.request ?? null;
+  const selectedRunArtifactPath =
+    selectedRunRequest?.env?.[workbenchArtifactPathEnvVar]?.trim() || null;
   const selectedRunWorkspacePath = selectedRunRequest?.cwd ?? '';
   const canRestoreSelectedRunWorkspace =
     trustedWorkspace !== null &&
     selectedRunRequest !== null &&
     selectedRunWorkspacePath !== selectedCwd;
+  const canInspectSelectedRunArtifact =
+    trustedWorkspace !== null && selectedRunArtifactPath !== null;
   const canRetrySelectedRun =
     selectedRunDocument !== null &&
     selectedRunRequest !== null &&
@@ -484,9 +492,30 @@ export function AgentWorkbenchScreen() {
         goal: draftGoal,
         command: draftCommand,
         cwd: selectedCwd,
+        cwdOverride:
+          draftPresetId === 'workspace-write-approval'
+            ? workspaceWriteApprovalCommand.cwd
+            : undefined,
+        shell:
+          draftPresetId === 'workspace-write-approval'
+            ? workspaceWriteApprovalCommand.shell
+            : undefined,
+        env:
+          draftPresetId === 'workspace-write-approval'
+            ? workspaceWriteApprovalCommand.env
+            : undefined,
         requiresApproval: draftRequiresApproval,
       }),
-    [draftCommand, draftGoal, draftRequiresApproval, selectedCwd],
+    [
+      draftCommand,
+      draftGoal,
+      draftPresetId,
+      draftRequiresApproval,
+      selectedCwd,
+      workspaceWriteApprovalCommand.cwd,
+      workspaceWriteApprovalCommand.env,
+      workspaceWriteApprovalCommand.shell,
+    ],
   );
   const selectedGitDiffCommand = useMemo(() => {
     if (!selectedInspectorEntry || selectedInspectorEntry.kind === 'directory') {
@@ -495,6 +524,57 @@ export function AgentWorkbenchScreen() {
 
     return buildWorkspaceGitDiffCommand(selectedInspectorEntry.relativePath);
   }, [selectedInspectorEntry]);
+
+  useEffect(() => {
+    if (draftPresetId !== 'workspace-write-approval') {
+      return;
+    }
+
+    const nextGoal = appI18n.agentWorkbench.run.writeApprovalGoal;
+    if (draftGoal !== nextGoal) {
+      setDraftGoal(nextGoal);
+    }
+    if (draftCommand !== workspaceWriteApprovalCommand.command) {
+      setDraftCommand(workspaceWriteApprovalCommand.command);
+    }
+    if (!draftRequiresApproval) {
+      setDraftRequiresApproval(true);
+    }
+  }, [
+    draftCommand,
+    draftGoal,
+    draftPresetId,
+    draftRequiresApproval,
+    workspaceWriteApprovalCommand.command,
+  ]);
+
+  const handleDraftGoalChange = useCallback((nextGoal: string) => {
+    setDraftPresetId(null);
+    setDraftGoal(nextGoal);
+  }, []);
+
+  const handleDraftCommandChange = useCallback((nextCommand: string) => {
+    setDraftPresetId(null);
+    setDraftCommand(nextCommand);
+  }, []);
+
+  const handleSelectDirectDraftMode = useCallback(() => {
+    setDraftPresetId(null);
+    setDraftRequiresApproval(false);
+  }, []);
+
+  const handleSelectApprovalDraftMode = useCallback(() => {
+    setDraftRequiresApproval(true);
+  }, []);
+
+  const handlePopulateWriteApprovalDraft = useCallback(() => {
+    setDraftPresetId('workspace-write-approval');
+    setDraftGoal(appI18n.agentWorkbench.run.writeApprovalGoal);
+    setDraftCommand(workspaceWriteApprovalCommand.command);
+    setDraftRequiresApproval(true);
+    setStatusTone('neutral');
+    setStatusMessage(appI18n.agentWorkbench.feedback.writeApprovalDraftReady);
+  }, [workspaceWriteApprovalCommand.command]);
 
   const resetSelectedDiff = useCallback(() => {
     diffRequestIdRef.current += 1;
@@ -811,6 +891,8 @@ export function AgentWorkbenchScreen() {
         goal: draftTask.goal,
         command: draftTask.command,
         cwd: draftTask.cwd,
+        shell: draftTask.shell,
+        env: draftTask.env,
         requiresApproval: draftTask.requiresApproval,
         approvalTitle: draftTask.approvalTitle,
         approvalDetails: draftTask.approvalDetails,
@@ -886,11 +968,13 @@ export function AgentWorkbenchScreen() {
         command: workspaceWriteApprovalCommand.command,
         cwd: workspaceWriteApprovalCommand.cwd,
         shell: workspaceWriteApprovalCommand.shell,
+        env: workspaceWriteApprovalCommand.env,
         requiresApproval: true,
         approvalTitle: appI18n.agentWorkbench.approval.requestTitle,
         approvalDetails: appI18n.agentWorkbench.approval.requestDetails(
           workspaceWriteApprovalCommand.relativePath,
-          selectedCwdRef.current || appI18n.agentWorkbench.workspace.rootLabel,
+          workspaceWriteApprovalCommand.cwd ||
+            appI18n.agentWorkbench.workspace.rootLabel,
         ),
       });
       const continuedFromRunId = handle.getSnapshot().run.resumedFromRunId;
@@ -1155,12 +1239,13 @@ export function AgentWorkbenchScreen() {
     setStatusMessage(appI18n.agentWorkbench.feedback.runWorkspaceRestored);
   }, [handleBrowseDirectory, selectedRunRequest, selectedRunWorkspacePath]);
 
-  const handleLoadSelectedDiff = useCallback(async () => {
-    if (
-      !selectedInspectorEntry ||
-      selectedInspectorEntry.kind === 'directory' ||
-      !selectedGitDiffCommand
-    ) {
+  const loadDiffForEntry = useCallback(async (entry: WorkspaceEntry) => {
+    if (entry.kind === 'directory') {
+      return;
+    }
+
+    const gitDiffCommand = buildWorkspaceGitDiffCommand(entry.relativePath);
+    if (!gitDiffCommand) {
       return;
     }
 
@@ -1172,7 +1257,7 @@ export function AgentWorkbenchScreen() {
       void previousSession.cancel().catch(() => {});
     }
 
-    setSelectedDiffPath(selectedInspectorEntry.relativePath);
+    setSelectedDiffPath(entry.relativePath);
     setSelectedDiffOutput('');
     setSelectedDiffError(null);
     setDiffLoading(true);
@@ -1183,8 +1268,9 @@ export function AgentWorkbenchScreen() {
     try {
       const session = await openAgentTerminalSession(
         {
-          command: selectedGitDiffCommand.command,
-          cwd: selectedGitDiffCommand.cwd,
+          command: gitDiffCommand.command,
+          cwd: gitDiffCommand.cwd,
+          shell: gitDiffCommand.shell,
         },
         {
           onEvent(event) {
@@ -1224,8 +1310,8 @@ export function AgentWorkbenchScreen() {
             setDiffLoading(false);
             setSelectedDiffError(error.message);
             logException('agent-workbench.diff.failed', error, {
-              relativePath: selectedInspectorEntry.relativePath,
-              cwd: selectedGitDiffCommand.cwd,
+              relativePath: entry.relativePath,
+              cwd: gitDiffCommand.cwd,
             });
           },
         },
@@ -1252,11 +1338,53 @@ export function AgentWorkbenchScreen() {
           : appI18n.agentWorkbench.feedback.runFailed,
       );
       logException('agent-workbench.diff.failed', error, {
-        relativePath: selectedInspectorEntry.relativePath,
-        cwd: selectedGitDiffCommand.cwd,
+        relativePath: entry.relativePath,
+        cwd: gitDiffCommand.cwd,
       });
     }
-  }, [selectedGitDiffCommand, selectedInspectorEntry]);
+  }, []);
+
+  const handleLoadSelectedDiff = useCallback(async () => {
+    if (!selectedInspectorEntry || selectedInspectorEntry.kind === 'directory') {
+      return;
+    }
+
+    await loadDiffForEntry(selectedInspectorEntry);
+  }, [loadDiffForEntry, selectedInspectorEntry]);
+
+  const handleInspectSelectedRunArtifact = useCallback(async () => {
+    if (!selectedRunArtifactPath) {
+      return;
+    }
+
+    try {
+      const artifactEntry = await statWorkspacePath(selectedRunArtifactPath);
+      if (!artifactEntry || artifactEntry.kind !== 'file') {
+        setStatusTone('danger');
+        setStatusMessage(appI18n.agentWorkbench.feedback.runArtifactInspectFailed);
+        return;
+      }
+
+      await handleInspectWorkspaceEntry(artifactEntry);
+      await loadDiffForEntry(artifactEntry);
+      setStatusTone('neutral');
+      setStatusMessage(
+        appI18n.agentWorkbench.feedback.runArtifactInspected(
+          artifactEntry.relativePath,
+        ),
+      );
+    } catch (error) {
+      logException('agent-workbench.run-artifact.inspect.failed', error, {
+        relativePath: selectedRunArtifactPath,
+      });
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.runArtifactInspectFailed);
+    }
+  }, [
+    handleInspectWorkspaceEntry,
+    loadDiffForEntry,
+    selectedRunArtifactPath,
+  ]);
 
   useEffect(() => () => {
     diffRequestIdRef.current += 1;
@@ -1510,7 +1638,7 @@ export function AgentWorkbenchScreen() {
                             <RNTextInput
                               testID='agent-workbench.task.goal-input'
                               value={draftGoal}
-                              onChangeText={setDraftGoal}
+                              onChangeText={handleDraftGoalChange}
                               placeholder={
                                 appI18n.agentWorkbench.taskDraft.goalPlaceholder
                               }
@@ -1556,7 +1684,7 @@ export function AgentWorkbenchScreen() {
                             <RNTextInput
                               testID='agent-workbench.task.command-input'
                               value={draftCommand}
-                              onChangeText={setDraftCommand}
+                              onChangeText={handleDraftCommandChange}
                               placeholder={
                                 appI18n.agentWorkbench.taskDraft.commandPlaceholder
                               }
@@ -1598,7 +1726,7 @@ export function AgentWorkbenchScreen() {
                           activeBadgeLabel={appI18n.agentWorkbench.taskDraft.activeBadge}
                           inactiveBadgeLabel={appI18n.agentWorkbench.taskDraft.availableBadge}
                           onPress={() => {
-                            setDraftRequiresApproval(false);
+                            handleSelectDirectDraftMode();
                           }}
                           style={screenStyles.choiceChip}
                         />
@@ -1610,11 +1738,26 @@ export function AgentWorkbenchScreen() {
                           activeBadgeLabel={appI18n.agentWorkbench.taskDraft.activeBadge}
                           inactiveBadgeLabel={appI18n.agentWorkbench.taskDraft.availableBadge}
                           onPress={() => {
-                            setDraftRequiresApproval(true);
+                            handleSelectApprovalDraftMode();
                           }}
                           style={screenStyles.choiceChip}
                         />
                       </View>
+
+                      <ActionButton
+                        testID='agent-workbench.action.populate-write-approval-draft'
+                        label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
+                        onPress={() => {
+                          handlePopulateWriteApprovalDraft();
+                        }}
+                        disabled={
+                          !trustedWorkspace ||
+                          activeRunInfo !== null ||
+                          approvalBusy !== null ||
+                          taskDraftBusy !== null
+                        }
+                        tone='ghost'
+                      />
 
                       {!draftRequiresApproval && draftTask && !draftTask.canRunDirect ? (
                         <InfoPanel
@@ -2050,6 +2193,7 @@ export function AgentWorkbenchScreen() {
                                           ]}>
                                           <ScrollView style={screenStyles.terminalScroll}>
                                             <Text
+                                              testID='agent-workbench.diff.output'
                                               style={[
                                                 screenStyles.terminalText,
                                                 {
@@ -2196,6 +2340,15 @@ export function AgentWorkbenchScreen() {
                             disabled={!canRestoreSelectedRunWorkspace}
                             tone='ghost'
                           />
+                          <ActionButton
+                            testID='agent-workbench.action.inspect-run-artifact'
+                            label={appI18n.agentWorkbench.actions.inspectRunArtifact}
+                            onPress={() => {
+                              void handleInspectSelectedRunArtifact();
+                            }}
+                            disabled={!canInspectSelectedRunArtifact}
+                            tone='ghost'
+                          />
                         </View>
                       ) : null}
                       <View style={screenStyles.detailGrid}>
@@ -2242,6 +2395,13 @@ export function AgentWorkbenchScreen() {
                           }
                           valueTestID='agent-workbench.run.cwd'
                         />
+                        {selectedRunArtifactPath ? (
+                          <DetailField
+                            label={appI18n.agentWorkbench.labels.runArtifactPath}
+                            value={selectedRunArtifactPath}
+                            valueTestID='agent-workbench.run.artifact-path'
+                          />
+                        ) : null}
                         <DetailField
                           label={appI18n.agentWorkbench.labels.updatedAt}
                           value={formatIsoTimestamp(selectedRunDocument.run.updatedAt)}

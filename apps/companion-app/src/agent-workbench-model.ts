@@ -1,4 +1,5 @@
 import {
+  type AgentTerminalShell,
   type AgentRunDocument,
   type AgentThreadSummary,
 } from '@opapp/framework-agent-runtime';
@@ -19,6 +20,8 @@ export type WorkbenchTaskDraft = {
   goal: string;
   command: string;
   cwd: string | undefined;
+  shell?: AgentTerminalShell;
+  env?: Record<string, string>;
   requiresApproval: boolean;
   canRunDirect: boolean;
   approvalTitle: string | undefined;
@@ -31,6 +34,14 @@ const preferredWorkspaceGitDiffEntryNames = [
   'pnpm-workspace.yaml',
   'tsconfig.json',
 ];
+const defaultWorkspaceWriteApprovalRepoRoot = 'opapp-frontend';
+const workspaceWriteApprovalFixtureRepoRelativePath =
+  'tooling/tests/fixtures/agent-workbench-approval-smoke.txt';
+
+export const workbenchArtifactPathEnvVar =
+  'OPAPP_AGENT_WORKBENCH_ARTIFACT_PATH';
+export const workbenchArtifactKindEnvVar =
+  'OPAPP_AGENT_WORKBENCH_ARTIFACT_KIND';
 
 function resolveWorkspaceChoiceLabel(relativePath: string) {
   const normalizedPath = relativePath.trim();
@@ -210,6 +221,14 @@ function quotePowerShellLiteral(value: string) {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+function resolveWorkspaceRepoRoot(relativePath: string) {
+  const normalizedPath = relativePath.trim();
+  const repoRoot = normalizedPath.split('/').filter(Boolean)[0] ?? '';
+  return workspaceRepoRoots.includes(repoRoot)
+    ? repoRoot
+    : defaultWorkspaceWriteApprovalRepoRoot;
+}
+
 const directShellReadonlyCommands = new Set([
   'cat',
   'dir',
@@ -260,7 +279,9 @@ export function canRunWorkbenchTaskDirect(command: string) {
   return directShellReadonlyCommands.has(executable);
 }
 
-export function buildWorkspaceGitDiffCommand(relativePath: string) {
+export function buildWorkspaceGitDiffCommand(
+  relativePath: string,
+): {cwd: string; command: string; shell?: AgentTerminalShell} | null {
   const segments = relativePath
     .trim()
     .split('/')
@@ -283,25 +304,30 @@ export function buildWorkspaceGitDiffCommand(relativePath: string) {
 
 export function buildWorkspaceWriteApprovalCommand(requestedCwd: string) {
   const normalizedRequestedCwd = requestedCwd.trim() || '.';
-  const relativePath = '.tmp/agent-workbench/approval-write-smoke.txt';
+  const repoRoot = resolveWorkspaceRepoRoot(normalizedRequestedCwd);
+  const relativePath = `${repoRoot}/${workspaceWriteApprovalFixtureRepoRelativePath}`;
 
   return {
-    cwd: '',
+    cwd: repoRoot,
     shell: 'powershell' as const,
     relativePath,
+    env: {
+      [workbenchArtifactPathEnvVar]: relativePath,
+      [workbenchArtifactKindEnvVar]: 'diff',
+    },
     command: [
       `$requestedCwd = ${quotePowerShellLiteral(normalizedRequestedCwd)}`,
-      "$targetDir = Join-Path '.tmp' 'agent-workbench'",
-      'New-Item -ItemType Directory -Path $targetDir -Force | Out-Null',
-      "$targetPath = Join-Path $targetDir 'approval-write-smoke.txt'",
-      "$lines = @(",
-      "  ('approvedAt=' + (Get-Date).ToUniversalTime().ToString('o'))",
-      "  ('requestedCwd=' + $requestedCwd)",
-      "  'executor=agent-workbench'",
-      ')',
-      'Set-Content -LiteralPath $targetPath -Value $lines -Encoding utf8',
-      "Write-Output ('workspace write smoke saved to ' + $targetPath)",
+      `$targetPath = ${quotePowerShellLiteral(
+        workspaceWriteApprovalFixtureRepoRelativePath,
+      )}`,
+      "$newline = [Environment]::NewLine",
+      "$content = '# Agent Workbench Approval Smoke Fixture' + $newline + ('approvedAt=' + (Get-Date).ToUniversalTime().ToString('o')) + $newline + ('requestedCwd=' + $requestedCwd) + $newline + 'executor=agent-workbench'",
+      'Set-Content -LiteralPath $targetPath -Value $content -Encoding utf8',
+      "Write-Output ('approval smoke fixture saved to ' + $targetPath)",
       'Get-Content -LiteralPath $targetPath',
+      `git diff --no-ext-diff --no-color HEAD -- ${quotePowerShellLiteral(
+        workspaceWriteApprovalFixtureRepoRelativePath,
+      )}`,
     ].join('; '),
   };
 }
@@ -310,11 +336,17 @@ export function resolveWorkbenchTaskDraft({
   goal,
   command,
   cwd,
+  cwdOverride,
+  shell,
+  env,
   requiresApproval,
 }: {
   goal: string;
   command: string;
   cwd: string;
+  cwdOverride?: string;
+  shell?: AgentTerminalShell;
+  env?: Record<string, string>;
   requiresApproval: boolean;
 }): WorkbenchTaskDraft | null {
   const normalizedCommand = command.trim();
@@ -323,16 +355,20 @@ export function resolveWorkbenchTaskDraft({
   }
 
   const normalizedGoal = goal.trim() || normalizedCommand;
-  const normalizedCwd = cwd.trim();
+  const normalizedCwd = (cwdOverride ?? cwd).trim();
   const cwdLabel =
     normalizedCwd || appI18n.agentWorkbench.workspace.rootLabel;
   const canRunDirect = canRunWorkbenchTaskDirect(normalizedCommand);
+  const normalizedEnv =
+    env && Object.keys(env).length > 0 ? {...env} : undefined;
 
   return {
     title: normalizedGoal,
     goal: normalizedGoal,
     command: normalizedCommand,
     cwd: normalizedCwd || undefined,
+    ...(shell ? {shell} : {}),
+    ...(normalizedEnv ? {env: normalizedEnv} : {}),
     requiresApproval,
     canRunDirect,
     approvalTitle: requiresApproval

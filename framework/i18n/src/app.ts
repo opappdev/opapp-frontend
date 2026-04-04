@@ -421,6 +421,8 @@ export const zhCNApp = {
       retryRun: '重试选中 run',
       retryingRun: '正在重试选中 run...',
       restoreRunWorkspace: '恢复此 run 目录',
+      browseWorkspaceRoot: '回到工作区根目录',
+      viewPreviousRun: '查看上一条 run',
       cancelRun: '停止当前运行',
       openDirectory: '切换到此目录',
       focusLatestRun: '回到最新 run',

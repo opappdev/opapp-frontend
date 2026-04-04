@@ -74,11 +74,15 @@ export function createWorkspaceChoices({
 
 export function resolvePreferredWorkspacePath(
   directories: ReadonlyArray<WorkspaceEntry>,
-  currentPath: string,
+  currentPath?: string | null,
 ) {
-  const normalizedCurrent = currentPath.trim();
-  if (normalizedCurrent.length > 0) {
-    return normalizedCurrent;
+  if (typeof currentPath === 'string') {
+    const normalizedCurrent = currentPath.trim();
+    if (normalizedCurrent.length > 0) {
+      return normalizedCurrent;
+    }
+
+    return '';
   }
 
   for (const preferredPath of ['opapp-frontend', 'opapp-desktop', 'opapp-mobile']) {

@@ -25,6 +25,34 @@ export function run() {
     ),
     'opapp-frontend/framework',
   );
+  assert.equal(
+    resolvePreferredWorkspacePath(
+      [
+        {
+          name: 'opapp-frontend',
+          relativePath: 'opapp-frontend',
+          kind: 'directory',
+          sizeBytes: null,
+        },
+      ],
+      '',
+    ),
+    '',
+  );
+  assert.equal(
+    resolvePreferredWorkspacePath(
+      [
+        {
+          name: 'opapp-frontend',
+          relativePath: 'opapp-frontend',
+          kind: 'directory',
+          sizeBytes: null,
+        },
+      ],
+      undefined,
+    ),
+    'opapp-frontend',
+  );
 
   const workspaceChoices = createWorkspaceChoices({
     trustedWorkspace: {

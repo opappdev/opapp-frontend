@@ -435,6 +435,7 @@ export function AgentWorkbenchScreen() {
 
   const selectedRunStatus = selectedRunDocument?.run.status ?? null;
   const latestThreadRunDocument = threadRunDocuments[0] ?? null;
+  const previousThreadRunDocument = threadRunDocuments[1] ?? null;
   const viewingHistoricalRun =
     latestThreadRunDocument !== null &&
     selectedRunId !== null &&
@@ -554,9 +555,13 @@ export function AgentWorkbenchScreen() {
             entry => entry.kind === 'directory',
           )
         : [];
+      const preferredWorkspacePath =
+        preferredCwd !== undefined
+          ? preferredCwd
+          : selectedCwdRef.current || undefined;
       const nextSelectedCwd = resolvePreferredWorkspacePath(
         directories,
-        preferredCwd ?? selectedCwdRef.current,
+        preferredWorkspacePath,
       );
       const rawThreadIndex = await readUserFile(agentThreadIndexPath);
       const nextThreads = rawThreadIndex
@@ -904,16 +909,6 @@ export function AgentWorkbenchScreen() {
     }
   }, []);
 
-  const handleRestoreSelectedRunWorkspace = useCallback(async () => {
-    if (!selectedRunRequest) {
-      return;
-    }
-
-    await handleBrowseDirectory(selectedRunWorkspacePath);
-    setStatusTone('neutral');
-    setStatusMessage(appI18n.agentWorkbench.feedback.runWorkspaceRestored);
-  }, [handleBrowseDirectory, selectedRunRequest, selectedRunWorkspacePath]);
-
   const handleRetrySelectedRun = useCallback(async () => {
     if (!selectedRunDocument || !selectedRunRequest) {
       return;
@@ -1024,6 +1019,16 @@ export function AgentWorkbenchScreen() {
     },
     [refreshWorkbench, resetWorkspaceExplorer],
   );
+
+  const handleRestoreSelectedRunWorkspace = useCallback(async () => {
+    if (!selectedRunRequest) {
+      return;
+    }
+
+    await handleBrowseDirectory(selectedRunWorkspacePath);
+    setStatusTone('neutral');
+    setStatusMessage(appI18n.agentWorkbench.feedback.runWorkspaceRestored);
+  }, [handleBrowseDirectory, selectedRunRequest, selectedRunWorkspacePath]);
 
   const handleLoadSelectedDiff = useCallback(async () => {
     if (
@@ -1209,6 +1214,28 @@ export function AgentWorkbenchScreen() {
                   approvalBusy !== null
                 }
               />
+              {selectedCwd ? (
+                <ActionButton
+                  testID='agent-workbench.action.browse-workspace-root'
+                  label={appI18n.agentWorkbench.actions.browseWorkspaceRoot}
+                  onPress={() => {
+                    void handleBrowseDirectory('');
+                  }}
+                  tone='ghost'
+                />
+              ) : null}
+              {previousThreadRunDocument && !viewingHistoricalRun ? (
+                <ActionButton
+                  testID='agent-workbench.action.view-previous-run'
+                  label={appI18n.agentWorkbench.actions.viewPreviousRun}
+                  onPress={() => {
+                    selectedRunIdRef.current = previousThreadRunDocument.run.runId;
+                    setSelectedRunId(previousThreadRunDocument.run.runId);
+                    setSelectedRunDocument(previousThreadRunDocument);
+                  }}
+                  tone='ghost'
+                />
+              ) : null}
               <ActionButton
                 testID='agent-workbench.action.cancel-run'
                 label={appI18n.agentWorkbench.actions.cancelRun}
@@ -1306,7 +1333,6 @@ export function AgentWorkbenchScreen() {
                           value={formatSizeBytes(selectedWorkspaceStat?.sizeBytes ?? null)}
                         />
                       </View>
-
                       <View style={screenStyles.choiceGrid}>
                         {workspaceChoices.map(choice => (
                           <ChoiceChip
@@ -1765,10 +1791,10 @@ export function AgentWorkbenchScreen() {
                     />
                   ) : (
                     <View style={screenStyles.threadList}>
-                      {threadRunDocuments.map(document => (
+                      {threadRunDocuments.map((document, index) => (
                         <ChoiceChip
                           key={document.run.runId}
-                          testID={`agent-workbench.run-history.${document.run.runId}`}
+                          testID={`agent-workbench.run-history.index-${index}`}
                           label={
                             document.run.goal ||
                             document.run.request?.command ||
@@ -1816,7 +1842,8 @@ export function AgentWorkbenchScreen() {
                   {viewingHistoricalRun && latestThreadRunDocument ? (
                     <InfoPanel
                       title={appI18n.agentWorkbench.runHistory.viewingHistoricalTitle}
-                      tone='neutral'>
+                      tone='neutral'
+                      testID='agent-workbench.run-history.viewing-historical'>
                       <View style={screenStyles.sectionBody}>
                         <Text style={[screenStyles.infoText, {color: palette.ink}]}>
                           {appI18n.agentWorkbench.runHistory.viewingHistoricalDescription(
@@ -1824,6 +1851,7 @@ export function AgentWorkbenchScreen() {
                           )}
                         </Text>
                         <ActionButton
+                          testID='agent-workbench.action.focus-latest-run'
                           label={appI18n.agentWorkbench.actions.focusLatestRun}
                           onPress={() => {
                             selectedRunIdRef.current =

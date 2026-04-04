@@ -168,6 +168,7 @@ export function ChoiceChip({
   const [hovered, setHovered] = useState(false);
   const activationIdRef = useRef(0);
   const suppressPressForActivationRef = useRef<number | null>(null);
+  const suppressPressForKeyboardActivationRef = useRef(false);
 
   const chipIdle = {
     backgroundColor: palette.canvas,
@@ -190,6 +191,10 @@ export function ChoiceChip({
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       onPress={() => {
+        if (suppressPressForKeyboardActivationRef.current) {
+          suppressPressForKeyboardActivationRef.current = false;
+          return;
+        }
         if (
           activationBehavior === 'press-in' &&
           suppressPressForActivationRef.current === activationIdRef.current
@@ -204,6 +209,18 @@ export function ChoiceChip({
         if (activationBehavior === 'press-in') {
           activationIdRef.current += 1;
           suppressPressForActivationRef.current = activationIdRef.current;
+          onPress();
+        }
+      }}
+      onKeyUp={(event: any) => {
+        const key = event?.nativeEvent?.key;
+        if (
+          key === 'Enter' ||
+          key === ' ' ||
+          key === 'Space' ||
+          key === 'Spacebar'
+        ) {
+          suppressPressForKeyboardActivationRef.current = true;
           onPress();
         }
       }}
@@ -591,14 +608,39 @@ export function ActionButton({
 }) {
   const { palette } = useTheme();
   const [hovered, setHovered] = useState(false);
+  const suppressPressForKeyboardActivationRef = useRef(false);
   return (
     <Pressable
       testID={testID}
       accessibilityRole='button'
       disabled={disabled}
-      focusable
+      focusable={!disabled}
       {...windowsFocusProps()}
-      onPress={onPress}
+      onPress={() => {
+        if (disabled) {
+          return;
+        }
+        if (suppressPressForKeyboardActivationRef.current) {
+          suppressPressForKeyboardActivationRef.current = false;
+          return;
+        }
+        onPress();
+      }}
+      onKeyUp={(event: any) => {
+        if (disabled) {
+          return;
+        }
+        const key = event?.nativeEvent?.key;
+        if (
+          key === 'Enter' ||
+          key === ' ' ||
+          key === 'Space' ||
+          key === 'Spacebar'
+        ) {
+          suppressPressForKeyboardActivationRef.current = true;
+          onPress();
+        }
+      }}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       style={({ pressed, focused }: any) => [

@@ -126,6 +126,13 @@ export function run() {
       'utf8',
     ),
   ) as Record<string, unknown>;
+  const runtimeBundleList = Array.isArray(
+    (runtimeBundles as {bundles?: unknown}).bundles,
+  )
+    ? ((runtimeBundles as {bundles?: unknown}).bundles as Array<{
+        minHostVersion?: string;
+      }>)
+    : [];
   const surfaceIds = JSON.parse(
     fs.readFileSync(
       path.join(repoRoot, 'apps', 'companion-app', 'src', 'surface-ids.json'),
@@ -319,6 +326,24 @@ export function run() {
     iosBundleScript.includes('runtime-bundles.json'),
     true,
     'iOS bundle manifest generation must derive surfaces from runtime-bundles.json.',
+  );
+  assert.equal(
+    windowsBundleScript.includes('minHostVersion'),
+    true,
+    'Windows bundle manifest generation must preserve optional minHostVersion compatibility metadata.',
+  );
+  assert.equal(
+    windowsBundleScript.includes('maxHostVersion'),
+    true,
+    'Windows bundle manifest generation must preserve optional maxHostVersion compatibility metadata.',
+  );
+  assert.equal(
+    runtimeBundleList.every(
+      bundle =>
+        typeof bundle.minHostVersion === 'string' && bundle.minHostVersion.length > 0,
+    ),
+    true,
+    'tracked runtime bundles must declare the current Windows host compatibility floor.',
   );
   assert.equal(
     runtimeBundles[legacyRuntimeBundleKey],

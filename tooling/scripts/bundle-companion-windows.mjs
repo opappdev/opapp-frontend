@@ -76,6 +76,19 @@ function createBundleArgs({
   ];
 }
 
+function normalizeOptionalHostVersion(value, fieldName, sourceLabel) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(
+      `Invalid ${fieldName} at ${sourceLabel}. Expected a non-empty dotted version string when provided.`,
+    );
+  }
+
+  return value.trim();
+}
+
 function createBundlePlans(runtimeBundles) {
   return runtimeBundles.bundles
     .filter(bundle => {
@@ -91,6 +104,16 @@ function createBundlePlans(runtimeBundles) {
           : path.join(outputRoot, 'bundles', bundle.bundleId),
       bundleFile: bundle.bundleFile,
       surfaces: bundle.surfaces ?? [],
+      minHostVersion: normalizeOptionalHostVersion(
+        bundle.minHostVersion,
+        'minHostVersion',
+        `runtime-bundles.json#${bundle.bundleId}`,
+      ),
+      maxHostVersion: normalizeOptionalHostVersion(
+        bundle.maxHostVersion,
+        'maxHostVersion',
+        `runtime-bundles.json#${bundle.bundleId}`,
+      ),
     }));
 }
 
@@ -118,6 +141,16 @@ function normalizePrivateBundleDescriptor(descriptor, sourceLabel) {
     entryFile: descriptor.entryFile,
     bundleFile: descriptor.bundleFile,
     surfaces: descriptor.surfaces,
+    minHostVersion: normalizeOptionalHostVersion(
+      descriptor.minHostVersion,
+      'minHostVersion',
+      sourceLabel,
+    ),
+    maxHostVersion: normalizeOptionalHostVersion(
+      descriptor.maxHostVersion,
+      'maxHostVersion',
+      sourceLabel,
+    ),
   };
 }
 
@@ -166,6 +199,8 @@ async function writeBundleManifest({
   entryFile,
   surfaces,
   version,
+  minHostVersion,
+  maxHostVersion,
 }) {
   const bundleOutput = path.join(outputDir, entryFile);
   const bundleBytes = await readFile(bundleOutput);
@@ -181,6 +216,8 @@ async function writeBundleManifest({
     bundleFormat: 'hermes-bytecode',
     checksum: {algorithm: 'sha256', value: bundleChecksum},
     sourceKind: 'local-build',
+    ...(minHostVersion ? {minHostVersion} : {}),
+    ...(maxHostVersion ? {maxHostVersion} : {}),
   };
 
   await writeFile(manifestOutput, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
@@ -247,6 +284,8 @@ export async function bundleCompanionWindows({resetCache = false} = {}) {
       entryFile: bundlePlan.bundleFile,
       surfaces: bundlePlan.surfaces,
       version: packageJson.version,
+      minHostVersion: bundlePlan.minHostVersion,
+      maxHostVersion: bundlePlan.maxHostVersion,
     });
 
     console.log(

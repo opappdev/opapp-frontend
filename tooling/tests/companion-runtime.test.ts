@@ -14,6 +14,7 @@ export function run() {
     entryFile: 'index.chat.js',
     bundleFile: 'index.chat.windows.bundle',
     platforms: ['windows'],
+    minHostVersion: '1.0.0.0',
     surfaces: ['companion.chat.main'],
   });
   assert.equal(

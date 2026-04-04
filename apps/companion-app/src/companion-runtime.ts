@@ -22,6 +22,8 @@ export type CompanionRuntimeBundle = {
   entryFile?: string;
   bundleFile?: string;
   platforms?: string[];
+  minHostVersion?: string;
+  maxHostVersion?: string;
   surfaces: string[];
 };
 

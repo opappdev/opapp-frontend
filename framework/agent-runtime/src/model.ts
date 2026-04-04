@@ -48,6 +48,10 @@ export const agentArtifactKinds = [
   'log',
   'report',
 ] as const;
+export const agentWorkbenchArtifactPathEnvVar =
+  'OPAPP_AGENT_WORKBENCH_ARTIFACT_PATH';
+export const agentWorkbenchArtifactKindEnvVar =
+  'OPAPP_AGENT_WORKBENCH_ARTIFACT_KIND';
 export const agentTerminalEventTypes = [
   'started',
   'stdout',
@@ -83,6 +87,13 @@ export type AgentTerminalEventType =
   (typeof agentTerminalEventTypes)[number];
 export type AgentTimelineEntryKind =
   (typeof agentTimelineEntryKinds)[number];
+
+export type AgentRequestedArtifact = {
+  kind: AgentArtifactKind;
+  path: string;
+  label: string;
+  mimeType: string | null;
+};
 
 export type AgentMessageRole = 'system' | 'user' | 'assistant';
 
@@ -267,6 +278,32 @@ function readOptionalTrimmedString(value: unknown): string | null {
 
   const normalized = value.trim();
   return normalized || null;
+}
+
+function resolveRequestedArtifactLabel(path: string) {
+  const segments = path.split(/[\\/]+/).filter(Boolean);
+  return segments.at(-1) ?? path;
+}
+
+export function resolveRequestedAgentArtifact(
+  env: Record<string, string> | null | undefined,
+): AgentRequestedArtifact | null {
+  if (!env) {
+    return null;
+  }
+
+  const kind = readEnumValue(agentArtifactKinds, env[agentWorkbenchArtifactKindEnvVar]);
+  const path = readOptionalTrimmedString(env[agentWorkbenchArtifactPathEnvVar]);
+  if (!kind || !path) {
+    return null;
+  }
+
+  return {
+    kind,
+    path,
+    label: resolveRequestedArtifactLabel(path),
+    mimeType: null,
+  };
 }
 
 function readRequiredStorageId(value: unknown): string | null {

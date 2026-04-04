@@ -1,6 +1,10 @@
 import {
+  type AgentArtifactKind,
   type AgentTerminalShell,
   type AgentRunDocument,
+  type AgentTerminalTimelineEntry,
+  type AgentToolCallTimelineEntry,
+  type AgentToolResultTimelineEntry,
   type AgentThreadSummary,
 } from '@opapp/framework-agent-runtime';
 import {
@@ -28,6 +32,49 @@ export type WorkbenchTaskDraft = {
   approvalDetails: string | undefined;
 };
 
+export type WorkbenchRunArtifactSummary = {
+  kind: AgentArtifactKind | null;
+  path: string | null;
+  label: string | null;
+  source: 'timeline' | 'request-env' | null;
+};
+
+export type WorkbenchTimelineSummary = {
+  totalCount: number;
+  messageCount: number;
+  planCount: number;
+  toolCallCount: number;
+  toolResultCount: number;
+  terminalEventCount: number;
+  approvalCount: number;
+  artifactCount: number;
+  errorCount: number;
+  otherCount: number;
+};
+
+type WorkbenchTimelineDisplayEntry = Exclude<
+  AgentRunDocument['timeline'][number],
+  AgentToolCallTimelineEntry | AgentToolResultTimelineEntry
+>;
+
+export type WorkbenchToolInvocationTimelineItem = {
+  kind: 'tool-invocation';
+  key: string;
+  callId: string;
+  toolName: string | null;
+  call: AgentToolCallTimelineEntry | null;
+  result: AgentToolResultTimelineEntry | null;
+  terminalEvents: AgentTerminalTimelineEntry[];
+};
+
+export type WorkbenchTimelineDisplayItem =
+  | {
+      kind: 'entry';
+      key: string;
+      entry: WorkbenchTimelineDisplayEntry;
+    }
+  | WorkbenchToolInvocationTimelineItem;
+
 const workspaceRepoRoots = ['opapp-frontend', 'opapp-desktop', 'opapp-mobile'];
 const preferredWorkspaceGitDiffEntryNames = [
   'package.json',
@@ -42,6 +89,9 @@ export const workbenchArtifactPathEnvVar =
   'OPAPP_AGENT_WORKBENCH_ARTIFACT_PATH';
 export const workbenchArtifactKindEnvVar =
   'OPAPP_AGENT_WORKBENCH_ARTIFACT_KIND';
+
+const workbenchArtifactKinds = ['diff', 'file', 'image', 'log', 'report'];
+const workbenchArtifactKindSet = new Set(workbenchArtifactKinds);
 
 function resolveWorkspaceChoiceLabel(relativePath: string) {
   const normalizedPath = relativePath.trim();
@@ -221,6 +271,36 @@ function quotePowerShellLiteral(value: string) {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+function normalizeArtifactValue(value: string | null | undefined) {
+  const normalizedValue = value?.trim();
+  return normalizedValue ? normalizedValue : null;
+}
+
+function isWorkbenchArtifactKind(value: string): value is AgentArtifactKind {
+  return workbenchArtifactKindSet.has(value);
+}
+
+function resolveRequestedWorkbenchArtifact(
+  env: Record<string, string> | null | undefined,
+) {
+  if (!env) {
+    return null;
+  }
+
+  const rawKind = normalizeArtifactValue(env[workbenchArtifactKindEnvVar]);
+  const path = normalizeArtifactValue(env[workbenchArtifactPathEnvVar]);
+  if (!rawKind || !isWorkbenchArtifactKind(rawKind) || !path) {
+    return null;
+  }
+
+  const segments = path.split(/[\\/]+/).filter(Boolean);
+  return {
+    kind: rawKind,
+    path,
+    label: segments.at(-1) ?? path,
+  };
+}
+
 function resolveWorkspaceRepoRoot(relativePath: string) {
   const normalizedPath = relativePath.trim();
   const repoRoot = normalizedPath.split('/').filter(Boolean)[0] ?? '';
@@ -330,6 +410,212 @@ export function buildWorkspaceWriteApprovalCommand(requestedCwd: string) {
       )}`,
     ].join('; '),
   };
+}
+
+export function resolveWorkbenchRunArtifactSummary(
+  document: AgentRunDocument | null,
+): WorkbenchRunArtifactSummary {
+  if (!document) {
+    return {
+      kind: null,
+      path: null,
+      label: null,
+      source: null,
+    };
+  }
+
+  for (let index = document.timeline.length - 1; index >= 0; index -= 1) {
+    const entry = document.timeline[index];
+    if (entry.kind !== 'artifact') {
+      continue;
+    }
+
+    const normalizedPath = normalizeArtifactValue(entry.path);
+    const normalizedLabel = normalizeArtifactValue(entry.label) ?? normalizedPath;
+    return {
+      kind: entry.artifactKind,
+      path: normalizedPath,
+      label: normalizedLabel,
+      source: 'timeline',
+    };
+  }
+
+  const requestedArtifact = resolveRequestedWorkbenchArtifact(
+    document.run.request?.env,
+  );
+  if (!requestedArtifact) {
+    return {
+      kind: null,
+      path: null,
+      label: null,
+      source: null,
+    };
+  }
+
+  return {
+    kind: requestedArtifact.kind,
+    path: requestedArtifact.path,
+    label: requestedArtifact.label,
+    source: 'request-env',
+  };
+}
+
+export function summarizeWorkbenchTimeline(
+  document: AgentRunDocument | null,
+): WorkbenchTimelineSummary {
+  const summary: WorkbenchTimelineSummary = {
+    totalCount: document?.timeline.length ?? 0,
+    messageCount: 0,
+    planCount: 0,
+    toolCallCount: 0,
+    toolResultCount: 0,
+    terminalEventCount: 0,
+    approvalCount: 0,
+    artifactCount: 0,
+    errorCount: 0,
+    otherCount: 0,
+  };
+
+  if (!document) {
+    return summary;
+  }
+
+  for (const entry of document.timeline) {
+    switch (entry.kind) {
+      case 'message':
+        summary.messageCount += 1;
+        break;
+      case 'plan':
+        summary.planCount += 1;
+        break;
+      case 'tool-call':
+        summary.toolCallCount += 1;
+        break;
+      case 'tool-result':
+        summary.toolResultCount += 1;
+        break;
+      case 'terminal-event':
+        summary.terminalEventCount += 1;
+        break;
+      case 'approval':
+        summary.approvalCount += 1;
+        break;
+      case 'artifact':
+        summary.artifactCount += 1;
+        break;
+      case 'error':
+        summary.errorCount += 1;
+        break;
+      default:
+        summary.otherCount += 1;
+        break;
+    }
+  }
+
+  return summary;
+}
+
+export function buildWorkbenchTimelineDisplayItems(
+  document: AgentRunDocument | null,
+): WorkbenchTimelineDisplayItem[] {
+  if (!document) {
+    return [];
+  }
+
+  const toolResultsByCallId = new Map<string, AgentToolResultTimelineEntry[]>();
+  for (const entry of document.timeline) {
+    if (entry.kind !== 'tool-result') {
+      continue;
+    }
+
+    const results = toolResultsByCallId.get(entry.callId);
+    if (results) {
+      results.push(entry);
+    } else {
+      toolResultsByCallId.set(entry.callId, [entry]);
+    }
+  }
+
+  const consumedToolResultIds = new Set<string>();
+  const consumedTerminalEventIds = new Set<string>();
+  const displayItems: WorkbenchTimelineDisplayItem[] = [];
+
+  for (const entry of document.timeline) {
+    if (entry.kind === 'tool-call') {
+      const resultCandidates = toolResultsByCallId.get(entry.callId) ?? [];
+      const resultIndex = resultCandidates.findIndex(
+        candidate =>
+          candidate.seq > entry.seq &&
+          !consumedToolResultIds.has(candidate.entryId),
+      );
+      const pairedResult =
+        resultIndex >= 0 ? resultCandidates[resultIndex] : null;
+      if (pairedResult) {
+        consumedToolResultIds.add(pairedResult.entryId);
+      }
+      const nextToolCall = document.timeline.find(
+        candidate =>
+          candidate.kind === 'tool-call' && candidate.seq > entry.seq,
+      );
+      const terminalEventUpperBoundSeq = Math.min(
+        pairedResult?.seq ?? Number.POSITIVE_INFINITY,
+        nextToolCall?.seq ?? Number.POSITIVE_INFINITY,
+      );
+      const terminalEvents = document.timeline.filter(
+        (candidate): candidate is AgentTerminalTimelineEntry =>
+          candidate.kind === 'terminal-event' &&
+          candidate.seq > entry.seq &&
+          candidate.seq < terminalEventUpperBoundSeq &&
+          !consumedTerminalEventIds.has(candidate.entryId),
+      );
+      for (const terminalEvent of terminalEvents) {
+        consumedTerminalEventIds.add(terminalEvent.entryId);
+      }
+
+      displayItems.push({
+        kind: 'tool-invocation',
+        key: entry.entryId,
+        callId: entry.callId,
+        toolName: entry.toolName,
+        call: entry,
+        result: pairedResult,
+        terminalEvents,
+      });
+      continue;
+    }
+
+    if (entry.kind === 'tool-result') {
+      if (consumedToolResultIds.has(entry.entryId)) {
+        continue;
+      }
+
+      displayItems.push({
+        kind: 'tool-invocation',
+        key: entry.entryId,
+        callId: entry.callId,
+        toolName: null,
+        call: null,
+        result: entry,
+        terminalEvents: [],
+      });
+      continue;
+    }
+
+    if (
+      entry.kind === 'terminal-event' &&
+      consumedTerminalEventIds.has(entry.entryId)
+    ) {
+      continue;
+    }
+
+    displayItems.push({
+      kind: 'entry',
+      key: entry.entryId,
+      entry,
+    });
+  }
+
+  return displayItems;
 }
 
 export function resolveWorkbenchTaskDraft({

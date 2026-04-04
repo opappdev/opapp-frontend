@@ -21,14 +21,21 @@ import {
   parsePersistedAgentThreadDocument,
   parsePersistedAgentThreadIndex,
   reconcileInterruptedAgentRuns,
+  reconcileRequestedAgentRunArtifacts,
   rejectPersistedAgentTerminalRun,
+  type AgentArtifactKind,
   type AgentApprovalTimelineEntry,
+  type AgentMessageRole,
+  type AgentPlanStepStatus,
+  type AgentPlanTimelineEntry,
   type AgentTerminalSessionHandle,
   type AgentRunDocument,
   type AgentRunStatus,
   type AgentTerminalEventType,
   type AgentTimelineEntry,
   type AgentThreadSummary,
+  type AgentToolCallStatus,
+  type AgentToolResultStatus,
   type PersistedAgentTerminalRunHandle,
 } from '@opapp/framework-agent-runtime';
 import {
@@ -63,16 +70,19 @@ import {
   type AppTone,
 } from '@opapp/ui-native-primitives';
 import {
+  buildWorkbenchTimelineDisplayItems,
   buildWorkspaceGitDiffCommand,
   buildTerminalTranscript,
   buildWorkspaceWriteApprovalCommand,
   createWorkspaceChoices,
-  workbenchArtifactPathEnvVar,
+  resolveWorkbenchRunArtifactSummary,
   resolveWorkbenchTaskDraft,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
   resolveThreadRunHistorySelection,
   resolveWorkspaceGitDiffCandidate,
+  summarizeWorkbenchTimeline,
+  type WorkbenchToolInvocationTimelineItem,
 } from './agent-workbench-model';
 
 const terminalFontFamily = Platform.OS === 'windows' ? 'Consolas' : undefined;
@@ -210,29 +220,284 @@ function resolvePermissionModeLabel(
   }
 }
 
+function resolveArtifactKindLabel(kind: AgentArtifactKind | null) {
+  switch (kind) {
+    case 'diff':
+      return appI18n.agentWorkbench.artifactKinds.diff;
+    case 'file':
+      return appI18n.agentWorkbench.artifactKinds.file;
+    case 'image':
+      return appI18n.agentWorkbench.artifactKinds.image;
+    case 'log':
+      return appI18n.agentWorkbench.artifactKinds.log;
+    case 'report':
+      return appI18n.agentWorkbench.artifactKinds.report;
+    default:
+      return appI18n.common.unknown;
+  }
+}
+
+function resolveArtifactKindTone(kind: AgentArtifactKind | null): AppTone {
+  switch (kind) {
+    case 'diff':
+      return 'accent';
+    case 'image':
+    case 'report':
+      return 'support';
+    case 'log':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
+
+function resolveRetryableLabel(retryable: boolean) {
+  return retryable
+    ? appI18n.agentWorkbench.values.retryable
+    : appI18n.agentWorkbench.values.notRetryable;
+}
+
+function resolveMessageRoleLabel(role: AgentMessageRole) {
+  switch (role) {
+    case 'system':
+      return appI18n.agentWorkbench.roles.system;
+    case 'user':
+      return appI18n.agentWorkbench.roles.user;
+    case 'assistant':
+      return appI18n.agentWorkbench.roles.assistant;
+    default:
+      return appI18n.common.unknown;
+  }
+}
+
+function resolveMessageRoleTone(role: AgentMessageRole): AppTone {
+  switch (role) {
+    case 'user':
+      return 'accent';
+    case 'assistant':
+      return 'support';
+    default:
+      return 'neutral';
+  }
+}
+
+function resolvePlanStepStatusLabel(status: AgentPlanStepStatus) {
+  switch (status) {
+    case 'completed':
+      return appI18n.agentWorkbench.planStepStatus.completed;
+    case 'in_progress':
+      return appI18n.agentWorkbench.planStepStatus.inProgress;
+    case 'pending':
+      return appI18n.agentWorkbench.planStepStatus.pending;
+    default:
+      return appI18n.common.unknown;
+  }
+}
+
+function resolvePlanStepStatusTone(status: AgentPlanStepStatus): AppTone {
+  switch (status) {
+    case 'completed':
+      return 'support';
+    case 'in_progress':
+      return 'accent';
+    case 'pending':
+      return 'neutral';
+    default:
+      return 'neutral';
+  }
+}
+
+function countCompletedPlanSteps(steps: AgentPlanTimelineEntry['steps']) {
+  return steps.filter(step => step.status === 'completed').length;
+}
+
+function resolveToolCallStatusLabel(status: AgentToolCallStatus) {
+  switch (status) {
+    case 'queued':
+      return appI18n.agentWorkbench.toolCallStatus.queued;
+    case 'running':
+      return appI18n.agentWorkbench.toolCallStatus.running;
+    case 'completed':
+      return appI18n.agentWorkbench.toolCallStatus.completed;
+    case 'failed':
+      return appI18n.agentWorkbench.toolCallStatus.failed;
+    case 'cancelled':
+      return appI18n.agentWorkbench.toolCallStatus.cancelled;
+    default:
+      return appI18n.common.unknown;
+  }
+}
+
+function resolveToolCallStatusTone(status: AgentToolCallStatus): AppTone {
+  switch (status) {
+    case 'completed':
+      return 'support';
+    case 'running':
+      return 'accent';
+    case 'failed':
+      return 'danger';
+    case 'cancelled':
+      return 'warning';
+    case 'queued':
+    default:
+      return 'neutral';
+  }
+}
+
+function resolveToolResultStatusLabel(status: AgentToolResultStatus) {
+  switch (status) {
+    case 'success':
+      return appI18n.agentWorkbench.toolResultStatus.success;
+    case 'error':
+      return appI18n.agentWorkbench.toolResultStatus.error;
+    case 'cancelled':
+      return appI18n.agentWorkbench.toolResultStatus.cancelled;
+    default:
+      return appI18n.common.unknown;
+  }
+}
+
+function resolveToolResultStatusTone(status: AgentToolResultStatus): AppTone {
+  switch (status) {
+    case 'success':
+      return 'support';
+    case 'error':
+      return 'danger';
+    case 'cancelled':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
+
 function resolveTimelineEntryTitle(entry: AgentTimelineEntry) {
   switch (entry.kind) {
+    case 'message':
+      return resolveMessageRoleLabel(entry.role);
+    case 'plan':
+      return appI18n.agentWorkbench.events.plan;
     case 'terminal-event':
       return resolveTerminalEventLabel(entry.event);
+    case 'artifact':
+      return entry.label || appI18n.agentWorkbench.events.artifact;
     case 'approval':
       return entry.title;
     case 'error':
       return appI18n.agentWorkbench.events.error;
     default:
-      return entry.kind;
+      return appI18n.common.unknown;
   }
+}
+
+function resolveToolInvocationTitle(item: WorkbenchToolInvocationTimelineItem) {
+  if (item.toolName) {
+    return item.toolName;
+  }
+
+  return item.result
+    ? appI18n.agentWorkbench.events.toolResult
+    : appI18n.agentWorkbench.events.toolCall;
+}
+
+function resolveToolInvocationTone(item: WorkbenchToolInvocationTimelineItem) {
+  if (item.result) {
+    return resolveToolResultStatusTone(item.result.status);
+  }
+
+  if (item.call) {
+    return resolveToolCallStatusTone(item.call.status);
+  }
+
+  return 'neutral';
+}
+
+function resolveToolInvocationTrailingLabel(
+  item: WorkbenchToolInvocationTimelineItem,
+) {
+  if (item.result) {
+    return resolveToolResultStatusLabel(item.result.status);
+  }
+
+  if (item.call) {
+    return resolveToolCallStatusLabel(item.call.status);
+  }
+
+  return appI18n.common.unknown;
+}
+
+function resolveToolInvocationUpdatedAt(
+  item: WorkbenchToolInvocationTimelineItem,
+) {
+  return item.result?.createdAt ?? item.call?.createdAt ?? null;
+}
+
+function resolveToolInvocationSessionId(
+  item: WorkbenchToolInvocationTimelineItem,
+) {
+  return item.terminalEvents[0]?.sessionId ?? null;
+}
+
+function resolveToolInvocationTerminalEventsLabel(
+  item: WorkbenchToolInvocationTimelineItem,
+) {
+  if (item.terminalEvents.length === 0) {
+    return appI18n.agentWorkbench.values.noTerminalEventsYet;
+  }
+
+  const seenEvents = new Set<AgentTerminalEventType>();
+  const labels: string[] = [];
+  for (const terminalEvent of item.terminalEvents) {
+    if (seenEvents.has(terminalEvent.event)) {
+      continue;
+    }
+
+    seenEvents.add(terminalEvent.event);
+    labels.push(resolveTerminalEventLabel(terminalEvent.event));
+  }
+
+  return labels.join(' / ');
 }
 
 function resolveTimelineEntryTone(entry: AgentTimelineEntry): AppTone {
   switch (entry.kind) {
+    case 'message':
+      return resolveMessageRoleTone(entry.role);
+    case 'plan':
+      return 'accent';
+    case 'tool-call':
+      return resolveToolCallStatusTone(entry.status);
+    case 'tool-result':
+      return resolveToolResultStatusTone(entry.status);
     case 'approval':
       return resolveApprovalStatusTone(entry.status);
+    case 'artifact':
+      return resolveArtifactKindTone(entry.artifactKind);
     case 'error':
       return 'danger';
     case 'terminal-event':
       return entry.event === 'stderr' ? 'warning' : 'neutral';
     default:
       return 'neutral';
+  }
+}
+
+function resolveTimelineEntryTrailingLabel(entry: AgentTimelineEntry) {
+  switch (entry.kind) {
+    case 'plan':
+      return appI18n.agentWorkbench.values.planProgress(
+        countCompletedPlanSteps(entry.steps),
+        entry.steps.length,
+      );
+    case 'tool-call':
+      return resolveToolCallStatusLabel(entry.status);
+    case 'tool-result':
+      return resolveToolResultStatusLabel(entry.status);
+    case 'approval':
+      return resolveApprovalStatusLabel(entry.status);
+    case 'artifact':
+      return resolveArtifactKindLabel(entry.artifactKind);
+    default:
+      return formatIsoTimestamp(entry.createdAt);
   }
 }
 
@@ -461,9 +726,32 @@ export function AgentWorkbenchScreen() {
     () => findLatestApproval(selectedRunDocument),
     [selectedRunDocument],
   );
+  const selectedRunArtifact = useMemo(
+    () => resolveWorkbenchRunArtifactSummary(selectedRunDocument),
+    [selectedRunDocument],
+  );
+  const selectedTimelineItems = useMemo(() => {
+    let toolInvocationIndex = 0;
+    return buildWorkbenchTimelineDisplayItems(selectedRunDocument).map(item =>
+      item.kind === 'tool-invocation'
+        ? {
+            ...item,
+            toolInvocationIndex: toolInvocationIndex++,
+          }
+        : item,
+    );
+  }, [selectedRunDocument]);
+  const selectedTimelineSummary = useMemo(
+    () => summarizeWorkbenchTimeline(selectedRunDocument),
+    [selectedRunDocument],
+  );
   const selectedRunRequest = selectedRunDocument?.run.request ?? null;
-  const selectedRunArtifactPath =
-    selectedRunRequest?.env?.[workbenchArtifactPathEnvVar]?.trim() || null;
+  const selectedRunArtifactKind = selectedRunArtifact.kind;
+  const selectedRunArtifactLabel = selectedRunArtifact.label;
+  const selectedRunArtifactPath = selectedRunArtifact.path;
+  const selectedRunArtifactHasStandaloneLabel =
+    selectedRunArtifactLabel !== null &&
+    selectedRunArtifactLabel !== selectedRunArtifactPath;
   const selectedRunWorkspacePath = selectedRunRequest?.cwd ?? '';
   const canRestoreSelectedRunWorkspace =
     trustedWorkspace !== null &&
@@ -486,6 +774,10 @@ export function AgentWorkbenchScreen() {
     () => buildWorkspaceWriteApprovalCommand(selectedCwd),
     [selectedCwd],
   );
+  const usesWorkspaceWriteApprovalDraft =
+    draftRequiresApproval &&
+    draftGoal === appI18n.agentWorkbench.run.writeApprovalGoal &&
+    draftCommand === workspaceWriteApprovalCommand.command;
   const draftTask = useMemo(
     () =>
       resolveWorkbenchTaskDraft({
@@ -493,15 +785,15 @@ export function AgentWorkbenchScreen() {
         command: draftCommand,
         cwd: selectedCwd,
         cwdOverride:
-          draftPresetId === 'workspace-write-approval'
+          usesWorkspaceWriteApprovalDraft
             ? workspaceWriteApprovalCommand.cwd
             : undefined,
         shell:
-          draftPresetId === 'workspace-write-approval'
+          usesWorkspaceWriteApprovalDraft
             ? workspaceWriteApprovalCommand.shell
             : undefined,
         env:
-          draftPresetId === 'workspace-write-approval'
+          usesWorkspaceWriteApprovalDraft
             ? workspaceWriteApprovalCommand.env
             : undefined,
         requiresApproval: draftRequiresApproval,
@@ -509,9 +801,9 @@ export function AgentWorkbenchScreen() {
     [
       draftCommand,
       draftGoal,
-      draftPresetId,
       draftRequiresApproval,
       selectedCwd,
+      usesWorkspaceWriteApprovalDraft,
       workspaceWriteApprovalCommand.cwd,
       workspaceWriteApprovalCommand.env,
       workspaceWriteApprovalCommand.shell,
@@ -673,6 +965,13 @@ export function AgentWorkbenchScreen() {
           interruptedRunsReconciledRef.current = true;
         } catch (error) {
           logException('agent-workbench.interrupted-reconcile.failed', error, {});
+        }
+      }
+      if (activeRunHandleRef.current === null) {
+        try {
+          await reconcileRequestedAgentRunArtifacts();
+        } catch (error) {
+          logException('agent-workbench.artifact-reconcile.failed', error, {});
         }
       }
       const rawThreadIndex = await readUserFile(agentThreadIndexPath);
@@ -2395,6 +2694,25 @@ export function AgentWorkbenchScreen() {
                           }
                           valueTestID='agent-workbench.run.cwd'
                         />
+                        {selectedRunArtifactKind ? (
+                          <DetailField
+                            label={appI18n.agentWorkbench.labels.runArtifactKind}
+                            value={resolveArtifactKindLabel(
+                              selectedRunArtifactKind,
+                            )}
+                            valueTestID='agent-workbench.run.artifact-kind'
+                          />
+                        ) : null}
+                        {selectedRunArtifactHasStandaloneLabel ? (
+                          <DetailField
+                            label={appI18n.agentWorkbench.labels.runArtifactLabel}
+                            value={
+                              selectedRunArtifactLabel ??
+                              appI18n.common.unknown
+                            }
+                            valueTestID='agent-workbench.run.artifact-label'
+                          />
+                        ) : null}
                         {selectedRunArtifactPath ? (
                           <DetailField
                             label={appI18n.agentWorkbench.labels.runArtifactPath}
@@ -2497,25 +2815,369 @@ export function AgentWorkbenchScreen() {
                     />
                   ) : (
                     <View style={screenStyles.timelineList}>
-                      {selectedRunDocument.timeline.map(entry => (
-                        <Expander
-                          key={entry.entryId}
-                          title={resolveTimelineEntryTitle(entry)}
-                          defaultExpanded={
-                            entry.kind === 'error' || entry.kind === 'approval'
+                      <View style={screenStyles.choiceGrid}>
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.messages(
+                            selectedTimelineSummary.messageCount,
+                          )}
+                          tone={
+                            selectedTimelineSummary.messageCount > 0
+                              ? 'support'
+                              : 'neutral'
                           }
-                          trailing={
-                            <SignalPill
-                              label={
-                                entry.kind === 'approval'
-                                  ? resolveApprovalStatusLabel(entry.status)
-                                  : formatIsoTimestamp(entry.createdAt)
+                          size='sm'
+                        />
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.plans(
+                            selectedTimelineSummary.planCount,
+                          )}
+                          tone={
+                            selectedTimelineSummary.planCount > 0
+                              ? 'accent'
+                              : 'neutral'
+                          }
+                          size='sm'
+                        />
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.toolCalls(
+                            selectedTimelineSummary.toolCallCount,
+                          )}
+                          tone={
+                            selectedTimelineSummary.toolCallCount > 0
+                              ? 'accent'
+                              : 'neutral'
+                          }
+                          size='sm'
+                        />
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.toolResults(
+                            selectedTimelineSummary.toolResultCount,
+                          )}
+                          tone={
+                            selectedTimelineSummary.toolResultCount > 0
+                              ? 'support'
+                              : 'neutral'
+                          }
+                          size='sm'
+                        />
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.terminalEvents(
+                            selectedTimelineSummary.terminalEventCount,
+                          )}
+                          tone={
+                            selectedTimelineSummary.terminalEventCount > 0
+                              ? 'accent'
+                              : 'neutral'
+                          }
+                          size='sm'
+                        />
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.approvals(
+                            selectedTimelineSummary.approvalCount,
+                          )}
+                          tone={
+                            selectedTimelineSummary.approvalCount > 0
+                              ? 'warning'
+                              : 'neutral'
+                          }
+                          size='sm'
+                        />
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.artifacts(
+                            selectedTimelineSummary.artifactCount,
+                          )}
+                          tone={
+                            selectedTimelineSummary.artifactCount > 0
+                              ? 'support'
+                              : 'neutral'
+                          }
+                          size='sm'
+                        />
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.errors(
+                            selectedTimelineSummary.errorCount,
+                          )}
+                          tone={
+                            selectedTimelineSummary.errorCount > 0
+                              ? 'danger'
+                              : 'neutral'
+                          }
+                          size='sm'
+                        />
+                        <SignalPill
+                          label={appI18n.agentWorkbench.timelineSummary.other(
+                            selectedTimelineSummary.otherCount,
+                          )}
+                          tone='neutral'
+                          size='sm'
+                        />
+                      </View>
+                      {selectedTimelineItems.map(item => {
+                        if (item.kind === 'tool-invocation') {
+                          const toolCardBaseTestID = `agent-workbench.timeline.tool.${item.toolInvocationIndex}`;
+                          return (
+                            <Expander
+                              key={item.key}
+                              title={resolveToolInvocationTitle(item)}
+                              defaultExpanded={
+                                (item.toolInvocationIndex === 0 &&
+                                  selectedTimelineSummary.toolCallCount <= 1) ||
+                                !item.result ||
+                                item.result.status !== 'success' ||
+                                item.call?.status !== 'completed'
                               }
-                              tone={resolveTimelineEntryTone(entry)}
-                              size='sm'
-                            />
-                          }>
-                          {entry.kind === 'terminal-event' ? (
+                              headerTestID={`${toolCardBaseTestID}.toggle`}
+                              contentTestID={`${toolCardBaseTestID}.content`}
+                              trailing={
+                                <SignalPill
+                                  label={resolveToolInvocationTrailingLabel(item)}
+                                  tone={resolveToolInvocationTone(item)}
+                                  size='sm'
+                                />
+                              }>
+                              <View style={screenStyles.expanderBody}>
+                                <View style={screenStyles.detailGrid}>
+                                  <DetailField
+                                    label={appI18n.agentWorkbench.labels.toolName}
+                                    value={
+                                      item.toolName ??
+                                      appI18n.agentWorkbench.values.unknownTool
+                                    }
+                                    valueTestID={`${toolCardBaseTestID}.name`}
+                                  />
+                                  <DetailField
+                                    label={
+                                      appI18n.agentWorkbench.labels
+                                        .terminalEvents
+                                    }
+                                    value={resolveToolInvocationTerminalEventsLabel(
+                                      item,
+                                    )}
+                                    valueTestID={`${toolCardBaseTestID}.terminal-events`}
+                                  />
+                                  <DetailField
+                                    label={appI18n.agentWorkbench.labels.toolCallStatus}
+                                    value={
+                                      item.call
+                                        ? resolveToolCallStatusLabel(
+                                            item.call.status,
+                                          )
+                                        : appI18n.common.unknown
+                                    }
+                                    valueTestID={`${toolCardBaseTestID}.call-status`}
+                                  />
+                                  <DetailField
+                                    label={appI18n.agentWorkbench.labels.toolResultStatus}
+                                    value={
+                                      item.result
+                                        ? resolveToolResultStatusLabel(
+                                            item.result.status,
+                                          )
+                                        : appI18n.agentWorkbench.values
+                                            .noToolResultYet
+                                    }
+                                    valueTestID={`${toolCardBaseTestID}.result-status`}
+                                  />
+                                  <DetailField
+                                    label={appI18n.agentWorkbench.labels.callId}
+                                    value={item.callId}
+                                    valueTestID={`${toolCardBaseTestID}.call-id`}
+                                  />
+                                  {resolveToolInvocationSessionId(item) ? (
+                                    <DetailField
+                                      label={appI18n.agentWorkbench.labels.sessionId}
+                                      value={
+                                        resolveToolInvocationSessionId(item) ??
+                                        appI18n.common.unknown
+                                      }
+                                      valueTestID={`${toolCardBaseTestID}.session-id`}
+                                    />
+                                  ) : null}
+                                  <DetailField
+                                    label={appI18n.agentWorkbench.labels.exitCode}
+                                    value={
+                                      item.result?.exitCode === null ||
+                                      item.result?.exitCode === undefined
+                                        ? appI18n.common.unknown
+                                        : `${item.result.exitCode}`
+                                    }
+                                    valueTestID={`${toolCardBaseTestID}.exit-code`}
+                                  />
+                                  <DetailField
+                                    label={appI18n.agentWorkbench.labels.updatedAt}
+                                    value={formatIsoTimestamp(
+                                      resolveToolInvocationUpdatedAt(item),
+                                    )}
+                                    valueTestID={`${toolCardBaseTestID}.updated-at`}
+                                  />
+                                </View>
+                                <Text
+                                  style={[
+                                    screenStyles.sectionDescription,
+                                    {color: palette.inkMuted},
+                                  ]}>
+                                  {appI18n.agentWorkbench.labels.inputText}
+                                </Text>
+                                <View
+                                  style={[
+                                    screenStyles.terminalBox,
+                                    {
+                                      backgroundColor: palette.canvas,
+                                      borderColor: palette.border,
+                                    },
+                                  ]}>
+                                  <Text
+                                    testID={`${toolCardBaseTestID}.input`}
+                                    style={[
+                                      screenStyles.terminalText,
+                                      {
+                                        color: palette.ink,
+                                        fontFamily: terminalFontFamily,
+                                      },
+                                    ]}>
+                                    {item.call?.inputText ??
+                                      appI18n.agentWorkbench.values
+                                        .noTextContent}
+                                  </Text>
+                                </View>
+                                <Text
+                                  style={[
+                                    screenStyles.sectionDescription,
+                                    {color: palette.inkMuted},
+                                  ]}>
+                                  {appI18n.agentWorkbench.labels.outputText}
+                                </Text>
+                                <View
+                                  style={[
+                                    screenStyles.terminalBox,
+                                    {
+                                      backgroundColor: palette.canvas,
+                                      borderColor: palette.border,
+                                    },
+                                  ]}>
+                                  <Text
+                                    testID={`${toolCardBaseTestID}.output`}
+                                    style={[
+                                      screenStyles.terminalText,
+                                      {
+                                        color: palette.ink,
+                                        fontFamily: terminalFontFamily,
+                                      },
+                                    ]}>
+                                    {item.result
+                                      ? item.result.outputText ||
+                                        appI18n.agentWorkbench.values
+                                          .noTextContent
+                                      : appI18n.agentWorkbench.values
+                                          .noToolResultYet}
+                                  </Text>
+                                </View>
+                              </View>
+                            </Expander>
+                          );
+                        }
+
+                        const entry: AgentTimelineEntry = item.entry;
+                        return (
+                          <Expander
+                            key={item.key}
+                            title={resolveTimelineEntryTitle(entry)}
+                            defaultExpanded={
+                              entry.kind === 'error' ||
+                              entry.kind === 'approval' ||
+                              entry.kind === 'artifact' ||
+                              (entry.kind === 'plan' &&
+                                countCompletedPlanSteps(entry.steps) !==
+                                  entry.steps.length)
+                            }
+                            trailing={
+                              <SignalPill
+                                label={resolveTimelineEntryTrailingLabel(entry)}
+                                tone={resolveTimelineEntryTone(entry)}
+                                size='sm'
+                              />
+                            }>
+                          {entry.kind === 'message' ? (
+                            <View style={screenStyles.expanderBody}>
+                              <View style={screenStyles.detailGrid}>
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.messageRole}
+                                  value={resolveMessageRoleLabel(entry.role)}
+                                />
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.updatedAt}
+                                  value={formatIsoTimestamp(entry.createdAt)}
+                                />
+                              </View>
+                              <View
+                                style={[
+                                  screenStyles.terminalBox,
+                                  {
+                                    backgroundColor: palette.canvas,
+                                    borderColor: palette.border,
+                                  },
+                                ]}>
+                                <Text
+                                  style={[
+                                    screenStyles.infoText,
+                                    {color: palette.ink},
+                                  ]}>
+                                  {entry.content ||
+                                    appI18n.agentWorkbench.values.noTextContent}
+                                </Text>
+                              </View>
+                            </View>
+                          ) : entry.kind === 'plan' ? (
+                            <View style={screenStyles.expanderBody}>
+                              <View style={screenStyles.detailGrid}>
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.stepCount}
+                                  value={`${entry.steps.length}`}
+                                />
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.planProgress}
+                                  value={appI18n.agentWorkbench.values.planProgress(
+                                    countCompletedPlanSteps(entry.steps),
+                                    entry.steps.length,
+                                  )}
+                                />
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.updatedAt}
+                                  value={formatIsoTimestamp(entry.createdAt)}
+                                />
+                              </View>
+                              <View style={screenStyles.timelineStepList}>
+                                {entry.steps.map(step => (
+                                  <View
+                                    key={step.stepId}
+                                    style={[
+                                      screenStyles.timelineStepRow,
+                                      {
+                                        backgroundColor: palette.canvas,
+                                        borderColor: palette.border,
+                                      },
+                                    ]}>
+                                    <StatusBadge
+                                      label={resolvePlanStepStatusLabel(
+                                        step.status,
+                                      )}
+                                      tone={resolvePlanStepStatusTone(step.status)}
+                                      emphasis='soft'
+                                      size='sm'
+                                    />
+                                    <Text
+                                      style={[
+                                        screenStyles.infoText,
+                                        screenStyles.timelineStepText,
+                                        {color: palette.ink},
+                                      ]}>
+                                      {step.title}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                            </View>
+                          ) : entry.kind === 'terminal-event' ? (
                             <View style={screenStyles.expanderBody}>
                               <View style={screenStyles.detailGrid}>
                                 <DetailField
@@ -2561,6 +3223,37 @@ export function AgentWorkbenchScreen() {
                                 </View>
                               ) : null}
                             </View>
+                          ) : entry.kind === 'artifact' ? (
+                            <View style={screenStyles.expanderBody}>
+                              <View style={screenStyles.detailGrid}>
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.artifactKind}
+                                  value={resolveArtifactKindLabel(
+                                    entry.artifactKind,
+                                  )}
+                                />
+                                {entry.label !== entry.path ? (
+                                  <DetailField
+                                    label={appI18n.agentWorkbench.labels.artifactLabel}
+                                    value={entry.label}
+                                  />
+                                ) : null}
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.artifactPath}
+                                  value={entry.path ?? appI18n.common.unknown}
+                                />
+                                {entry.mimeType ? (
+                                  <DetailField
+                                    label={appI18n.agentWorkbench.labels.mimeType}
+                                    value={entry.mimeType}
+                                  />
+                                ) : null}
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.updatedAt}
+                                  value={formatIsoTimestamp(entry.createdAt)}
+                                />
+                              </View>
+                            </View>
                           ) : entry.kind === 'approval' ? (
                             <View style={screenStyles.expanderBody}>
                               <View style={screenStyles.detailGrid}>
@@ -2598,6 +3291,39 @@ export function AgentWorkbenchScreen() {
                                 </View>
                               ) : null}
                             </View>
+                          ) : entry.kind === 'error' ? (
+                            <View style={screenStyles.expanderBody}>
+                              <View style={screenStyles.detailGrid}>
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.errorCode}
+                                  value={entry.code ?? appI18n.common.unknown}
+                                />
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.retryable}
+                                  value={resolveRetryableLabel(entry.retryable)}
+                                />
+                                <DetailField
+                                  label={appI18n.agentWorkbench.labels.updatedAt}
+                                  value={formatIsoTimestamp(entry.createdAt)}
+                                />
+                              </View>
+                              <View
+                                style={[
+                                  screenStyles.terminalBox,
+                                  {
+                                    backgroundColor: palette.canvas,
+                                    borderColor: palette.border,
+                                  },
+                                ]}>
+                                <Text
+                                  style={[
+                                    screenStyles.infoText,
+                                    {color: palette.ink},
+                                  ]}>
+                                  {entry.message}
+                                </Text>
+                              </View>
+                            </View>
                           ) : (
                             <View
                               style={[
@@ -2608,14 +3334,13 @@ export function AgentWorkbenchScreen() {
                                 },
                               ]}>
                               <Text style={[screenStyles.infoText, {color: palette.ink}]}>
-                                {entry.kind === 'error'
-                                  ? entry.message
-                                  : entry.kind}
+                                {appI18n.common.unknown}
                               </Text>
                             </View>
                           )}
                         </Expander>
-                      ))}
+                        );
+                      })}
                     </View>
                   )}
                 </View>
@@ -2804,6 +3529,22 @@ function createScreenStyles(palette: AppPalette) {
     },
     timelineList: {
       gap: appSpacing.sm,
+    },
+    timelineStepList: {
+      gap: appSpacing.sm,
+    },
+    timelineStepRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.sm,
+      borderRadius: appRadius.control,
+      borderWidth: 1,
+      paddingHorizontal: appSpacing.md,
+      paddingVertical: appSpacing.sm,
+    },
+    timelineStepText: {
+      flex: 1,
+      minWidth: 0,
     },
     expanderBody: {
       gap: appSpacing.md,

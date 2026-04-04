@@ -1010,12 +1010,16 @@ export function Expander({
   children,
   style,
   testID,
+  headerTestID,
+  contentTestID,
 }: PropsWithChildren<{
   title: string;
   defaultExpanded?: boolean;
   trailing?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  headerTestID?: string;
+  contentTestID?: string;
 }>) {
   const { palette, spacing } = useTheme();
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -1029,6 +1033,7 @@ export function Expander({
   return (
     <View testID={testID} style={[styles.expander, { borderColor: palette.border }, style]}>
       <Pressable
+        testID={headerTestID}
         accessibilityRole='button'
         accessibilityState={{ expanded }}
         focusable
@@ -1063,7 +1068,9 @@ export function Expander({
         ) : null}
       </Pressable>
       {expanded ? (
-        <View style={[styles.expanderContent, { gap: spacing.xxs }]}>
+        <View
+          testID={contentTestID}
+          style={[styles.expanderContent, { gap: spacing.xxs }]}>
           {children}
         </View>
       ) : null}

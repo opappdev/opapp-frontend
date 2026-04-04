@@ -2,6 +2,8 @@ export {
   agentApprovalModes,
   agentApprovalStatuses,
   agentArtifactKinds,
+  agentWorkbenchArtifactKindEnvVar,
+  agentWorkbenchArtifactPathEnvVar,
   agentPermissionModes,
   agentPlanStepStatuses,
   agentProviderApiFamilies,
@@ -19,6 +21,7 @@ export {
   parsePersistedAgentRunDocument,
   parsePersistedAgentThreadDocument,
   parsePersistedAgentThreadIndex,
+  resolveRequestedAgentArtifact,
   serializePersistedAgentRunDocument,
   serializePersistedAgentThreadDocument,
   serializePersistedAgentThreadIndex,
@@ -39,6 +42,7 @@ export type {
   AgentPlanTimelineEntry,
   AgentProviderApiFamily,
   AgentProviderProfile,
+  AgentRequestedArtifact,
   AgentRunDocument,
   AgentRunSettings,
   AgentRunStatus,
@@ -78,6 +82,7 @@ export {
   rejectPersistedAgentTerminalRun,
   openPersistedAgentTerminalRun,
   reconcileInterruptedAgentRuns,
+  reconcileRequestedAgentRunArtifacts,
 } from './run-coordinator';
 export {
   isNativeAgentTerminalRuntimeAvailable,
@@ -96,5 +101,6 @@ export type {
   OpenPersistedAgentTerminalRunOptions,
   PersistedAgentTerminalRunHandle,
   ReconcileInterruptedAgentRunsResult,
+  ReconcileRequestedAgentRunArtifactsResult,
   RejectPersistedAgentTerminalRunOptions,
 } from './run-coordinator';

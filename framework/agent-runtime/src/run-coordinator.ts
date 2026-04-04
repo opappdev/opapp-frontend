@@ -10,8 +10,11 @@ import {
   serializePersistedAgentThreadIndex,
   type AgentApprovalMode,
   type AgentApprovalTimelineEntry,
+  type AgentArtifactTimelineEntry,
   type AgentErrorTimelineEntry,
+  type AgentMessageTimelineEntry,
   type AgentPermissionMode,
+  type AgentPlanTimelineEntry,
   type AgentProviderProfile,
   type AgentRunDocument,
   type AgentRunSettings,
@@ -19,7 +22,10 @@ import {
   type AgentRunSummary,
   type AgentTerminalRunRequest,
   type AgentThreadSummary,
+  type AgentToolCallTimelineEntry,
+  type AgentToolResultTimelineEntry,
   type AgentWorkspaceTarget,
+  resolveRequestedAgentArtifact,
 } from './model';
 import {
   agentThreadIndexPath,
@@ -71,6 +77,10 @@ export type RejectPersistedAgentTerminalRunOptions = {
 
 export type ReconcileInterruptedAgentRunsResult = {
   interruptedRunIds: string[];
+};
+
+export type ReconcileRequestedAgentRunArtifactsResult = {
+  reconciledRunIds: string[];
 };
 
 export type PersistedAgentTerminalRunHandle = {
@@ -363,6 +373,312 @@ function createApprovalTimelineEntry({
     details: details?.trim() || null,
     permissionMode: permissionMode ?? null,
   };
+}
+
+function createArtifactTimelineEntry({
+  entryId,
+  artifactId,
+  runId,
+  seq,
+  createdAt,
+  artifact,
+}: {
+  entryId: string;
+  artifactId: string;
+  runId: string;
+  seq: number;
+  createdAt: string;
+  artifact: {
+    kind: AgentArtifactTimelineEntry['artifactKind'];
+    path: string;
+    label: string;
+    mimeType: string | null;
+  };
+}): AgentArtifactTimelineEntry {
+  return {
+    entryId,
+    runId,
+    seq,
+    kind: 'artifact',
+    artifactId,
+    artifactKind: artifact.kind,
+    label: artifact.label,
+    path: artifact.path,
+    mimeType: artifact.mimeType,
+    createdAt,
+  };
+}
+
+function buildStructuredTimelineEntryId(runId: string, suffix: string) {
+  return `${runId}:${suffix}`;
+}
+
+function buildStructuredToolCallId(runId: string) {
+  return `${runId}:shell-command`;
+}
+
+function createMessageTimelineEntry({
+  runId,
+  seq,
+  createdAt,
+  content,
+}: {
+  runId: string;
+  seq: number;
+  createdAt: string;
+  content: string;
+}): AgentMessageTimelineEntry {
+  return {
+    entryId: buildStructuredTimelineEntryId(runId, 'message'),
+    runId,
+    seq,
+    kind: 'message',
+    createdAt,
+    role: 'user',
+    content,
+  };
+}
+
+function createPlanTimelineEntry({
+  runId,
+  seq,
+  createdAt,
+  title,
+  status,
+}: {
+  runId: string;
+  seq: number;
+  createdAt: string;
+  title: string;
+  status: AgentPlanTimelineEntry['steps'][number]['status'];
+}): AgentPlanTimelineEntry {
+  return {
+    entryId: buildStructuredTimelineEntryId(runId, 'plan'),
+    runId,
+    seq,
+    kind: 'plan',
+    createdAt,
+    steps: [
+      {
+        stepId: buildStructuredTimelineEntryId(runId, 'plan-step'),
+        title,
+        status,
+      },
+    ],
+  };
+}
+
+function createToolCallTimelineEntry({
+  runId,
+  seq,
+  createdAt,
+  inputText,
+  status,
+}: {
+  runId: string;
+  seq: number;
+  createdAt: string;
+  inputText: string;
+  status: AgentToolCallTimelineEntry['status'];
+}): AgentToolCallTimelineEntry {
+  return {
+    entryId: buildStructuredTimelineEntryId(runId, 'tool-call'),
+    runId,
+    seq,
+    kind: 'tool-call',
+    callId: buildStructuredToolCallId(runId),
+    toolName: 'shell_command',
+    status,
+    inputText,
+    createdAt,
+  };
+}
+
+function createToolResultTimelineEntry({
+  runId,
+  seq,
+  createdAt,
+  outputText,
+  status,
+  exitCode,
+}: {
+  runId: string;
+  seq: number;
+  createdAt: string;
+  outputText: string;
+  status: AgentToolResultTimelineEntry['status'];
+  exitCode: number | null;
+}): AgentToolResultTimelineEntry {
+  return {
+    entryId: buildStructuredTimelineEntryId(runId, 'tool-result'),
+    runId,
+    seq,
+    kind: 'tool-result',
+    callId: buildStructuredToolCallId(runId),
+    status,
+    outputText,
+    exitCode,
+    createdAt,
+  };
+}
+
+function findStructuredPlanEntry(document: AgentRunDocument) {
+  const entryId = buildStructuredTimelineEntryId(document.run.runId, 'plan');
+  return document.timeline.find(
+    (entry): entry is AgentPlanTimelineEntry =>
+      entry.kind === 'plan' && entry.entryId === entryId,
+  );
+}
+
+function findStructuredToolCallEntry(document: AgentRunDocument) {
+  const callId = buildStructuredToolCallId(document.run.runId);
+  return document.timeline.find(
+    (entry): entry is AgentToolCallTimelineEntry =>
+      entry.kind === 'tool-call' && entry.callId === callId,
+  );
+}
+
+function hasStructuredToolResultEntry(document: AgentRunDocument) {
+  const callId = buildStructuredToolCallId(document.run.runId);
+  return document.timeline.some(
+    entry => entry.kind === 'tool-result' && entry.callId === callId,
+  );
+}
+
+function updateStructuredPlanStatus(
+  document: AgentRunDocument,
+  status: AgentPlanTimelineEntry['steps'][number]['status'],
+) {
+  const planEntry = findStructuredPlanEntry(document);
+  const firstStep = planEntry?.steps[0];
+  if (!planEntry || !firstStep || firstStep.status === status) {
+    return;
+  }
+
+  planEntry.steps[0] = {
+    ...firstStep,
+    status,
+  };
+}
+
+function updateStructuredToolCallStatus(
+  document: AgentRunDocument,
+  status: AgentToolCallTimelineEntry['status'],
+) {
+  const toolCallEntry = findStructuredToolCallEntry(document);
+  if (!toolCallEntry || toolCallEntry.status === status) {
+    return;
+  }
+
+  toolCallEntry.status = status;
+}
+
+function createStructuredTimelineSeed({
+  runDocument,
+  createdAt,
+  requiresApproval,
+}: {
+  runDocument: AgentRunDocument;
+  createdAt: string;
+  requiresApproval: boolean;
+}) {
+  const goal = runDocument.run.goal.trim();
+  const inputText = runDocument.run.request?.command ?? goal;
+
+  runDocument.timeline.push(
+    createMessageTimelineEntry({
+      runId: runDocument.run.runId,
+      seq: 0,
+      createdAt,
+      content: goal,
+    }),
+  );
+  runDocument.timeline.push(
+    createPlanTimelineEntry({
+      runId: runDocument.run.runId,
+      seq: 1,
+      createdAt,
+      title: goal,
+      status: requiresApproval ? 'pending' : 'in_progress',
+    }),
+  );
+  runDocument.timeline.push(
+    createToolCallTimelineEntry({
+      runId: runDocument.run.runId,
+      seq: 2,
+      createdAt,
+      inputText,
+      status: 'queued',
+    }),
+  );
+}
+
+function formatStructuredToolCommand(command: string) {
+  const normalized = command.trim();
+  if (!normalized) {
+    return '';
+  }
+
+  const statements = normalized
+    .split(';')
+    .map(statement => statement.trim())
+    .filter(Boolean);
+  if (statements.length <= 1) {
+    return `$ ${normalized}\n`;
+  }
+
+  return `${statements.map(statement => `$ ${statement}`).join('\n')}\n`;
+}
+
+function buildStructuredToolResultOutput(document: AgentRunDocument) {
+  const terminalEntries = document.timeline.filter(
+    entry => entry.kind === 'terminal-event',
+  );
+  const output: string[] = [];
+
+  if (
+    terminalEntries.length > 0 &&
+    !terminalEntries.some(entry => entry.event === 'started')
+  ) {
+    const fallbackCommand =
+      terminalEntries.find(
+        entry => typeof entry.command === 'string' && entry.command.trim(),
+      )?.command ??
+      document.run.request?.command ??
+      document.run.goal;
+
+    if (fallbackCommand.trim()) {
+      output.push(formatStructuredToolCommand(fallbackCommand));
+    }
+  }
+
+  for (const entry of terminalEntries) {
+    switch (entry.event) {
+      case 'started':
+        output.push(formatStructuredToolCommand(entry.command ?? document.run.goal));
+        break;
+      case 'stdout':
+        output.push(entry.text ?? '');
+        break;
+      case 'stderr':
+        if (entry.text) {
+          output.push(`[stderr] ${entry.text}`);
+        }
+        break;
+      case 'stdin':
+        if (entry.text) {
+          output.push(`> ${entry.text}`);
+        }
+        break;
+      case 'exit':
+        output.push(`\n[exit ${entry.exitCode ?? 'unknown'}]\n`);
+        break;
+      default:
+        break;
+    }
+  }
+
+  return output.join('');
 }
 
 function resolveExitStatus({
@@ -660,12 +976,15 @@ export function createPersistedAgentTerminalRuntime({
       throw new Error('Persisted agent run is missing its terminal request.');
     }
 
+    const requestedArtifact = resolveRequestedAgentArtifact(request.env);
     let nextSeq =
       runDocument.timeline.reduce(
         (maxSeq, entry) => Math.max(maxSeq, entry.seq),
         -1,
       ) + 1;
     let cancelRequested = false;
+    let artifactRecorded = runDocument.timeline.some(entry => entry.kind === 'artifact');
+    let toolResultRecorded = hasStructuredToolResultEntry(runDocument);
 
     const persistSnapshot = (includeThreadState: boolean) =>
       enqueuePersistenceTask(async () => {
@@ -724,6 +1043,62 @@ export function createPersistedAgentTerminalRuntime({
       thread.updatedAt = createdAt;
     };
 
+    const appendRequestedArtifact = (createdAt: string) => {
+      if (!requestedArtifact || artifactRecorded) {
+        return;
+      }
+
+      runDocument.timeline.push(
+        createArtifactTimelineEntry({
+          entryId: createId('entry'),
+          artifactId: createId('artifact'),
+          runId: runDocument.run.runId,
+          seq: nextSeq,
+          createdAt,
+          artifact: requestedArtifact,
+        }),
+      );
+      nextSeq += 1;
+      artifactRecorded = true;
+      runDocument.run.updatedAt = createdAt;
+      thread.updatedAt = createdAt;
+      thread.lastRunStatus = runDocument.run.status;
+      thread.lastRunId = runDocument.run.runId;
+    };
+
+    const appendToolResult = ({
+      createdAt,
+      status,
+      outputText,
+      exitCode,
+    }: {
+      createdAt: string;
+      status: AgentToolResultTimelineEntry['status'];
+      outputText: string;
+      exitCode: number | null;
+    }) => {
+      if (toolResultRecorded) {
+        return;
+      }
+
+      runDocument.timeline.push(
+        createToolResultTimelineEntry({
+          runId: runDocument.run.runId,
+          seq: nextSeq,
+          createdAt,
+          status,
+          outputText,
+          exitCode,
+        }),
+      );
+      nextSeq += 1;
+      toolResultRecorded = true;
+      runDocument.run.updatedAt = createdAt;
+      thread.updatedAt = createdAt;
+      thread.lastRunStatus = runDocument.run.status;
+      thread.lastRunId = runDocument.run.runId;
+    };
+
     let sessionHandle: AgentTerminalSessionHandle;
     try {
       sessionHandle = await openAgentTerminalSession(
@@ -741,12 +1116,37 @@ export function createPersistedAgentTerminalRuntime({
               runDocument.run.status = 'running';
               runDocument.run.startedAt =
                 runDocument.run.startedAt ?? event.createdAt;
+              updateStructuredPlanStatus(runDocument, 'in_progress');
+              updateStructuredToolCallStatus(runDocument, 'running');
             } else if (event.event === 'exit') {
               runDocument.run.status = resolveExitStatus({
                 exitCode: event.exitCode,
                 cancelRequested,
               });
               runDocument.run.completedAt = event.createdAt;
+              updateStructuredPlanStatus(runDocument, 'completed');
+              updateStructuredToolCallStatus(
+                runDocument,
+                runDocument.run.status === 'completed'
+                  ? 'completed'
+                  : runDocument.run.status === 'failed'
+                    ? 'failed'
+                    : 'cancelled',
+              );
+              appendToolResult({
+                createdAt: event.createdAt,
+                status:
+                  runDocument.run.status === 'completed'
+                    ? 'success'
+                    : runDocument.run.status === 'failed'
+                      ? 'error'
+                      : 'cancelled',
+                outputText: buildStructuredToolResultOutput(runDocument),
+                exitCode: event.exitCode,
+              });
+              if (runDocument.run.status === 'completed') {
+                appendRequestedArtifact(event.createdAt);
+              }
             }
 
             thread.lastRunStatus = runDocument.run.status;
@@ -761,6 +1161,18 @@ export function createPersistedAgentTerminalRuntime({
           },
           onError(error) {
             const createdAt = now();
+            updateStructuredPlanStatus(runDocument, 'completed');
+            updateStructuredToolCallStatus(
+              runDocument,
+              cancelRequested ? 'cancelled' : 'failed',
+            );
+            appendToolResult({
+              createdAt,
+              status: cancelRequested ? 'cancelled' : 'error',
+              outputText:
+                buildStructuredToolResultOutput(runDocument) || error.message,
+              exitCode: null,
+            });
             appendErrorEvent({
               code: error.code,
               message: error.message,
@@ -786,6 +1198,15 @@ export function createPersistedAgentTerminalRuntime({
               code?: string;
             });
 
+      updateStructuredPlanStatus(runDocument, 'completed');
+      updateStructuredToolCallStatus(runDocument, 'failed');
+      appendToolResult({
+        createdAt,
+        status: 'error',
+        outputText:
+          buildStructuredToolResultOutput(runDocument) || normalizedError.message,
+        exitCode: null,
+      });
       appendErrorEvent({
         code: normalizedError.code,
         message: normalizedError.message,
@@ -885,6 +1306,11 @@ export function createPersistedAgentTerminalRuntime({
       resumedFromRunId,
       status: initialRunStatus,
     });
+    createStructuredTimelineSeed({
+      runDocument,
+      createdAt,
+      requiresApproval,
+    });
     const runIds = previousThreadState
       ? mergeRunIds(previousThreadState.runIds, runId)
       : [runId];
@@ -896,7 +1322,7 @@ export function createPersistedAgentTerminalRuntime({
         createApprovalTimelineEntry({
           entryId: createId('entry'),
           runId,
-          seq: 0,
+          seq: runDocument.timeline.length,
           createdAt,
           approvalId,
           title: options.approvalTitle?.trim() || goal,
@@ -991,6 +1417,25 @@ export function createPersistedAgentTerminalRuntime({
 
     const createdAt = now();
     pendingApproval.status = 'rejected';
+    updateStructuredPlanStatus(state.runDocument, 'completed');
+    updateStructuredToolCallStatus(state.runDocument, 'cancelled');
+    if (!hasStructuredToolResultEntry(state.runDocument)) {
+      const nextSeq =
+        state.runDocument.timeline.reduce(
+          (maxSeq, entry) => Math.max(maxSeq, entry.seq),
+          -1,
+        ) + 1;
+      state.runDocument.timeline.push(
+        createToolResultTimelineEntry({
+          runId: state.runDocument.run.runId,
+          seq: nextSeq,
+          createdAt,
+          status: 'cancelled',
+          outputText: '',
+          exitCode: null,
+        }),
+      );
+    }
     state.runDocument.run.status = 'cancelled';
     state.runDocument.run.updatedAt = createdAt;
     state.runDocument.run.completedAt = createdAt;
@@ -1024,6 +1469,25 @@ export function createPersistedAgentTerminalRuntime({
       }
 
       const interruptedAt = now();
+      updateStructuredPlanStatus(state.runDocument, 'completed');
+      updateStructuredToolCallStatus(state.runDocument, 'cancelled');
+      if (!hasStructuredToolResultEntry(state.runDocument)) {
+        const nextSeq =
+          state.runDocument.timeline.reduce(
+            (maxSeq, entry) => Math.max(maxSeq, entry.seq),
+            -1,
+          ) + 1;
+        state.runDocument.timeline.push(
+          createToolResultTimelineEntry({
+            runId: state.runDocument.run.runId,
+            seq: nextSeq,
+            createdAt: interruptedAt,
+            status: 'cancelled',
+            outputText: buildStructuredToolResultOutput(state.runDocument),
+            exitCode: null,
+          }),
+        );
+      }
       state.runDocument.run.status = 'interrupted';
       state.runDocument.run.updatedAt = interruptedAt;
       state.runDocument.run.completedAt =
@@ -1044,11 +1508,77 @@ export function createPersistedAgentTerminalRuntime({
     };
   }
 
+  async function reconcileRequestedRunArtifacts(): Promise<ReconcileRequestedAgentRunArtifactsResult> {
+    const threadIndex = await loadThreadIndex(readUserFile);
+    const reconciledRunIds: string[] = [];
+    const seenRunIds = new Set<string>();
+
+    for (const thread of threadIndex.threads) {
+      const rawThreadDocument = await readUserFile(
+        buildAgentThreadDocumentPath(thread.threadId),
+      );
+      const threadDocument = rawThreadDocument
+        ? parsePersistedAgentThreadDocument(rawThreadDocument)
+        : null;
+      const runIds = threadDocument?.runIds ?? (thread.lastRunId ? [thread.lastRunId] : []);
+
+      for (const runId of runIds) {
+        if (seenRunIds.has(runId)) {
+          continue;
+        }
+
+        seenRunIds.add(runId);
+        const state = await loadPersistedRunState(runId);
+        if (state.runDocument.run.status !== 'completed') {
+          continue;
+        }
+        if (state.runDocument.timeline.some(entry => entry.kind === 'artifact')) {
+          continue;
+        }
+
+        const requestedArtifact = resolveRequestedAgentArtifact(
+          state.runDocument.run.request?.env,
+        );
+        if (!requestedArtifact) {
+          continue;
+        }
+
+        const createdAt =
+          state.runDocument.run.completedAt ?? state.runDocument.run.updatedAt;
+        const nextSeq =
+          state.runDocument.timeline.reduce(
+            (maxSeq, entry) => Math.max(maxSeq, entry.seq),
+            -1,
+          ) + 1;
+        state.runDocument.timeline.push(
+          createArtifactTimelineEntry({
+            entryId: createId('entry'),
+            artifactId: createId('artifact'),
+            runId: state.runDocument.run.runId,
+            seq: nextSeq,
+            createdAt,
+            artifact: requestedArtifact,
+          }),
+        );
+        await persistUserFile(
+          buildAgentRunDocumentPath(state.runDocument.run.runId),
+          serializePersistedAgentRunDocument(state.runDocument),
+        );
+        reconciledRunIds.push(state.runDocument.run.runId);
+      }
+    }
+
+    return {
+      reconciledRunIds,
+    };
+  }
+
   return {
     openRun,
     approveRun,
     rejectRun,
     reconcileInterruptedRuns,
+    reconcileRequestedRunArtifacts,
   };
 }
 
@@ -1061,3 +1591,5 @@ export const rejectPersistedAgentTerminalRun =
   persistedAgentTerminalRuntime.rejectRun;
 export const reconcileInterruptedAgentRuns =
   persistedAgentTerminalRuntime.reconcileInterruptedRuns;
+export const reconcileRequestedAgentRunArtifacts =
+  persistedAgentTerminalRuntime.reconcileRequestedRunArtifacts;

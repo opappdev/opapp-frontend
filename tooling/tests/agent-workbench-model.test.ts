@@ -764,9 +764,118 @@ export function run() {
     assert.equal(orphanToolResultItem.result?.entryId, 'entry-2');
     assert.equal(orphanToolResultItem.toolName, null);
     assert.deepEqual(orphanToolResultItem.terminalEvents, []);
+    assert.equal(orphanToolResultItem.toolInvocationIndex, 1);
   } else {
     assert.fail(
       'expected the second grouped timeline item to preserve an unmatched tool result',
     );
   }
+
+  const multiToolTimelineItems = buildWorkbenchTimelineDisplayItems({
+    ...requestArtifactRunDocument,
+    timeline: [
+      {
+        entryId: 'entry-a1',
+        runId: 'run-artifact-request',
+        seq: 0,
+        kind: 'tool-call',
+        callId: 'tool-1',
+        toolName: 'shell_command',
+        status: 'completed',
+        inputText: 'git status',
+        createdAt: '2026-04-03T02:01:00.000Z',
+      },
+      {
+        entryId: 'entry-a2',
+        runId: 'run-artifact-request',
+        seq: 1,
+        kind: 'terminal-event',
+        sessionId: 'terminal-1',
+        event: 'stdout',
+        text: ' M first.ts\n',
+        cwd: 'opapp-frontend',
+        command: 'git status',
+        exitCode: null,
+        createdAt: '2026-04-03T02:01:01.000Z',
+      },
+      {
+        entryId: 'entry-a3',
+        runId: 'run-artifact-request',
+        seq: 2,
+        kind: 'tool-result',
+        callId: 'tool-1',
+        status: 'success',
+        outputText: '$ git status\n[exit 0]\n',
+        exitCode: 0,
+        createdAt: '2026-04-03T02:01:02.000Z',
+      },
+      {
+        entryId: 'entry-a4',
+        runId: 'run-artifact-request',
+        seq: 3,
+        kind: 'tool-call',
+        callId: 'tool-2',
+        toolName: 'shell_command',
+        status: 'completed',
+        inputText: 'git diff --stat',
+        createdAt: '2026-04-03T02:01:03.000Z',
+      },
+      {
+        entryId: 'entry-a5',
+        runId: 'run-artifact-request',
+        seq: 4,
+        kind: 'terminal-event',
+        sessionId: 'terminal-2',
+        event: 'stdout',
+        text: ' 1 file changed\n',
+        cwd: 'opapp-frontend',
+        command: 'git diff --stat',
+        exitCode: null,
+        createdAt: '2026-04-03T02:01:04.000Z',
+      },
+      {
+        entryId: 'entry-a6',
+        runId: 'run-artifact-request',
+        seq: 5,
+        kind: 'terminal-event',
+        sessionId: 'terminal-2',
+        event: 'exit',
+        text: null,
+        cwd: 'opapp-frontend',
+        command: 'git diff --stat',
+        exitCode: 0,
+        createdAt: '2026-04-03T02:01:05.000Z',
+      },
+      {
+        entryId: 'entry-a7',
+        runId: 'run-artifact-request',
+        seq: 6,
+        kind: 'tool-result',
+        callId: 'tool-2',
+        status: 'success',
+        outputText: '$ git diff --stat\n[exit 0]\n',
+        exitCode: 0,
+        createdAt: '2026-04-03T02:01:06.000Z',
+      },
+    ],
+  }).filter(item => item.kind === 'tool-invocation');
+  assert.deepEqual(
+    multiToolTimelineItems.map(item => ({
+      callId: item.callId,
+      toolInvocationIndex: item.toolInvocationIndex,
+      terminalEventIds: item.terminalEvents.map(event => event.entryId),
+    })),
+    [
+      {
+        callId: 'tool-1',
+        toolInvocationIndex: 1,
+        terminalEventIds: ['entry-a2'],
+      },
+      {
+        callId: 'tool-2',
+        toolInvocationIndex: 0,
+        terminalEventIds: ['entry-a5', 'entry-a6'],
+      },
+    ],
+  );
 }

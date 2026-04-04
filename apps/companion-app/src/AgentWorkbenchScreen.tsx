@@ -730,17 +730,10 @@ export function AgentWorkbenchScreen() {
     () => resolveWorkbenchRunArtifactSummary(selectedRunDocument),
     [selectedRunDocument],
   );
-  const selectedTimelineItems = useMemo(() => {
-    let toolInvocationIndex = 0;
-    return buildWorkbenchTimelineDisplayItems(selectedRunDocument).map(item =>
-      item.kind === 'tool-invocation'
-        ? {
-            ...item,
-            toolInvocationIndex: toolInvocationIndex++,
-          }
-        : item,
-    );
-  }, [selectedRunDocument]);
+  const selectedTimelineItems = useMemo(
+    () => buildWorkbenchTimelineDisplayItems(selectedRunDocument),
+    [selectedRunDocument],
+  );
   const selectedTimelineSummary = useMemo(
     () => summarizeWorkbenchTimeline(selectedRunDocument),
     [selectedRunDocument],
@@ -2920,8 +2913,7 @@ export function AgentWorkbenchScreen() {
                               key={item.key}
                               title={resolveToolInvocationTitle(item)}
                               defaultExpanded={
-                                (item.toolInvocationIndex === 0 &&
-                                  selectedTimelineSummary.toolCallCount <= 1) ||
+                                item.toolInvocationIndex === 0 ||
                                 !item.result ||
                                 item.result.status !== 'success' ||
                                 item.call?.status !== 'completed'

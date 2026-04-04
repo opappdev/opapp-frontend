@@ -60,6 +60,7 @@ type WorkbenchTimelineDisplayEntry = Exclude<
 export type WorkbenchToolInvocationTimelineItem = {
   kind: 'tool-invocation';
   key: string;
+  toolInvocationIndex: number;
   callId: string;
   toolName: string | null;
   call: AgentToolCallTimelineEntry | null;
@@ -522,6 +523,10 @@ export function buildWorkbenchTimelineDisplayItems(
     return [];
   }
 
+  type RawWorkbenchTimelineDisplayItem =
+    | Extract<WorkbenchTimelineDisplayItem, {kind: 'entry'}>
+    | Omit<WorkbenchToolInvocationTimelineItem, 'toolInvocationIndex'>;
+
   const toolResultsByCallId = new Map<string, AgentToolResultTimelineEntry[]>();
   for (const entry of document.timeline) {
     if (entry.kind !== 'tool-result') {
@@ -538,7 +543,7 @@ export function buildWorkbenchTimelineDisplayItems(
 
   const consumedToolResultIds = new Set<string>();
   const consumedTerminalEventIds = new Set<string>();
-  const displayItems: WorkbenchTimelineDisplayItem[] = [];
+  const displayItems: RawWorkbenchTimelineDisplayItem[] = [];
 
   for (const entry of document.timeline) {
     if (entry.kind === 'tool-call') {
@@ -615,7 +620,18 @@ export function buildWorkbenchTimelineDisplayItems(
     });
   }
 
-  return displayItems;
+  // Reserve tool.0 for the latest grouped invocation so smoke coverage stays
+  // stable after a run starts emitting more than one tool card.
+  let nextToolInvocationIndex =
+    displayItems.filter(item => item.kind === 'tool-invocation').length - 1;
+  return displayItems.map(item =>
+    item.kind === 'tool-invocation'
+      ? {
+          ...item,
+          toolInvocationIndex: nextToolInvocationIndex--,
+        }
+      : item,
+  );
 }
 
 export function resolveWorkbenchTaskDraft({

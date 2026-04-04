@@ -14,9 +14,11 @@ import {
   approvePersistedAgentTerminalRun,
   agentThreadIndexPath,
   buildAgentRunDocumentPath,
+  buildAgentThreadDocumentPath,
   openAgentTerminalSession,
   openPersistedAgentTerminalRun,
   parsePersistedAgentRunDocument,
+  parsePersistedAgentThreadDocument,
   parsePersistedAgentThreadIndex,
   rejectPersistedAgentTerminalRun,
   type AgentApprovalTimelineEntry,
@@ -66,6 +68,7 @@ import {
   createWorkspaceChoices,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
+  resolveThreadRunHistorySelection,
   resolveWorkspaceGitDiffCandidate,
 } from './agent-workbench-model';
 
@@ -245,21 +248,49 @@ function findPendingApproval(document: AgentRunDocument | null) {
   return null;
 }
 
-async function loadRunDocument(
+async function loadThreadRunHistory(
   threadId: string | null,
   threads: ReadonlyArray<AgentThreadSummary>,
+  preferredRunId: string | null,
 ) {
   const selectedThread =
     (threadId
       ? threads.find(thread => thread.threadId === threadId)
       : threads[0]) ?? null;
-  const runId = selectedThread?.lastRunId;
-  if (!runId) {
-    return null;
+  if (!selectedThread) {
+    return {
+      runDocuments: [] as AgentRunDocument[],
+      selectedRunId: null,
+      selectedRunDocument: null,
+    };
   }
 
-  const raw = await readUserFile(buildAgentRunDocumentPath(runId));
-  return raw ? parsePersistedAgentRunDocument(raw) : null;
+  const rawThreadDocument = await readUserFile(
+    buildAgentThreadDocumentPath(selectedThread.threadId),
+  );
+  const threadDocument = rawThreadDocument
+    ? parsePersistedAgentThreadDocument(rawThreadDocument)
+    : null;
+  const runIds =
+    threadDocument?.runIds.length
+      ? threadDocument.runIds
+      : selectedThread.lastRunId
+        ? [selectedThread.lastRunId]
+        : [];
+  const runDocuments = (
+    await Promise.all(
+      runIds.map(async runId => {
+        const rawDocument = await readUserFile(buildAgentRunDocumentPath(runId));
+        return rawDocument ? parsePersistedAgentRunDocument(rawDocument) : null;
+      }),
+    )
+  ).filter((document): document is AgentRunDocument => document !== null);
+
+  return resolveThreadRunHistorySelection({
+    runDocuments,
+    runIds,
+    currentRunId: preferredRunId,
+  });
 }
 
 function formatThreadSubtitle(thread: AgentThreadSummary) {
@@ -359,6 +390,10 @@ export function AgentWorkbenchScreen() {
   const [diffLoading, setDiffLoading] = useState(false);
   const [threads, setThreads] = useState<AgentThreadSummary[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [threadRunDocuments, setThreadRunDocuments] = useState<
+    AgentRunDocument[]
+  >([]);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRunDocument, setSelectedRunDocument] =
     useState<AgentRunDocument | null>(null);
   const [approvalBusy, setApprovalBusy] = useState<
@@ -377,11 +412,17 @@ export function AgentWorkbenchScreen() {
   const diffSessionRef = useRef<AgentTerminalSessionHandle | null>(null);
   const selectedCwdRef = useRef('');
   const selectedThreadIdRef = useRef<string | null>(null);
+  const selectedRunIdRef = useRef<string | null>(null);
   const diffRequestIdRef = useRef(0);
   const inspectorRequestIdRef = useRef(0);
   const searchRequestIdRef = useRef(0);
 
   const selectedRunStatus = selectedRunDocument?.run.status ?? null;
+  const latestThreadRunDocument = threadRunDocuments[0] ?? null;
+  const viewingHistoricalRun =
+    latestThreadRunDocument !== null &&
+    selectedRunId !== null &&
+    latestThreadRunDocument.run.runId !== selectedRunId;
   const selectedPendingApproval = useMemo(
     () => findPendingApproval(selectedRunDocument),
     [selectedRunDocument],
@@ -467,10 +508,12 @@ export function AgentWorkbenchScreen() {
     async ({
       preferredCwd,
       preferredThreadId,
+      preferredRunId,
       showRefreshFeedback = false,
     }: {
       preferredCwd?: string;
       preferredThreadId?: string | null;
+      preferredRunId?: string | null;
       showRefreshFeedback?: boolean;
     } = {}) => {
       const workspace = await getTrustedWorkspaceTarget();
@@ -491,9 +534,14 @@ export function AgentWorkbenchScreen() {
         nextThreads,
         preferredThreadId ?? selectedThreadIdRef.current,
       );
-      const runDocument = await loadRunDocument(
+      const {
+        runDocuments: nextThreadRunDocuments,
+        selectedRunId: nextSelectedRunId,
+        selectedRunDocument: runDocument,
+      } = await loadThreadRunHistory(
         nextSelectedThreadId,
         nextThreads,
+        preferredRunId ?? selectedRunIdRef.current,
       );
       const workspaceStat = workspace
         ? await statWorkspacePath(nextSelectedCwd)
@@ -504,6 +552,7 @@ export function AgentWorkbenchScreen() {
 
       selectedCwdRef.current = nextSelectedCwd;
       selectedThreadIdRef.current = nextSelectedThreadId;
+      selectedRunIdRef.current = nextSelectedRunId;
       setTrustedWorkspace(workspace);
       setWorkspaceDirectories(directories);
       setWorkspaceEntries(currentDirectoryEntries);
@@ -511,6 +560,8 @@ export function AgentWorkbenchScreen() {
       setSelectedWorkspaceStat(workspaceStat);
       setThreads(nextThreads);
       setSelectedThreadId(nextSelectedThreadId);
+      setThreadRunDocuments(nextThreadRunDocuments);
+      setSelectedRunId(nextSelectedRunId);
       setSelectedRunDocument(runDocument);
 
       if (showRefreshFeedback) {
@@ -540,6 +591,7 @@ export function AgentWorkbenchScreen() {
       void refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: activeRunInfo.threadId,
+        preferredRunId: selectedRunIdRef.current,
       });
     }, 800);
 
@@ -585,10 +637,12 @@ export function AgentWorkbenchScreen() {
   const attachActiveRunHandle = useCallback(
     (handle: PersistedAgentTerminalRunHandle) => {
       activeRunHandleRef.current = handle;
+      selectedRunIdRef.current = handle.runId;
       setActiveRunInfo({
         threadId: handle.threadId,
         runId: handle.runId,
       });
+      setSelectedRunId(handle.runId);
 
       void handle.whenSettled.catch(() => {}).finally(async () => {
         if (activeRunHandleRef.current?.runId === handle.runId) {
@@ -599,6 +653,7 @@ export function AgentWorkbenchScreen() {
         await refreshWorkbench({
           preferredCwd: selectedCwdRef.current,
           preferredThreadId: handle.threadId,
+          preferredRunId: handle.runId,
         });
       });
     },
@@ -636,6 +691,7 @@ export function AgentWorkbenchScreen() {
       await refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: handle.threadId,
+        preferredRunId: handle.runId,
       });
     } catch (error) {
       logException('agent-workbench.run.failed', error, {
@@ -646,6 +702,7 @@ export function AgentWorkbenchScreen() {
       await refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: selectedThreadIdRef.current,
+        preferredRunId: selectedRunIdRef.current,
       });
     }
   }, [attachActiveRunHandle, refreshWorkbench, trustedWorkspace]);
@@ -689,6 +746,7 @@ export function AgentWorkbenchScreen() {
       await refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: handle.threadId,
+        preferredRunId: handle.runId,
       });
     } catch (error) {
       logException('agent-workbench.approval.request.failed', error, {
@@ -700,6 +758,7 @@ export function AgentWorkbenchScreen() {
       await refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: selectedThreadIdRef.current,
+        preferredRunId: selectedRunIdRef.current,
       });
     } finally {
       setApprovalBusy(null);
@@ -730,6 +789,7 @@ export function AgentWorkbenchScreen() {
       await refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: handle.threadId,
+        preferredRunId: handle.runId,
       });
     } catch (error) {
       logException('agent-workbench.approval.approve.failed', error, {
@@ -741,6 +801,7 @@ export function AgentWorkbenchScreen() {
       await refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: selectedThreadIdRef.current,
+        preferredRunId: selectedRunIdRef.current,
       });
     } finally {
       setApprovalBusy(null);
@@ -773,6 +834,7 @@ export function AgentWorkbenchScreen() {
       await refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: selectedRunDocument.run.threadId,
+        preferredRunId: selectedRunDocument.run.runId,
       });
     } catch (error) {
       logException('agent-workbench.approval.reject.failed', error, {
@@ -784,6 +846,7 @@ export function AgentWorkbenchScreen() {
       await refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: selectedThreadIdRef.current,
+        preferredRunId: selectedRunIdRef.current,
       });
     } finally {
       setApprovalBusy(null);
@@ -1325,10 +1388,13 @@ export function AgentWorkbenchScreen() {
                           inactiveBadgeLabel={appI18n.agentWorkbench.threads.availableBadge}
                           onPress={() => {
                             selectedThreadIdRef.current = thread.threadId;
+                            selectedRunIdRef.current = null;
                             setSelectedThreadId(thread.threadId);
+                            setSelectedRunId(null);
                             void refreshWorkbench({
                               preferredCwd: selectedCwdRef.current,
                               preferredThreadId: thread.threadId,
+                              preferredRunId: null,
                             });
                           }}
                           style={screenStyles.choiceChip}
@@ -1572,11 +1638,92 @@ export function AgentWorkbenchScreen() {
 
                 <View style={screenStyles.sectionCard}>
                   <Text style={screenStyles.sectionTitle}>
+                    {appI18n.agentWorkbench.sections.runHistoryTitle}
+                  </Text>
+                  <Text style={screenStyles.sectionDescription}>
+                    {appI18n.agentWorkbench.sections.runHistoryDescription}
+                  </Text>
+
+                  {threadRunDocuments.length === 0 ? (
+                    <EmptyState
+                      title={appI18n.agentWorkbench.empty.runHistoryTitle}
+                      description={
+                        appI18n.agentWorkbench.empty.runHistoryDescription
+                      }
+                    />
+                  ) : (
+                    <View style={screenStyles.threadList}>
+                      {threadRunDocuments.map(document => (
+                        <ChoiceChip
+                          key={document.run.runId}
+                          testID={`agent-workbench.run-history.${document.run.runId}`}
+                          label={
+                            document.run.goal ||
+                            document.run.request?.command ||
+                            document.run.runId
+                          }
+                          detail={`${resolveRunStatusLabel(document.run.status)} · ${formatIsoTimestamp(document.run.updatedAt)}`}
+                          meta={
+                            document.run.runId === latestThreadRunDocument?.run.runId
+                              ? appI18n.agentWorkbench.runHistory.latest(
+                                  document.run.runId,
+                                )
+                              : document.run.resumedFromRunId
+                              ? appI18n.agentWorkbench.runHistory.resumedFrom(
+                                  document.run.resumedFromRunId,
+                                )
+                              : document.run.runId
+                          }
+                          active={document.run.runId === selectedRunId}
+                          activeBadgeLabel={
+                            appI18n.agentWorkbench.runHistory.selectedBadge
+                          }
+                          inactiveBadgeLabel={
+                            appI18n.agentWorkbench.runHistory.availableBadge
+                          }
+                          onPress={() => {
+                            selectedRunIdRef.current = document.run.runId;
+                            setSelectedRunId(document.run.runId);
+                            setSelectedRunDocument(document);
+                          }}
+                          style={screenStyles.choiceChip}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <View style={screenStyles.sectionCard}>
+                  <Text style={screenStyles.sectionTitle}>
                     {appI18n.agentWorkbench.sections.runTitle}
                   </Text>
                   <Text style={screenStyles.sectionDescription}>
                     {appI18n.agentWorkbench.sections.runDescription}
                   </Text>
+
+                  {viewingHistoricalRun && latestThreadRunDocument ? (
+                    <InfoPanel
+                      title={appI18n.agentWorkbench.runHistory.viewingHistoricalTitle}
+                      tone='neutral'>
+                      <View style={screenStyles.sectionBody}>
+                        <Text style={[screenStyles.infoText, {color: palette.ink}]}>
+                          {appI18n.agentWorkbench.runHistory.viewingHistoricalDescription(
+                            latestThreadRunDocument.run.runId,
+                          )}
+                        </Text>
+                        <ActionButton
+                          label={appI18n.agentWorkbench.actions.focusLatestRun}
+                          onPress={() => {
+                            selectedRunIdRef.current =
+                              latestThreadRunDocument.run.runId;
+                            setSelectedRunId(latestThreadRunDocument.run.runId);
+                            setSelectedRunDocument(latestThreadRunDocument);
+                          }}
+                          tone='ghost'
+                        />
+                      </View>
+                    </InfoPanel>
+                  ) : null}
 
                   {selectedRunDocument ? (
                     <>

@@ -4,6 +4,7 @@ import {
   buildWorkspaceWriteApprovalCommand,
   buildTerminalTranscript,
   createWorkspaceChoices,
+  resolveThreadRunHistorySelection,
   resolveWorkspaceGitDiffCandidate,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
@@ -133,6 +134,137 @@ export function run() {
     ),
     'thread-1',
   );
+
+  const runHistorySelection = resolveThreadRunHistorySelection({
+    runIds: ['run-1', 'run-2', 'run-3'],
+    currentRunId: 'run-2',
+    runDocuments: [
+      {
+        run: {
+          runId: 'run-1',
+          threadId: 'thread-1',
+          sessionId: 'terminal-1',
+          goal: 'Inspect repo',
+          status: 'completed',
+          createdAt: '2026-04-03T02:00:00.000Z',
+          updatedAt: '2026-04-03T02:00:01.000Z',
+          startedAt: '2026-04-03T02:00:00.000Z',
+          completedAt: '2026-04-03T02:00:01.000Z',
+          resumedFromRunId: null,
+          settings: {
+            workspace: {
+              rootPath: 'D:/code/opappdev',
+              displayName: 'opappdev',
+              trusted: true,
+            },
+            provider: {
+              providerId: 'custom-openai-compatible',
+              label: null,
+              apiFamily: 'chat-completions',
+              baseUrl: null,
+              model: null,
+            },
+            permissionMode: 'workspace-write',
+            approvalMode: 'manual',
+          },
+          request: {
+            command: 'git status',
+            cwd: 'opapp-frontend',
+            shell: 'powershell',
+            env: {},
+          },
+        },
+        timeline: [],
+      },
+      {
+        run: {
+          runId: 'run-2',
+          threadId: 'thread-1',
+          sessionId: 'terminal-2',
+          goal: 'Inspect diff',
+          status: 'completed',
+          createdAt: '2026-04-03T02:00:02.000Z',
+          updatedAt: '2026-04-03T02:00:03.000Z',
+          startedAt: '2026-04-03T02:00:02.000Z',
+          completedAt: '2026-04-03T02:00:03.000Z',
+          resumedFromRunId: 'run-1',
+          settings: {
+            workspace: {
+              rootPath: 'D:/code/opappdev',
+              displayName: 'opappdev',
+              trusted: true,
+            },
+            provider: {
+              providerId: 'custom-openai-compatible',
+              label: null,
+              apiFamily: 'chat-completions',
+              baseUrl: null,
+              model: null,
+            },
+            permissionMode: 'workspace-write',
+            approvalMode: 'manual',
+          },
+          request: {
+            command: 'git diff --stat',
+            cwd: 'opapp-frontend',
+            shell: 'powershell',
+            env: {},
+          },
+        },
+        timeline: [],
+      },
+      {
+        run: {
+          runId: 'run-3',
+          threadId: 'thread-1',
+          sessionId: 'terminal-3',
+          goal: 'Inspect logs',
+          status: 'running',
+          createdAt: '2026-04-03T02:00:04.000Z',
+          updatedAt: '2026-04-03T02:00:05.000Z',
+          startedAt: '2026-04-03T02:00:04.000Z',
+          completedAt: null,
+          resumedFromRunId: 'run-2',
+          settings: {
+            workspace: {
+              rootPath: 'D:/code/opappdev',
+              displayName: 'opappdev',
+              trusted: true,
+            },
+            provider: {
+              providerId: 'custom-openai-compatible',
+              label: null,
+              apiFamily: 'chat-completions',
+              baseUrl: null,
+              model: null,
+            },
+            permissionMode: 'workspace-write',
+            approvalMode: 'manual',
+          },
+          request: {
+            command: 'Get-Content log.txt',
+            cwd: 'opapp-desktop',
+            shell: 'powershell',
+            env: {},
+          },
+        },
+        timeline: [],
+      },
+    ],
+  });
+  assert.deepEqual(
+    runHistorySelection.runDocuments.map(document => document.run.runId),
+    ['run-3', 'run-2', 'run-1'],
+  );
+  assert.equal(runHistorySelection.selectedRunId, 'run-2');
+  assert.equal(runHistorySelection.selectedRunDocument?.run.runId, 'run-2');
+
+  const fallbackRunHistorySelection = resolveThreadRunHistorySelection({
+    runIds: [],
+    currentRunId: 'missing-run',
+    runDocuments: runHistorySelection.runDocuments,
+  });
+  assert.equal(fallbackRunHistorySelection.selectedRunId, 'run-3');
 
   assert.equal(
     buildTerminalTranscript({

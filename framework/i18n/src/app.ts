@@ -420,6 +420,7 @@ export const zhCNApp = {
       rejectingRequest: '正在拒绝...',
       cancelRun: '停止当前运行',
       openDirectory: '切换到此目录',
+      focusLatestRun: '回到最新 run',
     },
     feedback: {
       title: '工作台状态',
@@ -454,10 +455,13 @@ export const zhCNApp = {
         '在对应子仓库根目录执行 `git diff HEAD -- <path>`，把当前文件相对 HEAD 的差异直接显示在 workbench。',
       threadsTitle: '线程与运行',
       threadsDescription:
-        '这里显示 `agent-runtime/thread-index.json` 里的最新 thread 摘要，并默认选中最近一条 run。',
+        '这里显示 `agent-runtime/thread-index.json` 里的最新 thread 摘要，方便在线程之间切换。',
+      runHistoryTitle: '线程历史 Runs',
+      runHistoryDescription:
+        '按当前 thread 文档里的 `runIds` 逆序展示同线程执行链，便于回看同一任务的连续 run。',
       runTitle: '运行详情',
       runDescription:
-        '展示当前选中 run 的核心元数据，包括 goal、sessionId 和最近更新时间。',
+        '展示当前选中历史 run 的核心元数据，包括 goal、sessionId 和最近更新时间。',
       timelineTitle: '结构化时间线',
       timelineDescription:
         '当前最小闭环先持久化 `started / stdout / stderr / stdin / exit`，错误则落为 error timeline。',
@@ -482,6 +486,15 @@ export const zhCNApp = {
     threads: {
       selectedBadge: '当前线程',
       availableBadge: '可查看',
+    },
+    runHistory: {
+      selectedBadge: '当前 run',
+      availableBadge: '可查看',
+      latest: (runId: string) => `最新 · ${runId}`,
+      resumedFrom: (runId: string) => `承接自 ${runId}`,
+      viewingHistoricalTitle: '当前正在查看历史 run',
+      viewingHistoricalDescription: (runId: string) =>
+        `当前线程的最新 run 是 ${runId}。顶部动作仍会继续写入这个线程；如需跟随最新输出，可先切回最新 run。`,
     },
     run: {
       gitStatusTitle: 'Git Status',
@@ -573,6 +586,9 @@ export const zhCNApp = {
       threadsTitle: '还没有任何 run',
       threadsDescription:
         '点击“运行 git status”后，这里会生成新的 thread / run 记录。',
+      runHistoryTitle: '当前线程还没有历史 run',
+      runHistoryDescription:
+        '先在左侧选中一个已有执行记录的线程，或者启动一次新的 terminal run。',
       runTitle: '当前没有可展示的 run',
       runDescription:
         '先从当前 trusted workspace 启动一次 terminal run，再回来看结构化 run 文档。',

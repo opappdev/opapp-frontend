@@ -104,6 +104,64 @@ export function resolveSelectedThreadId(
   return threads[0]?.threadId ?? null;
 }
 
+function sortRunDocumentsByUpdatedAtDesc(
+  left: AgentRunDocument,
+  right: AgentRunDocument,
+) {
+  if (left.run.updatedAt === right.run.updatedAt) {
+    return right.run.runId.localeCompare(left.run.runId);
+  }
+
+  return right.run.updatedAt.localeCompare(left.run.updatedAt);
+}
+
+export function resolveThreadRunHistorySelection({
+  runDocuments,
+  runIds,
+  currentRunId,
+}: {
+  runDocuments: ReadonlyArray<AgentRunDocument>;
+  runIds: ReadonlyArray<string>;
+  currentRunId: string | null;
+}) {
+  const orderedRunDocuments: AgentRunDocument[] = [];
+  const runDocumentById = new Map(
+    runDocuments.map(document => [document.run.runId, document]),
+  );
+  const seenRunIds = new Set<string>();
+
+  for (let index = runIds.length - 1; index >= 0; index -= 1) {
+    const runId = runIds[index];
+    const document = runDocumentById.get(runId);
+    if (!document || seenRunIds.has(runId)) {
+      continue;
+    }
+
+    orderedRunDocuments.push(document);
+    seenRunIds.add(runId);
+  }
+
+  orderedRunDocuments.push(
+    ...runDocuments
+      .filter(document => !seenRunIds.has(document.run.runId))
+      .sort(sortRunDocumentsByUpdatedAtDesc),
+  );
+
+  const selectedRunId =
+    currentRunId &&
+    orderedRunDocuments.some(document => document.run.runId === currentRunId)
+      ? currentRunId
+      : orderedRunDocuments[0]?.run.runId ?? null;
+
+  return {
+    runDocuments: orderedRunDocuments,
+    selectedRunId,
+    selectedRunDocument:
+      orderedRunDocuments.find(document => document.run.runId === selectedRunId) ??
+      null,
+  };
+}
+
 export function buildTerminalTranscript(document: AgentRunDocument | null) {
   if (!document) {
     return '';

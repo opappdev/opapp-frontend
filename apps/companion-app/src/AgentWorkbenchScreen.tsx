@@ -75,6 +75,7 @@ export function AgentWorkbenchScreen() {
             <ActivityIndicator size='small' color={palette.accent} />
           </View>
         ) : null}
+        <View style={{flex: 1}} />
         <ActionButton
           testID='agent-workbench.action.run-git-status'
           label={
@@ -145,9 +146,9 @@ export function AgentWorkbenchScreen() {
         />
       </Toolbar>
 
-      {/* ── Feedback message (inline, not a panel) ── */}
+      {/* ── Feedback message ── */}
       {state.statusMessage ? (
-        <View style={{paddingHorizontal: 14, paddingVertical: 4}}>
+        <View style={{paddingHorizontal: 16, paddingVertical: 6, backgroundColor: palette.canvasShade}}>
           <Text
             testID='agent-workbench.status.message'
             style={[screenStyles.infoText, {color: state.statusTone === 'danger' ? palette.errorRed : palette.inkMuted}]}>

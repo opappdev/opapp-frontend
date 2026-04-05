@@ -15,8 +15,8 @@ export const textInputWarmupDelayMs = Platform.OS === 'windows' ? 1200 : 0;
  * Three-zone layout widths used by the workbench shell.
  * sidebar (threads/workspace) | main (task input + timeline) | context (inspector/run-detail)
  */
-const sidebarFlex = 0.24;
-const mainFlex = 0.50;
+const sidebarFlex = 0.22;
+const mainFlex = 0.52;
 const contextFlex = 0.26;
 
 export function createScreenStyles(palette: AppPalette) {
@@ -104,9 +104,9 @@ export function createScreenStyles(palette: AppPalette) {
     /** Main pane inner content (scrollable) */
     mainPaneInner: {
       flex: 1,
-      gap: appSpacing.sm,
+      gap: appSpacing.md,
       paddingHorizontal: appSpacing.lg,
-      paddingVertical: appSpacing.sm,
+      paddingVertical: appSpacing.md,
     },
     /** Right context: inspector + run detail */
     detailPane: {

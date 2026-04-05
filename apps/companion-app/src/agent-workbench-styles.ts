@@ -437,6 +437,7 @@ export function createScreenStyles(palette: AppPalette) {
       color: palette.inkMuted,
       opacity: 0.4,
       letterSpacing: -0.5,
+      fontStyle: 'italic',
     },
     conversationEmptyHint: {
       ...appTypography.body,
@@ -467,8 +468,8 @@ export function createScreenStyles(palette: AppPalette) {
       alignSelf: 'flex-start',
     },
     modeToggleItem: {
-      paddingHorizontal: appSpacing.lg2,
-      paddingVertical: appSpacing.xs,
+      paddingHorizontal: appSpacing.xl,
+      paddingVertical: appSpacing.sm,
     },
     modeToggleItemActive: {
       backgroundColor: palette.accentSoft,

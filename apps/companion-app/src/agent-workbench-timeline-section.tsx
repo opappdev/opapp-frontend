@@ -62,6 +62,7 @@ export function WorkbenchTimelineSection({
         <Text style={screenStyles.conversationEmptyTitle}>
           {appI18n.agentWorkbench.empty.timelineTitle}
         </Text>
+        <View style={{width: 40, height: 2, backgroundColor: palette.border, opacity: 0.4}} />
         <Text style={screenStyles.conversationEmptyHint}>
           {appI18n.agentWorkbench.empty.timelineDescription}
         </Text>

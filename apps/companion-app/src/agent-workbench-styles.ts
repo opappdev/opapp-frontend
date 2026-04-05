@@ -11,17 +11,17 @@ export const terminalFontFamily =
 export const textInputWarmupDelayMs = Platform.OS === 'windows' ? 1200 : 0;
 
 /**
- * Conversation-first workbench layout — Codex / Copilot-inspired.
+ * Codex / Copilot-grade workbench layout — Phase 6.
  *
- * Phase 5 redesign: elevated depth, generous breathing room, polished
- * typographic hierarchy, and clear interaction affordances.
- *
- * Sidebar rail (threads + runs)
- * | central conversation transcript (the hero)
- * | contextual detail drawer (file browser / diffs)
+ * Design principles:
+ * 1. Task is the hero — goal title first, system chrome recedes.
+ * 2. Restrained color — accent used only for interactive/active states.
+ * 3. Typography-driven hierarchy — weight & opacity, not color & borders.
+ * 4. Generous breathing room — let the conversation breathe.
+ * 5. Progressive disclosure — detail pane on-demand, sidebar compact.
  */
-const sidebarWidth = 280;
-const detailPaneWidth = 320;
+const sidebarWidth = 260;
+const detailPaneWidth = 300;
 
 export function createScreenStyles(palette: AppPalette) {
   return StyleSheet.create({
@@ -47,32 +47,32 @@ export function createScreenStyles(palette: AppPalette) {
       backgroundColor: palette.canvas,
     },
 
-    /* ── Toolbar (compact command bar) ────────────────── */
+    /* ── Toolbar (minimal status bar) ─────────────────── */
     toolbar: {
       justifyContent: 'flex-start',
       paddingVertical: appSpacing.xxs,
       paddingHorizontal: appSpacing.lg2,
-      borderBottomWidth: 1,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: palette.border,
-      backgroundColor: palette.panel,
-      minHeight: 40,
+      backgroundColor: palette.canvas,
+      minHeight: 36,
     },
     toolbarBusy: {
-      minWidth: 16,
+      minWidth: 14,
       alignItems: 'center',
       justifyContent: 'center',
     },
     toolbarGroup: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: appSpacing.xxs,
+      gap: appSpacing.xs,
     },
     toolbarDivider: {
-      width: 1,
-      height: 18,
+      width: StyleSheet.hairlineWidth,
+      height: 14,
       backgroundColor: palette.border,
       marginHorizontal: appSpacing.sm,
-      opacity: 0.4,
+      opacity: 0.5,
     },
 
     /* ── Info / feedback ──────────────────────────────── */
@@ -87,13 +87,11 @@ export function createScreenStyles(palette: AppPalette) {
 
     /* ── Status feedback bar ──────────────────────────── */
     feedbackBar: {
-      paddingHorizontal: 40,
-      paddingVertical: appSpacing.sm2,
-      backgroundColor: palette.canvasShade,
-      borderBottomWidth: 1,
+      paddingHorizontal: 32,
+      paddingVertical: appSpacing.sm,
+      backgroundColor: palette.panel,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: palette.border,
-      borderLeftWidth: 3,
-      borderLeftColor: palette.accent,
     },
 
     /* ── 2+1 zone layout ──────────────────────────────── */
@@ -109,8 +107,8 @@ export function createScreenStyles(palette: AppPalette) {
     /** Sidebar rail — threads & runs first */
     sidebar: {
       width: sidebarWidth,
-      backgroundColor: palette.panel,
-      borderRightWidth: 1,
+      backgroundColor: palette.canvas,
+      borderRightWidth: StyleSheet.hairlineWidth,
       borderRightColor: palette.border,
     },
     sidebarCompact: {
@@ -122,7 +120,7 @@ export function createScreenStyles(palette: AppPalette) {
       paddingHorizontal: appSpacing.sm2,
       paddingTop: appSpacing.lg2,
       paddingBottom: appSpacing.md,
-      gap: appSpacing.xl,
+      gap: appSpacing.lg2,
     },
 
     /** Main conversation area — single transcript column */
@@ -135,17 +133,17 @@ export function createScreenStyles(palette: AppPalette) {
     /** Main pane scrollable body — generous horizontal padding */
     mainPaneInner: {
       flex: 1,
-      gap: appSpacing.sm2,
-      paddingHorizontal: 40,
-      paddingTop: appSpacing.xxl,
-      paddingBottom: appSpacing.xl,
+      gap: appSpacing.lg,
+      paddingHorizontal: 48,
+      paddingTop: 28,
+      paddingBottom: appSpacing.xxl,
     },
 
     /** Right detail drawer */
     detailPane: {
       width: detailPaneWidth,
-      backgroundColor: palette.canvasShade,
-      borderLeftWidth: 1,
+      backgroundColor: palette.panel,
+      borderLeftWidth: StyleSheet.hairlineWidth,
       borderLeftColor: palette.border,
     },
     detailPaneCompact: {
@@ -154,52 +152,47 @@ export function createScreenStyles(palette: AppPalette) {
     },
     detailPaneInner: {
       flex: 1,
-      paddingHorizontal: appSpacing.lg2,
+      paddingHorizontal: appSpacing.lg,
       paddingVertical: appSpacing.lg2,
-      gap: appSpacing.lg,
+      gap: appSpacing.lg2,
     },
 
     /* ── Section containers ───────────────────────────── */
     sectionCard: {
-      gap: appSpacing.md,
+      gap: appSpacing.lg,
     },
     sectionCardCompact: {
-      gap: appSpacing.md,
+      gap: appSpacing.sm2,
     },
     sectionCardPrimary: {
       gap: appSpacing.md,
-      borderRadius: appRadius.control,
-      borderWidth: 1,
-      borderColor: palette.border,
+      borderRadius: appRadius.compact,
       backgroundColor: palette.panel,
-      paddingHorizontal: appSpacing.xl2,
-      paddingVertical: appSpacing.lg2,
+      paddingHorizontal: appSpacing.lg2,
+      paddingVertical: appSpacing.lg,
     },
-    /** Section labels — uppercase, muted, compact */
+    /** Section labels — muted, compact, no heavy decoration */
     sectionTitle: {
       color: palette.inkSoft,
       ...appTypography.label,
-      letterSpacing: 1.0,
+      letterSpacing: 1.2,
       textTransform: 'uppercase',
-      marginBottom: appSpacing.xs,
-      paddingBottom: appSpacing.sm,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: palette.border,
+      marginBottom: appSpacing.xxs,
     },
     sectionDescription: {
       color: palette.inkMuted,
       ...appTypography.caption,
       lineHeight: 18,
-      opacity: 0.8,
+      opacity: 0.7,
     },
     sectionBody: {
       gap: appSpacing.sm2,
     },
     sectionDivider: {
-      height: 1,
+      height: StyleSheet.hairlineWidth,
       backgroundColor: palette.border,
-      marginVertical: appSpacing.xs,
-      opacity: 0.4,
+      marginVertical: appSpacing.sm,
+      opacity: 0.3,
     },
 
     /* ── Sidebar list rows ────────────────────────────── */
@@ -207,15 +200,12 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: appSpacing.sm,
-      paddingHorizontal: appSpacing.sm2,
-      paddingVertical: appSpacing.sm2,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.sm,
       borderRadius: appRadius.compact,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: palette.border,
     },
     listRowActive: {
-      backgroundColor: palette.accentSoft,
-      borderBottomColor: palette.accent,
+      backgroundColor: palette.panelEmphasis,
     },
     listRowLabel: {
       ...appTypography.caption,
@@ -232,9 +222,9 @@ export function createScreenStyles(palette: AppPalette) {
       color: palette.inkMuted,
     },
     listRowIndicator: {
-      width: 3,
-      height: 24,
-      borderRadius: 1.5,
+      width: 2,
+      height: 20,
+      borderRadius: 1,
       backgroundColor: palette.accent,
     },
 
@@ -251,7 +241,7 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: appSpacing.sm2,
-      paddingTop: appSpacing.xs,
+      paddingTop: appSpacing.sm,
     },
     choiceGrid: {
       flexDirection: 'row',
@@ -272,58 +262,55 @@ export function createScreenStyles(palette: AppPalette) {
     },
     textInputShell: {
       width: '100%',
-      minHeight: 40,
-      borderWidth: 1,
-      borderRadius: appRadius.control,
+      minHeight: 38,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: appRadius.compact,
       justifyContent: 'center',
-      paddingHorizontal: appSpacing.lg2,
+      paddingHorizontal: appSpacing.lg,
     },
     textInputField: {
-      minHeight: 40,
+      minHeight: 38,
       paddingVertical: appSpacing.sm,
       fontSize: appTypography.body.fontSize,
       lineHeight: appTypography.body.lineHeight,
     },
     textInputPlaceholder: {
       width: '100%',
-      minHeight: 40,
-      borderWidth: 1,
-      borderRadius: appRadius.control,
+      minHeight: 38,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: appRadius.compact,
       justifyContent: 'center',
-      paddingHorizontal: appSpacing.lg2,
+      paddingHorizontal: appSpacing.lg,
       paddingVertical: appSpacing.sm,
     },
     textInputMultilineShell: {
-      minHeight: 64,
-      borderRadius: appRadius.control,
+      minHeight: 56,
+      borderRadius: appRadius.compact,
       alignItems: 'stretch',
       justifyContent: 'flex-start',
-      paddingVertical: appSpacing.sm2,
+      paddingVertical: appSpacing.sm,
     },
     textInputMultiline: {
-      minHeight: 48,
+      minHeight: 40,
     },
 
     /* ── Lists ────────────────────────────────────────── */
     threadList: {
-      gap: appSpacing.xxs,
+      gap: 2,
     },
     timelineList: {
-      gap: appSpacing.xl,
+      gap: appSpacing.lg2,
     },
     timelineStepList: {
-      gap: appSpacing.xxs,
+      gap: 2,
     },
     timelineStepRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: appSpacing.sm,
       borderRadius: appRadius.badge,
-      borderWidth: 0,
-      borderLeftWidth: 2,
-      borderLeftColor: palette.border,
       paddingHorizontal: appSpacing.sm2,
-      paddingVertical: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
     },
     timelineStepText: {
       flex: 1,
@@ -333,41 +320,39 @@ export function createScreenStyles(palette: AppPalette) {
     /* ── Conversation transcript items ────────────────── */
     messageItem: {
       gap: appSpacing.sm,
-      paddingVertical: appSpacing.lg2,
-      paddingHorizontal: appSpacing.lg2,
-      borderRadius: appRadius.control,
+      paddingVertical: appSpacing.sm2,
+      paddingHorizontal: appSpacing.lg,
+      borderRadius: appRadius.compact,
     },
     messageItemHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: appSpacing.sm2,
+      gap: appSpacing.sm,
     },
     messageItemRole: {
-      ...appTypography.captionBold,
-      color: palette.accent,
-      letterSpacing: 0.8,
+      ...appTypography.label,
+      color: palette.inkSoft,
+      letterSpacing: 0.6,
       textTransform: 'uppercase',
     },
     messageItemTime: {
       ...appTypography.label,
-      color: palette.inkSoft,
+      color: palette.inkMuted,
+      opacity: 0.6,
     },
     messageItemContent: {
       ...appTypography.body,
       color: palette.ink,
-      lineHeight: 24,
+      lineHeight: 22,
     },
 
     /* ── Tool invocation card ─────────────────────────── */
     toolCard: {
-      gap: appSpacing.sm2,
-      borderRadius: appRadius.control,
-      borderWidth: 0,
-      borderLeftWidth: 2,
-      borderLeftColor: palette.accent,
-      backgroundColor: palette.canvasShade,
-      paddingHorizontal: appSpacing.lg2,
-      paddingVertical: appSpacing.lg,
+      gap: appSpacing.sm,
+      borderRadius: appRadius.compact,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.sm2,
     },
     toolCardHeader: {
       flexDirection: 'row',
@@ -382,26 +367,25 @@ export function createScreenStyles(palette: AppPalette) {
     toolCardMeta: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: appSpacing.md,
+      gap: appSpacing.sm,
       paddingLeft: appSpacing.xxs,
     },
     toolCardMetaItem: {
       ...appTypography.label,
-      color: palette.inkSoft,
+      color: palette.inkMuted,
     },
 
     /* ── Expander body ────────────────────────────────── */
     expanderBody: {
-      gap: appSpacing.md,
-      paddingTop: appSpacing.xs,
+      gap: appSpacing.sm2,
+      paddingTop: appSpacing.xxs,
     },
 
     /* ── Terminal / code output ────────────────────────── */
     terminalBox: {
-      borderRadius: appRadius.control,
-      borderWidth: 1,
-      borderColor: palette.border,
-      paddingHorizontal: appSpacing.lg2,
+      borderRadius: appRadius.compact,
+      backgroundColor: palette.canvasShade,
+      paddingHorizontal: appSpacing.lg,
       paddingVertical: appSpacing.sm2,
     },
     terminalScroll: {
@@ -409,7 +393,7 @@ export function createScreenStyles(palette: AppPalette) {
     },
     terminalText: {
       fontSize: 12,
-      lineHeight: 20,
+      lineHeight: 18,
     },
 
     /* ── Summary pill row ─────────────────────────────── */
@@ -417,12 +401,9 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: appSpacing.sm,
-      paddingVertical: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
       paddingHorizontal: appSpacing.sm,
-      borderRadius: appRadius.badge,
-      backgroundColor: palette.canvasShade,
-      borderLeftWidth: 2,
-      borderLeftColor: palette.accent,
+      borderRadius: appRadius.compact,
     },
 
     /* ── Historical run banner ────────────────────────── */
@@ -430,11 +411,11 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: appSpacing.md,
-      paddingHorizontal: 40,
-      paddingVertical: appSpacing.md,
-      backgroundColor: palette.accentSoft,
-      borderBottomWidth: 1,
-      borderBottomColor: palette.accent,
+      paddingHorizontal: 32,
+      paddingVertical: appSpacing.sm,
+      backgroundColor: palette.panel,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.border,
     },
 
     /* ── Conversation empty state ─────────────────────── */
@@ -442,34 +423,30 @@ export function createScreenStyles(palette: AppPalette) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 120,
-      gap: appSpacing.xl2,
+      paddingVertical: 100,
+      gap: appSpacing.xl,
     },
     conversationEmptyTitle: {
-      ...appTypography.headline,
+      ...appTypography.title,
       color: palette.inkMuted,
-      opacity: 0.4,
-      letterSpacing: -0.5,
-      fontStyle: 'italic',
+      opacity: 0.3,
+      letterSpacing: -0.3,
     },
     conversationEmptyHint: {
       ...appTypography.body,
       color: palette.inkSoft,
       textAlign: 'center',
-      maxWidth: 420,
-      lineHeight: 24,
-      opacity: 0.6,
+      maxWidth: 380,
+      lineHeight: 22,
+      opacity: 0.5,
     },
 
     /* ── Run actions inline row ───────────────────────── */
     runActionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: appSpacing.md,
-      paddingVertical: appSpacing.xs,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: palette.border,
-      paddingTop: appSpacing.sm,
+      gap: appSpacing.sm,
+      paddingTop: appSpacing.xs,
     },
 
     /* ── Mode toggle ──────────────────────────────────── */
@@ -478,17 +455,17 @@ export function createScreenStyles(palette: AppPalette) {
       alignItems: 'center',
       gap: 0,
       borderRadius: appRadius.pill,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: palette.border,
       overflow: 'hidden',
       alignSelf: 'flex-start',
     },
     modeToggleItem: {
-      paddingHorizontal: appSpacing.xl,
-      paddingVertical: appSpacing.sm,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.xs,
     },
     modeToggleItemActive: {
-      backgroundColor: palette.accentSoft,
+      backgroundColor: palette.panelEmphasis,
     },
     modeToggleLabel: {
       ...appTypography.caption,
@@ -496,43 +473,43 @@ export function createScreenStyles(palette: AppPalette) {
       letterSpacing: 0.3,
     },
     modeToggleLabelActive: {
-      color: palette.accent,
-      fontWeight: '700',
+      color: palette.ink,
+      fontWeight: '600',
     },
 
     /* ── Composer (task input bar) ─────────────────────── */
     composerBar: {
-      borderTopWidth: 2,
-      borderTopColor: palette.accent,
-      backgroundColor: palette.panelEmphasis,
-      paddingHorizontal: 40,
-      paddingVertical: appSpacing.lg2,
-      gap: appSpacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.border,
+      backgroundColor: palette.panel,
+      paddingHorizontal: 48,
+      paddingVertical: appSpacing.lg,
+      gap: appSpacing.sm2,
     },
     composerInputRow: {
       flexDirection: 'row',
       alignItems: 'flex-end',
-      gap: appSpacing.sm2,
+      gap: appSpacing.sm,
     },
     composerActionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: appSpacing.md,
+      gap: appSpacing.sm2,
     },
 
     /* ── Transcript inline elements ───────────────────── */
     transcriptDivider: {
-      height: 1,
+      height: StyleSheet.hairlineWidth,
       backgroundColor: palette.border,
-      marginVertical: appSpacing.sm,
-      opacity: 0.3,
+      marginVertical: appSpacing.xs,
+      opacity: 0.2,
     },
     /** Inline terminal block within transcript */
     transcriptTerminal: {
-      borderRadius: appRadius.control,
+      borderRadius: appRadius.compact,
       backgroundColor: palette.canvasShade,
-      paddingHorizontal: appSpacing.lg2,
-      paddingVertical: appSpacing.lg,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.sm2,
       marginVertical: appSpacing.xxs,
     },
 
@@ -541,14 +518,10 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: appSpacing.sm,
-      paddingHorizontal: appSpacing.sm2,
-      paddingVertical: appSpacing.sm2,
-      borderRadius: appRadius.control,
-      backgroundColor: palette.canvasShade,
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderLeftWidth: 3,
-      borderLeftColor: palette.accent,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.sm,
+      borderRadius: appRadius.compact,
+      backgroundColor: palette.panelEmphasis,
     },
     workspaceSelectorLabel: {
       ...appTypography.caption,
@@ -565,13 +538,12 @@ export const baseStyles = StyleSheet.create({
     minWidth: 120,
     gap: 2,
     borderRadius: appRadius.badge,
-    borderWidth: 1,
     paddingHorizontal: appSpacing.sm,
     paddingVertical: appSpacing.xs,
   },
   detailFieldLabel: {
     ...appTypography.label,
-    opacity: 0.5,
+    opacity: 0.4,
   },
   detailFieldValue: {
     ...appTypography.caption,

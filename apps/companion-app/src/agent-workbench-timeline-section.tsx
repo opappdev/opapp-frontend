@@ -62,7 +62,6 @@ export function WorkbenchTimelineSection({
         <Text style={screenStyles.conversationEmptyTitle}>
           {appI18n.agentWorkbench.empty.timelineTitle}
         </Text>
-        <View style={{width: 48, height: 2, backgroundColor: palette.border, opacity: 0.4}} />
         <Text style={screenStyles.conversationEmptyHint}>
           {appI18n.agentWorkbench.empty.timelineDescription}
         </Text>
@@ -72,52 +71,42 @@ export function WorkbenchTimelineSection({
 
   return (
     <View style={screenStyles.sectionCard}>
-      {/* Compact summary pills */}
+      {/* Compact summary — text-only, no heavy pills */}
       <View style={screenStyles.summaryPillRow}>
         {selectedTimelineSummary.toolCallCount > 0 ? (
-          <SignalPill
-            label={appI18n.agentWorkbench.timelineSummary.toolCalls(
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+            {appI18n.agentWorkbench.timelineSummary.toolCalls(
               selectedTimelineSummary.toolCallCount,
             )}
-            tone='accent'
-            size='sm'
-          />
+          </Text>
         ) : null}
         {selectedTimelineSummary.messageCount > 0 ? (
-          <SignalPill
-            label={appI18n.agentWorkbench.timelineSummary.messages(
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+            {appI18n.agentWorkbench.timelineSummary.messages(
               selectedTimelineSummary.messageCount,
             )}
-            tone='support'
-            size='sm'
-          />
+          </Text>
         ) : null}
         {selectedTimelineSummary.approvalCount > 0 ? (
-          <SignalPill
-            label={appI18n.agentWorkbench.timelineSummary.approvals(
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+            {appI18n.agentWorkbench.timelineSummary.approvals(
               selectedTimelineSummary.approvalCount,
             )}
-            tone='warning'
-            size='sm'
-          />
+          </Text>
         ) : null}
         {selectedTimelineSummary.errorCount > 0 ? (
-          <SignalPill
-            label={appI18n.agentWorkbench.timelineSummary.errors(
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed}]}>
+            {appI18n.agentWorkbench.timelineSummary.errors(
               selectedTimelineSummary.errorCount,
             )}
-            tone='danger'
-            size='sm'
-          />
+          </Text>
         ) : null}
         {selectedTimelineSummary.artifactCount > 0 ? (
-          <SignalPill
-            label={appI18n.agentWorkbench.timelineSummary.artifacts(
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.support}]}>
+            {appI18n.agentWorkbench.timelineSummary.artifacts(
               selectedTimelineSummary.artifactCount,
             )}
-            tone='support'
-            size='sm'
-          />
+          </Text>
         ) : null}
       </View>
 
@@ -139,8 +128,8 @@ export function WorkbenchTimelineSection({
                 style={[
                   screenStyles.messageItem,
                   isUser
-                    ? {borderLeftWidth: 3, borderLeftColor: palette.support, backgroundColor: palette.panelEmphasis}
-                    : {backgroundColor: palette.canvasShade, borderLeftWidth: 2, borderLeftColor: palette.border},
+                    ? {backgroundColor: palette.panelEmphasis}
+                    : {backgroundColor: palette.panel},
                 ]}>
                 <View style={screenStyles.messageItemHeader}>
                   <Text style={[screenStyles.messageItemRole, isUser ? {color: palette.support} : null]}>
@@ -157,22 +146,20 @@ export function WorkbenchTimelineSection({
             );
           }
 
-          /* Plan entries — inline step list */
+          /* Plan entries — clean step list */
           if (entry.kind === 'plan') {
             return (
-              <View key={item.key} style={[screenStyles.transcriptTerminal, {borderLeftWidth: 2, borderLeftColor: palette.support}]}>
+              <View key={item.key} style={screenStyles.transcriptTerminal}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.sm}}>
-                  <Text style={[screenStyles.messageItemRole, {color: palette.inkMuted}]}>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
                     {appI18n.agentWorkbench.values.planProgress(
                       countCompletedPlanSteps(entry.steps),
                       entry.steps.length,
                     )}
                   </Text>
-                  <SignalPill
-                    label={resolveTimelineEntryTrailingLabel(entry)}
-                    tone={resolveTimelineEntryTone(entry)}
-                    size='sm'
-                  />
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                    {resolveTimelineEntryTrailingLabel(entry)}
+                  </Text>
                 </View>
                 <View style={screenStyles.timelineStepList}>
                   {entry.steps.map(step => (
@@ -181,8 +168,7 @@ export function WorkbenchTimelineSection({
                       style={[
                         screenStyles.timelineStepRow,
                         {
-                          backgroundColor: palette.panel,
-                          borderLeftColor: step.status === 'completed' ? palette.support : step.status === 'in_progress' ? palette.accent : palette.border,
+                          backgroundColor: step.status === 'completed' ? palette.panelEmphasis : palette.panel,
                         },
                       ]}>
                       <StatusBadge
@@ -206,22 +192,21 @@ export function WorkbenchTimelineSection({
             );
           }
 
-          /* Terminal events — inline terminal block */
+          /* Terminal events — clean terminal block */
           if (entry.kind === 'terminal-event') {
             return (
-              <View key={item.key} style={[screenStyles.transcriptTerminal, {borderLeftWidth: 2, borderLeftColor: palette.inkSoft}]}>
+              <View key={item.key} style={screenStyles.transcriptTerminal}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.xs}}>
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent, fontWeight: '700'}]}>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, fontWeight: '600'}]}>
                     {resolveTerminalEventLabel(entry.event)}
                   </Text>
                   {entry.command ? (
-                    <Text style={[screenStyles.terminalText, {color: palette.inkMuted, fontFamily: terminalFontFamily}]} numberOfLines={1}>
+                    <Text style={[screenStyles.terminalText, {color: palette.inkSoft, fontFamily: terminalFontFamily, flex: 1}]} numberOfLines={1}>
                       {entry.command}
                     </Text>
                   ) : null}
-                  <View style={{flex: 1}} />
                   {entry.exitCode !== null ? (
-                    <Text style={[screenStyles.toolCardMetaItem, {color: entry.exitCode === 0 ? palette.support : palette.errorRed, fontWeight: '700', fontFamily: terminalFontFamily}]}>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: entry.exitCode === 0 ? palette.support : palette.errorRed, fontFamily: terminalFontFamily}]}>
                       exit {entry.exitCode}
                     </Text>
                   ) : null}
@@ -240,30 +225,24 @@ export function WorkbenchTimelineSection({
             );
           }
 
-          /* Approval — inline panel with strong accent */
+          /* Approval — decision card */
           if (entry.kind === 'approval') {
             return (
               <View
                 key={item.key}
                 style={[
                   screenStyles.transcriptTerminal,
-                  {
-                    borderLeftWidth: 3,
-                    borderLeftColor: palette.accent,
-                    backgroundColor: palette.panelEmphasis,
-                  },
+                  {backgroundColor: palette.panelEmphasis},
                 ]}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.xs}}>
-                  <SignalPill
-                    label={resolveApprovalStatusLabel(entry.status)}
-                    tone='warning'
-                    size='sm'
-                  />
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent, fontWeight: '600'}]}>
+                    {resolveApprovalStatusLabel(entry.status)}
+                  </Text>
                   <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
                     {resolvePermissionModeLabel(entry.permissionMode)}
                   </Text>
                   <View style={{flex: 1}} />
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.6}]}>
                     {formatIsoTimestamp(entry.createdAt)}
                   </Text>
                 </View>
@@ -283,21 +262,14 @@ export function WorkbenchTimelineSection({
             );
           }
 
-          /* Error — inline with strong error accent */
+          /* Error — subtle error accent */
           if (entry.kind === 'error') {
             return (
               <View
                 key={item.key}
-                style={[
-                  screenStyles.transcriptTerminal,
-                  {
-                    borderLeftWidth: 3,
-                    borderLeftColor: palette.errorRed,
-                    backgroundColor: palette.panelEmphasis,
-                  },
-                ]}>
+                style={screenStyles.transcriptTerminal}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm}}>
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed, fontWeight: '700'}]}>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed, fontWeight: '600'}]}>
                     {entry.code ?? appI18n.common.unknown}
                   </Text>
                   <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
@@ -311,21 +283,16 @@ export function WorkbenchTimelineSection({
             );
           }
 
-          /* Artifact — compact inline with support accent */
+          /* Artifact — compact inline */
           if (entry.kind === 'artifact') {
             return (
               <View
                 key={item.key}
-                style={[
-                  screenStyles.transcriptTerminal,
-                  {borderLeftWidth: 3, borderLeftColor: palette.support},
-                ]}>
+                style={screenStyles.transcriptTerminal}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm}}>
-                  <SignalPill
-                    label={resolveArtifactKindLabel(entry.artifactKind)}
-                    tone='support'
-                    size='sm'
-                  />
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.support, fontWeight: '600'}]}>
+                    {resolveArtifactKindLabel(entry.artifactKind)}
+                  </Text>
                   <Text style={[screenStyles.infoText, {color: palette.ink}]} numberOfLines={1}>
                     {entry.label}
                   </Text>
@@ -383,7 +350,6 @@ function renderToolInvocation(
       }
       headerTestID={`${toolCardBaseTestID}.toggle`}
       contentTestID={`${toolCardBaseTestID}.content`}
-      style={{borderLeftWidth: 2, borderLeftColor: palette.accent}}
       trailing={
         <SignalPill
           label={resolveToolInvocationTrailingLabel(item)}
@@ -396,7 +362,7 @@ function renderToolInvocation(
         <View style={screenStyles.toolCardMeta}>
           <Text
             testID={`${toolCardBaseTestID}.name`}
-            style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
+            style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
             {item.toolName ?? appI18n.agentWorkbench.values.unknownTool}
           </Text>
           <Text
@@ -442,7 +408,7 @@ function renderToolInvocation(
         </View>
         {/* Input block */}
         <View style={[screenStyles.transcriptTerminal, {marginVertical: 0}]}>
-          <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent, marginBottom: appSpacing.xs, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 10}]}>$ input</Text>
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, marginBottom: appSpacing.xs, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 10}]}>$ input</Text>
           <Text
             testID={`${toolCardBaseTestID}.input`}
             style={[

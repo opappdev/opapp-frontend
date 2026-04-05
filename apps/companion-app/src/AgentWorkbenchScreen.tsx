@@ -56,11 +56,11 @@ export function AgentWorkbenchScreen() {
 
   return (
     <View testID='agent-workbench.screen' style={screenStyles.screen}>
-      {/* ── Toolbar — status indicators + grouped actions ── */}
+      {/* ── Toolbar — minimal status bar ── */}
       <Toolbar
         testID='agent-workbench.toolbar'
         style={screenStyles.toolbar}>
-        {/* Status group — left aligned */}
+        {/* Status group — left aligned, minimal */}
         <View style={screenStyles.toolbarGroup}>
           <SignalPill
             testID='agent-workbench.status.workspace'
@@ -69,7 +69,7 @@ export function AgentWorkbenchScreen() {
                 ? appI18n.agentWorkbench.workspace.ready
                 : appI18n.agentWorkbench.workspace.missing
             }
-            tone={state.trustedWorkspace ? 'support' : 'warning'}
+            tone={state.trustedWorkspace ? 'neutral' : 'warning'}
             size='sm'
           />
           <StatusBadge
@@ -88,7 +88,7 @@ export function AgentWorkbenchScreen() {
 
         <View style={{flex: 1}} />
 
-        {/* Primary actions group */}
+        {/* Contextual actions — only show when relevant */}
         <View style={screenStyles.toolbarGroup}>
           {state.activeRunInfo ? (
             <ActionButton
@@ -100,42 +100,54 @@ export function AgentWorkbenchScreen() {
               tone='ghost'
             />
           ) : null}
-          <ActionButton
-            testID='agent-workbench.action.run-git-status'
-            label={
-              state.activeRunInfo
-                ? appI18n.agentWorkbench.actions.runningGitStatus
-                : appI18n.agentWorkbench.actions.runGitStatus
-            }
-            onPress={() => {
-              void state.handleRunGitStatus();
-            }}
-            disabled={!state.trustedWorkspace || state.activeRunInfo !== null}
-            tone='ghost'
-          />
-          <ActionButton
-            testID='agent-workbench.action.request-write-approval'
-            label={
-              state.approvalBusy === 'requesting'
-                ? appI18n.agentWorkbench.actions.requestingWriteApproval
-                : appI18n.agentWorkbench.actions.requestWriteApproval
-            }
-            onPress={() => {
-              void state.handleRequestWriteApproval();
-            }}
-            disabled={
-              !state.trustedWorkspace ||
-              state.activeRunInfo !== null ||
-              state.approvalBusy !== null
-            }
-            tone='ghost'
-          />
+          {!state.activeRunInfo ? (
+            <ActionButton
+              testID='agent-workbench.action.run-git-status'
+              label={
+                state.activeRunInfo
+                  ? appI18n.agentWorkbench.actions.runningGitStatus
+                  : appI18n.agentWorkbench.actions.runGitStatus
+              }
+              onPress={() => {
+                void state.handleRunGitStatus();
+              }}
+              disabled={!state.trustedWorkspace || state.activeRunInfo !== null}
+              tone='ghost'
+            />
+          ) : null}
+          {!state.activeRunInfo ? (
+            <ActionButton
+              testID='agent-workbench.action.request-write-approval'
+              label={
+                state.approvalBusy === 'requesting'
+                  ? appI18n.agentWorkbench.actions.requestingWriteApproval
+                  : appI18n.agentWorkbench.actions.requestWriteApproval
+              }
+              onPress={() => {
+                void state.handleRequestWriteApproval();
+              }}
+              disabled={
+                !state.trustedWorkspace ||
+                state.activeRunInfo !== null ||
+                state.approvalBusy !== null
+              }
+              tone='ghost'
+            />
+          ) : null}
         </View>
 
         <View style={screenStyles.toolbarDivider} />
 
-        {/* Utility actions group */}
+        {/* Utility group */}
         <View style={screenStyles.toolbarGroup}>
+          {state.previousThreadRunDocument && !state.viewingHistoricalRun ? (
+            <ActionButton
+              testID='agent-workbench.action.view-previous-run'
+              label={appI18n.agentWorkbench.actions.viewPreviousRun}
+              onPress={state.handleViewPreviousRun}
+              tone='ghost'
+            />
+          ) : null}
           {state.selectedCwd ? (
             <ActionButton
               testID='agent-workbench.action.browse-workspace-root'
@@ -143,14 +155,6 @@ export function AgentWorkbenchScreen() {
               onPress={() => {
                 void state.handleBrowseDirectory('');
               }}
-              tone='ghost'
-            />
-          ) : null}
-          {state.previousThreadRunDocument && !state.viewingHistoricalRun ? (
-            <ActionButton
-              testID='agent-workbench.action.view-previous-run'
-              label={appI18n.agentWorkbench.actions.viewPreviousRun}
-              onPress={state.handleViewPreviousRun}
               tone='ghost'
             />
           ) : null}
@@ -181,10 +185,10 @@ export function AgentWorkbenchScreen() {
         </View>
       ) : null}
 
-      {/* ── Historical run banner ── */}
+      {/* ── Historical run banner — subtle ── */}
       {state.viewingHistoricalRun && state.latestThreadRunDocument ? (
         <View style={screenStyles.historicalBanner}>
-          <Text style={[screenStyles.infoText, {color: palette.inkMuted, flex: 1}]}>
+          <Text style={[screenStyles.sectionDescription, {flex: 1}]}>
             {appI18n.agentWorkbench.runHistory.viewingHistoricalDescription(
               state.latestThreadRunDocument.run.runId,
             )}

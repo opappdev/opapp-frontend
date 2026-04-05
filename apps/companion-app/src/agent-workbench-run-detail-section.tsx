@@ -83,7 +83,7 @@ export function WorkbenchRunDetailSection({
           tone='neutral'
           testID='agent-workbench.run-history.viewing-historical'>
           <View style={screenStyles.sectionBody}>
-            <Text style={[screenStyles.infoText, {color: palette.ink}]}>
+            <Text style={[screenStyles.sectionDescription, {color: palette.inkMuted}]}>
               {appI18n.agentWorkbench.runHistory.viewingHistoricalDescription(
                 latestThreadRunDocument.run.runId,
               )}
@@ -98,30 +98,34 @@ export function WorkbenchRunDetailSection({
         </InfoPanel>
       ) : null}
 
-      {/* Run goal as conversation header */}
+      {/* Run goal as hero heading */}
       <Text
         testID='agent-workbench.run.goal'
-        style={[
-          {
-            ...appTypography.title,
-            color: palette.ink,
-            lineHeight: 28,
-          },
-        ]}
+        style={{
+          ...appTypography.title,
+          color: palette.ink,
+          lineHeight: 28,
+        }}
         numberOfLines={3}>
         {selectedRunDocument.run.goal}
       </Text>
 
-      {/* Compact meta + actions row */}
+      {/* Subtle metadata line + inline actions */}
       <View style={screenStyles.runActionsRow}>
         <Text
           testID='agent-workbench.run.run-id'
-          style={[screenStyles.toolCardMetaItem, {color: palette.accent, fontWeight: '600'}]}
+          style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}
           numberOfLines={1}>
           {selectedRunDocument.run.runId}
         </Text>
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.5}]}>
+          ·
+        </Text>
         <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
           {`${selectedRunDocument.timeline.length} events`}
+        </Text>
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.5}]}>
+          ·
         </Text>
         <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
           {formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
@@ -129,6 +133,15 @@ export function WorkbenchRunDetailSection({
         <View style={{flex: 1}} />
         {selectedRunRequest ? (
           <>
+            {canInspectSelectedRunArtifact ? (
+              <ActionButton
+                testID='agent-workbench.action.inspect-run-artifact'
+                label={appI18n.agentWorkbench.actions.inspectRunArtifact}
+                onPress={onInspectArtifact}
+                disabled={!canInspectSelectedRunArtifact}
+                tone='ghost'
+              />
+            ) : null}
             {canRetrySelectedRun ? (
               <ActionButton
                 testID='agent-workbench.action.retry-selected-run'
@@ -148,15 +161,6 @@ export function WorkbenchRunDetailSection({
                 label={appI18n.agentWorkbench.actions.restoreRunWorkspace}
                 onPress={onRestore}
                 disabled={!canRestoreSelectedRunWorkspace}
-                tone='ghost'
-              />
-            ) : null}
-            {canInspectSelectedRunArtifact ? (
-              <ActionButton
-                testID='agent-workbench.action.inspect-run-artifact'
-                label={appI18n.agentWorkbench.actions.inspectRunArtifact}
-                onPress={onInspectArtifact}
-                disabled={!canInspectSelectedRunArtifact}
                 tone='ghost'
               />
             ) : null}
@@ -185,11 +189,10 @@ export function WorkbenchRunDetailSection({
         ) : null}
       </View>
 
-      {/* Collapsed details */}
+      {/* Collapsed details — minimal chrome */}
       <Expander
         title={appI18n.agentWorkbench.labels.runDetailExpanderTitle ?? 'Details'}
-        defaultExpanded={false}
-        style={{borderLeftWidth: 2, borderLeftColor: palette.border}}>
+        defaultExpanded={false}>
         <View style={screenStyles.expanderBody}>
           <View style={screenStyles.toolCardMeta}>
             <Text
@@ -245,34 +248,32 @@ export function WorkbenchRunDetailSection({
         </View>
       </Expander>
 
-      {/* Pending approval panel */}
+      {/* Pending approval — decision-focused card */}
       {selectedPendingApproval ? (
         <InfoPanel
           testID='agent-workbench.approval.panel'
           title={appI18n.agentWorkbench.approval.pendingTitle}
           tone='accent'>
           <View style={screenStyles.approvalPanel}>
-            <Text style={[
-              {
-                ...appTypography.bodyStrong,
-                color: palette.ink,
-                lineHeight: 22,
-              },
-            ]}>
+            <Text style={{
+              ...appTypography.bodyStrong,
+              color: palette.ink,
+              lineHeight: 22,
+            }}>
               {selectedPendingApproval.title}
             </Text>
             {selectedPendingApproval.details ? (
               <Text
                 style={[
                   screenStyles.terminalText,
-                  {color: palette.inkMuted, fontFamily: 'Consolas'},
+                  {color: palette.inkMuted, fontFamily: 'Consolas', opacity: 0.8},
                 ]}
                 numberOfLines={6}>
                 {selectedPendingApproval.details}
               </Text>
             ) : null}
-            <View style={screenStyles.toolCardMeta}>
-              <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent, fontWeight: '700'}]}>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+              <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
                 {resolveApprovalStatusLabel(
                   selectedPendingApproval.status,
                 )}

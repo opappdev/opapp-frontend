@@ -94,7 +94,7 @@ export function WorkbenchWorkspaceSection({
                   numberOfLines={1}
                   style={[
                     screenStyles.listRowLabel,
-                    isActive ? {color: palette.ink} : {color: palette.inkMuted},
+                    isActive ? {color: palette.ink, fontWeight: '600'} : {color: palette.inkMuted},
                   ]}>
                   {choice.label}
                 </Text>

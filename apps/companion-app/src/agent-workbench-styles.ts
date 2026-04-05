@@ -15,9 +15,9 @@ export const textInputWarmupDelayMs = Platform.OS === 'windows' ? 1200 : 0;
  * Three-zone layout widths used by the workbench shell.
  * sidebar (threads/workspace) | main (task input + timeline) | context (inspector/run-detail)
  */
-const sidebarFlex = 0.22;
+const sidebarFlex = 0.24;
 const mainFlex = 0.50;
-const contextFlex = 0.28;
+const contextFlex = 0.26;
 
 export function createScreenStyles(palette: AppPalette) {
   return StyleSheet.create({
@@ -31,10 +31,10 @@ export function createScreenStyles(palette: AppPalette) {
     },
     content: {
       flexGrow: 1,
-      paddingBottom: appSpacing.lg,
+      paddingBottom: appSpacing.md,
     },
     stack: {
-      gap: appSpacing.md,
+      gap: appSpacing.sm,
     },
     loadingShell: {
       flex: 1,
@@ -46,9 +46,10 @@ export function createScreenStyles(palette: AppPalette) {
     /* ── Toolbar ──────────────────────────────────────── */
     toolbar: {
       justifyContent: 'flex-start',
+      paddingVertical: appSpacing.xxs,
     },
     toolbarBusy: {
-      minWidth: 24,
+      minWidth: 20,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -58,16 +59,17 @@ export function createScreenStyles(palette: AppPalette) {
       ...appTypography.body,
     },
     loadingInline: {
-      minHeight: 28,
+      minHeight: 24,
       alignItems: 'center',
       justifyContent: 'center',
     },
 
     /* ── 3-zone layout ────────────────────────────────── */
     contentShell: {
+      flex: 1,
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: appSpacing.md,
+      alignItems: 'stretch',
+      gap: 1,
     },
     contentShellCompact: {
       flexDirection: 'column',
@@ -75,64 +77,83 @@ export function createScreenStyles(palette: AppPalette) {
     /** Left sidebar: threads + workspace selector */
     sidebar: {
       flex: sidebarFlex,
-      gap: appSpacing.md,
+      gap: 0,
+      backgroundColor: palette.panel,
+      borderRightWidth: 1,
+      borderRightColor: palette.border,
     },
     sidebarCompact: {
       width: '100%',
+      borderRightWidth: 0,
+    },
+    /** Sidebar inner padding container */
+    sidebarInner: {
+      flex: 1,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.sm,
+      gap: appSpacing.sm2,
     },
     /** Centre main: task input + timeline + terminal */
     mainPane: {
       flex: mainFlex,
-      gap: appSpacing.md,
+      gap: 0,
     },
     mainPaneCompact: {
       width: '100%',
     },
-    /** Right context: inspector + run detail + run history */
+    /** Main pane inner content (scrollable) */
+    mainPaneInner: {
+      flex: 1,
+      gap: appSpacing.sm,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.sm,
+    },
+    /** Right context: inspector + run detail */
     detailPane: {
       flex: contextFlex,
-      gap: appSpacing.md,
+      gap: 0,
+      backgroundColor: palette.panel,
+      borderLeftWidth: 1,
+      borderLeftColor: palette.border,
     },
     detailPaneCompact: {
       width: '100%',
+      borderLeftWidth: 0,
+    },
+    /** Detail pane inner container */
+    detailPaneInner: {
+      flex: 1,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.sm,
+      gap: appSpacing.sm2,
     },
 
     /* ── Section cards ────────────────────────────────── */
     sectionCard: {
       gap: appSpacing.sm,
-      borderRadius: appRadius.panel,
-      borderWidth: 1,
-      borderColor: palette.border,
-      backgroundColor: palette.panel,
-      paddingHorizontal: appSpacing.lg,
-      paddingVertical: appSpacing.md,
+      paddingVertical: appSpacing.xs,
     },
-    /** Minimised section used in sidebar – tighter padding */
+    /** Minimised section used in sidebar – no borders, just gaps */
     sectionCardCompact: {
       gap: appSpacing.xs,
-      borderRadius: appRadius.compact,
-      borderWidth: 1,
-      borderColor: palette.border,
-      backgroundColor: palette.panel,
-      paddingHorizontal: appSpacing.md,
-      paddingVertical: appSpacing.sm,
+      paddingVertical: appSpacing.xxs,
     },
-    /** Primary section – slightly stronger panel to anchor attention */
+    /** Primary section – task input area with subtle accent emphasis */
     sectionCardPrimary: {
       gap: appSpacing.sm,
       borderRadius: appRadius.panel,
       borderWidth: 1,
-      borderColor: palette.borderStrong,
-      backgroundColor: palette.panel,
-      paddingHorizontal: appSpacing.lg,
+      borderColor: palette.accentSoft,
+      backgroundColor: palette.canvasShade,
+      paddingHorizontal: appSpacing.md,
       paddingVertical: appSpacing.md,
     },
     sectionTitle: {
-      color: palette.ink,
-      ...appTypography.captionBold,
+      color: palette.inkMuted,
+      ...appTypography.label,
       textTransform: 'uppercase' as const,
       letterSpacing: 0.8,
-      opacity: 0.7,
+      marginBottom: appSpacing.xxs,
     },
     sectionDescription: {
       color: palette.inkMuted,
@@ -140,6 +161,12 @@ export function createScreenStyles(palette: AppPalette) {
     },
     sectionBody: {
       gap: appSpacing.sm,
+    },
+    /** Subtle divider between sidebar sections */
+    sectionDivider: {
+      height: 1,
+      backgroundColor: palette.border,
+      marginVertical: appSpacing.xxs,
     },
 
     /* ── Approval / detail grids ──────────────────────── */
@@ -149,7 +176,7 @@ export function createScreenStyles(palette: AppPalette) {
     detailGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: appSpacing.sm,
+      gap: appSpacing.xs,
     },
     actionRow: {
       flexDirection: 'row',
@@ -159,7 +186,7 @@ export function createScreenStyles(palette: AppPalette) {
     choiceGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: appSpacing.sm,
+      gap: appSpacing.xs,
     },
     choiceChip: {
       maxWidth: '100%',
@@ -170,34 +197,35 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.xxs,
     },
     inputLabel: {
-      ...appTypography.captionStrong,
-      opacity: 0.6,
+      ...appTypography.label,
+      opacity: 0.5,
     },
     textInputShell: {
       width: '100%',
-      minHeight: 40,
+      minHeight: 38,
       borderWidth: 1,
-      borderRadius: appRadius.control,
+      borderRadius: appRadius.pill,
       justifyContent: 'center',
-      paddingHorizontal: appSpacing.sm,
+      paddingHorizontal: appSpacing.md,
     },
     textInputField: {
-      minHeight: 40,
-      paddingVertical: appSpacing.xs,
+      minHeight: 38,
+      paddingVertical: appSpacing.xxs,
       fontSize: appTypography.body.fontSize,
       lineHeight: appTypography.body.lineHeight,
     },
     textInputPlaceholder: {
       width: '100%',
-      minHeight: 40,
+      minHeight: 38,
       borderWidth: 1,
-      borderRadius: appRadius.control,
+      borderRadius: appRadius.pill,
       justifyContent: 'center',
-      paddingHorizontal: appSpacing.sm,
-      paddingVertical: appSpacing.xs,
+      paddingHorizontal: appSpacing.md,
+      paddingVertical: appSpacing.xxs,
     },
     textInputMultilineShell: {
       minHeight: 72,
+      borderRadius: appRadius.control,
       alignItems: 'stretch',
       justifyContent: 'flex-start',
       paddingVertical: appSpacing.xs,
@@ -208,54 +236,111 @@ export function createScreenStyles(palette: AppPalette) {
 
     /* ── Lists ────────────────────────────────────────── */
     threadList: {
-      gap: appSpacing.xs,
+      gap: 2,
     },
     timelineList: {
       gap: appSpacing.xs,
     },
     timelineStepList: {
-      gap: appSpacing.xs,
+      gap: 2,
     },
     timelineStepRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: appSpacing.xs,
       borderRadius: appRadius.compact,
-      borderWidth: 1,
+      borderWidth: 0,
       paddingHorizontal: appSpacing.sm,
-      paddingVertical: appSpacing.xs,
+      paddingVertical: 3,
     },
     timelineStepText: {
       flex: 1,
       minWidth: 0,
     },
 
+    /* ── Conversation-style message items ─────────────── */
+    messageItem: {
+      gap: appSpacing.xxs,
+      paddingVertical: appSpacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: palette.border,
+    },
+    messageItemHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.sm,
+    },
+    messageItemRole: {
+      ...appTypography.captionBold,
+      color: palette.accent,
+    },
+    messageItemTime: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+    },
+    messageItemContent: {
+      ...appTypography.body,
+      color: palette.ink,
+      lineHeight: 22,
+    },
+
+    /* ── Tool invocation card (compact) ───────────────── */
+    toolCard: {
+      gap: appSpacing.xs,
+      borderRadius: appRadius.compact,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.canvasShade,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
+    },
+    toolCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+    },
+    toolCardTitle: {
+      ...appTypography.captionBold,
+      color: palette.ink,
+      flex: 1,
+    },
+    toolCardMeta: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: appSpacing.xs,
+      paddingLeft: appSpacing.xxs,
+    },
+    toolCardMetaItem: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+    },
+
     /* ── Expander body ────────────────────────────────── */
     expanderBody: {
-      gap: appSpacing.sm,
-      paddingTop: appSpacing.xs,
+      gap: appSpacing.xs,
+      paddingTop: appSpacing.xxs,
     },
 
     /* ── Terminal / code output ────────────────────────── */
     terminalBox: {
       borderRadius: appRadius.compact,
-      borderWidth: 1,
-      paddingHorizontal: appSpacing.md,
-      paddingVertical: appSpacing.sm,
+      borderWidth: 0,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
     },
     terminalScroll: {
-      maxHeight: 320,
+      maxHeight: 400,
     },
     terminalText: {
       fontSize: 12,
-      lineHeight: 17,
+      lineHeight: 18,
     },
 
     /* ── Summary pill row ─────────────────────────────── */
     summaryPillRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: appSpacing.xs,
+      gap: appSpacing.xxs,
     },
   });
 }
@@ -263,16 +348,16 @@ export function createScreenStyles(palette: AppPalette) {
 export const baseStyles = StyleSheet.create({
   detailField: {
     flexGrow: 1,
-    minWidth: 140,
-    gap: appSpacing.xxs,
+    minWidth: 120,
+    gap: 2,
     borderRadius: appRadius.compact,
     borderWidth: 1,
-    paddingHorizontal: appSpacing.sm,
-    paddingVertical: appSpacing.xs,
+    paddingHorizontal: appSpacing.xs,
+    paddingVertical: appSpacing.xxs,
   },
   detailFieldLabel: {
     ...appTypography.label,
-    opacity: 0.6,
+    opacity: 0.5,
   },
   detailFieldValue: {
     ...appTypography.caption,

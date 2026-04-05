@@ -9,10 +9,7 @@ import {
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
-  AppFrame,
-  InfoPanel,
   SignalPill,
-  Stack,
   StatusBadge,
   Toolbar,
   useTheme,
@@ -52,312 +49,302 @@ export function AgentWorkbenchScreen() {
 
   return (
     <View testID='agent-workbench.screen' style={screenStyles.screen}>
-      <ScrollView
-        style={screenStyles.scroll}
-        contentContainerStyle={screenStyles.content}>
-        <AppFrame
-          eyebrow={appI18n.agentWorkbench.frame.eyebrow}
-          title={appI18n.agentWorkbench.frame.title}
-          description={appI18n.agentWorkbench.frame.description}>
-          <Stack style={screenStyles.stack}>
-            {/* ── Compact toolbar: status + primary controls ── */}
-            <Toolbar
-              testID='agent-workbench.toolbar'
-              style={screenStyles.toolbar}>
-              <SignalPill
-                testID='agent-workbench.status.workspace'
-                label={
-                  state.trustedWorkspace
-                    ? appI18n.agentWorkbench.workspace.ready
-                    : appI18n.agentWorkbench.workspace.missing
-                }
-                tone={state.trustedWorkspace ? 'support' : 'warning'}
-                size='sm'
-              />
-              <StatusBadge
-                testID='agent-workbench.status.run'
-                label={resolveRunStatusLabel(state.selectedRunStatus)}
-                tone={resolveRunStatusTone(state.selectedRunStatus)}
-                emphasis='soft'
-                size='sm'
-              />
-              {state.activeRunInfo ? (
-                <View style={screenStyles.toolbarBusy}>
-                  <ActivityIndicator size='small' color={palette.accent} />
-                </View>
-              ) : null}
-              <ActionButton
-                testID='agent-workbench.action.run-git-status'
-                label={
-                  state.activeRunInfo
-                    ? appI18n.agentWorkbench.actions.runningGitStatus
-                    : appI18n.agentWorkbench.actions.runGitStatus
-                }
-                onPress={() => {
-                  void state.handleRunGitStatus();
-                }}
-                disabled={!state.trustedWorkspace || state.activeRunInfo !== null}
-              />
-              <ActionButton
-                testID='agent-workbench.action.request-write-approval'
-                label={
-                  state.approvalBusy === 'requesting'
-                    ? appI18n.agentWorkbench.actions.requestingWriteApproval
-                    : appI18n.agentWorkbench.actions.requestWriteApproval
-                }
-                onPress={() => {
-                  void state.handleRequestWriteApproval();
-                }}
-                disabled={
-                  !state.trustedWorkspace ||
-                  state.activeRunInfo !== null ||
-                  state.approvalBusy !== null
-                }
-              />
-              <ActionButton
-                testID='agent-workbench.action.cancel-run'
-                label={appI18n.agentWorkbench.actions.cancelRun}
-                onPress={() => {
-                  void state.handleCancelRun();
-                }}
-                disabled={state.activeRunInfo === null}
-                tone='ghost'
-              />
-              {state.selectedCwd ? (
-                <ActionButton
-                  testID='agent-workbench.action.browse-workspace-root'
-                  label={appI18n.agentWorkbench.actions.browseWorkspaceRoot}
-                  onPress={() => {
-                    void state.handleBrowseDirectory('');
-                  }}
-                  tone='ghost'
-                />
-              ) : null}
-              {state.previousThreadRunDocument && !state.viewingHistoricalRun ? (
-                <ActionButton
-                  testID='agent-workbench.action.view-previous-run'
-                  label={appI18n.agentWorkbench.actions.viewPreviousRun}
-                  onPress={state.handleViewPreviousRun}
-                  tone='ghost'
-                />
-              ) : null}
-              <ActionButton
-                testID='agent-workbench.action.refresh'
-                label={
-                  state.refreshing
-                    ? appI18n.agentWorkbench.actions.refreshing
-                    : appI18n.agentWorkbench.actions.refresh
-                }
-                onPress={() => {
-                  void state.handleRefresh();
-                }}
-                disabled={state.refreshing}
-                tone='ghost'
-              />
-            </Toolbar>
+      {/* ── Compact toolbar row ── */}
+      <Toolbar
+        testID='agent-workbench.toolbar'
+        style={screenStyles.toolbar}>
+        <SignalPill
+          testID='agent-workbench.status.workspace'
+          label={
+            state.trustedWorkspace
+              ? appI18n.agentWorkbench.workspace.ready
+              : appI18n.agentWorkbench.workspace.missing
+          }
+          tone={state.trustedWorkspace ? 'support' : 'warning'}
+          size='sm'
+        />
+        <StatusBadge
+          testID='agent-workbench.status.run'
+          label={resolveRunStatusLabel(state.selectedRunStatus)}
+          tone={resolveRunStatusTone(state.selectedRunStatus)}
+          emphasis='soft'
+          size='sm'
+        />
+        {state.activeRunInfo ? (
+          <View style={screenStyles.toolbarBusy}>
+            <ActivityIndicator size='small' color={palette.accent} />
+          </View>
+        ) : null}
+        <ActionButton
+          testID='agent-workbench.action.run-git-status'
+          label={
+            state.activeRunInfo
+              ? appI18n.agentWorkbench.actions.runningGitStatus
+              : appI18n.agentWorkbench.actions.runGitStatus
+          }
+          onPress={() => {
+            void state.handleRunGitStatus();
+          }}
+          disabled={!state.trustedWorkspace || state.activeRunInfo !== null}
+        />
+        <ActionButton
+          testID='agent-workbench.action.request-write-approval'
+          label={
+            state.approvalBusy === 'requesting'
+              ? appI18n.agentWorkbench.actions.requestingWriteApproval
+              : appI18n.agentWorkbench.actions.requestWriteApproval
+          }
+          onPress={() => {
+            void state.handleRequestWriteApproval();
+          }}
+          disabled={
+            !state.trustedWorkspace ||
+            state.activeRunInfo !== null ||
+            state.approvalBusy !== null
+          }
+        />
+        <ActionButton
+          testID='agent-workbench.action.cancel-run'
+          label={appI18n.agentWorkbench.actions.cancelRun}
+          onPress={() => {
+            void state.handleCancelRun();
+          }}
+          disabled={state.activeRunInfo === null}
+          tone='ghost'
+        />
+        {state.selectedCwd ? (
+          <ActionButton
+            testID='agent-workbench.action.browse-workspace-root'
+            label={appI18n.agentWorkbench.actions.browseWorkspaceRoot}
+            onPress={() => {
+              void state.handleBrowseDirectory('');
+            }}
+            tone='ghost'
+          />
+        ) : null}
+        {state.previousThreadRunDocument && !state.viewingHistoricalRun ? (
+          <ActionButton
+            testID='agent-workbench.action.view-previous-run'
+            label={appI18n.agentWorkbench.actions.viewPreviousRun}
+            onPress={state.handleViewPreviousRun}
+            tone='ghost'
+          />
+        ) : null}
+        <ActionButton
+          testID='agent-workbench.action.refresh'
+          label={
+            state.refreshing
+              ? appI18n.agentWorkbench.actions.refreshing
+              : appI18n.agentWorkbench.actions.refresh
+          }
+          onPress={() => {
+            void state.handleRefresh();
+          }}
+          disabled={state.refreshing}
+          tone='ghost'
+        />
+      </Toolbar>
 
-            {/* ── Feedback panel ── */}
-            {state.statusMessage ? (
-              <InfoPanel
-                testID='agent-workbench.status.panel'
-                title={appI18n.agentWorkbench.feedback.title}
-                tone={
-                  state.statusTone === 'support'
-                    ? 'accent'
-                    : state.statusTone === 'danger'
-                      ? 'danger'
-                      : 'neutral'
-                }>
-                <Text
-                  testID='agent-workbench.status.message'
-                  style={[screenStyles.infoText, {color: palette.ink}]}>
-                  {state.statusMessage}
-                </Text>
-              </InfoPanel>
-            ) : null}
+      {/* ── Feedback message (inline, not a panel) ── */}
+      {state.statusMessage ? (
+        <View style={{paddingHorizontal: 14, paddingVertical: 4}}>
+          <Text
+            testID='agent-workbench.status.message'
+            style={[screenStyles.infoText, {color: state.statusTone === 'danger' ? palette.errorRed : palette.inkMuted}]}>
+            {state.statusMessage}
+          </Text>
+        </View>
+      ) : null}
 
-            {/* ── 3-zone layout: sidebar | main | context ── */}
-            <View
-              style={[
-                screenStyles.contentShell,
-                isCompactLayout ? screenStyles.contentShellCompact : null,
-              ]}>
+      {/* ── 3-zone layout: sidebar | main | context ── */}
+      <View
+        style={[
+          screenStyles.contentShell,
+          isCompactLayout ? screenStyles.contentShellCompact : null,
+        ]}>
 
-              {/* ── LEFT: Sidebar (threads, workspace) ── */}
-              <View
-                style={[
-                  screenStyles.sidebar,
-                  isCompactLayout ? screenStyles.sidebarCompact : null,
-                ]}>
-                <WorkbenchWorkspaceSection
-                  trustedWorkspace={state.trustedWorkspace}
-                  selectedCwd={state.selectedCwd}
-                  selectedWorkspaceStat={state.selectedWorkspaceStat}
-                  workspaceChoices={state.workspaceChoices}
-                  onBrowseDirectory={relativePath => {
-                    void state.handleBrowseDirectory(relativePath);
-                  }}
-                  screenStyles={screenStyles}
-                />
+        {/* ── LEFT: Sidebar ── */}
+        <View
+          style={[
+            screenStyles.sidebar,
+            isCompactLayout ? screenStyles.sidebarCompact : null,
+          ]}>
+          <ScrollView contentContainerStyle={screenStyles.sidebarInner}>
+            <WorkbenchWorkspaceSection
+              trustedWorkspace={state.trustedWorkspace}
+              selectedCwd={state.selectedCwd}
+              selectedWorkspaceStat={state.selectedWorkspaceStat}
+              workspaceChoices={state.workspaceChoices}
+              onBrowseDirectory={relativePath => {
+                void state.handleBrowseDirectory(relativePath);
+              }}
+              screenStyles={screenStyles}
+            />
 
-                <WorkbenchThreadsSection
-                  threads={state.threads}
-                  selectedThreadId={state.selectedThreadId}
-                  onSelectThread={state.handleSelectThread}
-                  screenStyles={screenStyles}
-                />
+            <View style={screenStyles.sectionDivider} />
 
-                <WorkbenchRunHistorySection
-                  threadRunDocuments={state.threadRunDocuments}
-                  selectedRunId={state.selectedRunId}
-                  latestThreadRunDocument={state.latestThreadRunDocument}
-                  onSelectRun={state.handleSelectRun}
-                  screenStyles={screenStyles}
-                />
-              </View>
+            <WorkbenchThreadsSection
+              threads={state.threads}
+              selectedThreadId={state.selectedThreadId}
+              onSelectThread={state.handleSelectThread}
+              screenStyles={screenStyles}
+            />
 
-              {/* ── CENTRE: Main (task draft + timeline + terminal) ── */}
-              <View
-                style={[
-                  screenStyles.mainPane,
-                  isCompactLayout ? screenStyles.mainPaneCompact : null,
-                ]}>
-                <WorkbenchTaskDraftSection
-                  trustedWorkspace={state.trustedWorkspace}
-                  textInputsReady={state.textInputsReady}
-                  draftGoal={state.draftGoal}
-                  draftCommand={state.draftCommand}
-                  draftRequiresApproval={state.draftRequiresApproval}
-                  draftTask={state.draftTask}
-                  taskDraftBusy={state.taskDraftBusy}
-                  activeRunInfo={state.activeRunInfo}
-                  approvalBusy={state.approvalBusy}
-                  onDraftGoalChange={state.handleDraftGoalChange}
-                  onDraftCommandChange={state.handleDraftCommandChange}
-                  onSelectDirectMode={state.handleSelectDirectDraftMode}
-                  onSelectApprovalMode={state.handleSelectApprovalDraftMode}
-                  onPopulateWriteApprovalDraft={
-                    state.handlePopulateWriteApprovalDraft
-                  }
-                  onStartDraftTask={() => {
-                    void state.handleStartDraftTask();
-                  }}
-                  screenStyles={screenStyles}
-                />
+            <View style={screenStyles.sectionDivider} />
 
-                <WorkbenchRunDetailSection
-                  selectedRunDocument={state.selectedRunDocument}
-                  selectedRunRequest={state.selectedRunRequest}
-                  selectedPendingApproval={state.selectedPendingApproval}
-                  selectedRunArtifactKind={state.selectedRunArtifactKind}
-                  selectedRunArtifactLabel={state.selectedRunArtifactLabel}
-                  selectedRunArtifactPath={state.selectedRunArtifactPath}
-                  selectedRunArtifactHasStandaloneLabel={
-                    state.selectedRunArtifactHasStandaloneLabel
-                  }
-                  canRetrySelectedRun={state.canRetrySelectedRun}
-                  canRestoreSelectedRunWorkspace={
-                    state.canRestoreSelectedRunWorkspace
-                  }
-                  canInspectSelectedRunArtifact={
-                    state.canInspectSelectedRunArtifact
-                  }
-                  retryBusy={state.retryBusy}
-                  approvalBusy={state.approvalBusy}
-                  viewingHistoricalRun={state.viewingHistoricalRun}
-                  latestThreadRunDocument={state.latestThreadRunDocument}
-                  onRetry={() => {
-                    void state.handleRetrySelectedRun();
-                  }}
-                  onRestore={() => {
-                    void state.handleRestoreSelectedRunWorkspace();
-                  }}
-                  onInspectArtifact={() => {
-                    void state.handleInspectSelectedRunArtifact();
-                  }}
-                  onApprove={() => {
-                    void state.handleApproveSelectedRun();
-                  }}
-                  onReject={() => {
-                    void state.handleRejectSelectedRun();
-                  }}
-                  onFocusLatestRun={state.handleFocusLatestRun}
-                  screenStyles={screenStyles}
-                />
+            <WorkbenchRunHistorySection
+              threadRunDocuments={state.threadRunDocuments}
+              selectedRunId={state.selectedRunId}
+              latestThreadRunDocument={state.latestThreadRunDocument}
+              onSelectRun={state.handleSelectRun}
+              screenStyles={screenStyles}
+            />
+          </ScrollView>
+        </View>
 
-                <WorkbenchTimelineSection
-                  selectedRunDocument={state.selectedRunDocument}
-                  selectedTimelineItems={state.selectedTimelineItems}
-                  selectedTimelineSummary={state.selectedTimelineSummary}
-                  screenStyles={screenStyles}
-                />
+        {/* ── CENTRE: Main content ── */}
+        <View
+          style={[
+            screenStyles.mainPane,
+            isCompactLayout ? screenStyles.mainPaneCompact : null,
+          ]}>
+          <ScrollView contentContainerStyle={screenStyles.mainPaneInner}>
+            <WorkbenchTaskDraftSection
+              trustedWorkspace={state.trustedWorkspace}
+              textInputsReady={state.textInputsReady}
+              draftGoal={state.draftGoal}
+              draftCommand={state.draftCommand}
+              draftRequiresApproval={state.draftRequiresApproval}
+              draftTask={state.draftTask}
+              taskDraftBusy={state.taskDraftBusy}
+              activeRunInfo={state.activeRunInfo}
+              approvalBusy={state.approvalBusy}
+              onDraftGoalChange={state.handleDraftGoalChange}
+              onDraftCommandChange={state.handleDraftCommandChange}
+              onSelectDirectMode={state.handleSelectDirectDraftMode}
+              onSelectApprovalMode={state.handleSelectApprovalDraftMode}
+              onPopulateWriteApprovalDraft={
+                state.handlePopulateWriteApprovalDraft
+              }
+              onStartDraftTask={() => {
+                void state.handleStartDraftTask();
+              }}
+              screenStyles={screenStyles}
+            />
 
-                <WorkbenchTerminalSection
-                  terminalTranscript={state.terminalTranscript}
-                  screenStyles={screenStyles}
-                />
-              </View>
+            <WorkbenchRunDetailSection
+              selectedRunDocument={state.selectedRunDocument}
+              selectedRunRequest={state.selectedRunRequest}
+              selectedPendingApproval={state.selectedPendingApproval}
+              selectedRunArtifactKind={state.selectedRunArtifactKind}
+              selectedRunArtifactLabel={state.selectedRunArtifactLabel}
+              selectedRunArtifactPath={state.selectedRunArtifactPath}
+              selectedRunArtifactHasStandaloneLabel={
+                state.selectedRunArtifactHasStandaloneLabel
+              }
+              canRetrySelectedRun={state.canRetrySelectedRun}
+              canRestoreSelectedRunWorkspace={
+                state.canRestoreSelectedRunWorkspace
+              }
+              canInspectSelectedRunArtifact={
+                state.canInspectSelectedRunArtifact
+              }
+              retryBusy={state.retryBusy}
+              approvalBusy={state.approvalBusy}
+              viewingHistoricalRun={state.viewingHistoricalRun}
+              latestThreadRunDocument={state.latestThreadRunDocument}
+              onRetry={() => {
+                void state.handleRetrySelectedRun();
+              }}
+              onRestore={() => {
+                void state.handleRestoreSelectedRunWorkspace();
+              }}
+              onInspectArtifact={() => {
+                void state.handleInspectSelectedRunArtifact();
+              }}
+              onApprove={() => {
+                void state.handleApproveSelectedRun();
+              }}
+              onReject={() => {
+                void state.handleRejectSelectedRun();
+              }}
+              onFocusLatestRun={state.handleFocusLatestRun}
+              screenStyles={screenStyles}
+            />
 
-              {/* ── RIGHT: Context (inspector, directory, search) ── */}
-              <View
-                style={[
-                  screenStyles.detailPane,
-                  isCompactLayout ? screenStyles.detailPaneCompact : null,
-                ]}>
-                <WorkbenchInspectorSection
-                  selectedInspectorEntry={state.selectedInspectorEntry}
-                  selectedInspectorChildren={state.selectedInspectorChildren}
-                  selectedInspectorContent={state.selectedInspectorContent}
-                  inspectorLoading={state.inspectorLoading}
-                  selectedCwd={state.selectedCwd}
-                  selectedDiffPath={state.selectedDiffPath}
-                  selectedDiffOutput={state.selectedDiffOutput}
-                  selectedDiffError={state.selectedDiffError}
-                  diffLoading={state.diffLoading}
-                  selectedGitDiffCommand={state.selectedGitDiffCommand}
-                  onInspectEntry={entry => {
-                    void state.handleInspectWorkspaceEntry(entry);
-                  }}
-                  onBrowseDirectory={relativePath => {
-                    void state.handleBrowseDirectory(relativePath);
-                  }}
-                  onLoadDiff={() => {
-                    void state.handleLoadSelectedDiff();
-                  }}
-                  screenStyles={screenStyles}
-                />
+            <WorkbenchTimelineSection
+              selectedRunDocument={state.selectedRunDocument}
+              selectedTimelineItems={state.selectedTimelineItems}
+              selectedTimelineSummary={state.selectedTimelineSummary}
+              screenStyles={screenStyles}
+            />
 
-                <WorkbenchDirectorySection
-                  trustedWorkspace={state.trustedWorkspace}
-                  workspaceEntries={state.workspaceEntries}
-                  selectedInspectorEntry={state.selectedInspectorEntry}
-                  onInspectEntry={entry => {
-                    void state.handleInspectWorkspaceEntry(entry);
-                  }}
-                  screenStyles={screenStyles}
-                />
+            <WorkbenchTerminalSection
+              terminalTranscript={state.terminalTranscript}
+              screenStyles={screenStyles}
+            />
+          </ScrollView>
+        </View>
 
-                <WorkbenchSearchSection
-                  trustedWorkspace={state.trustedWorkspace}
-                  textInputsReady={state.textInputsReady}
-                  searchQuery={state.searchQuery}
-                  searching={state.searching}
-                  searchResults={state.searchResults}
-                  selectedInspectorEntry={state.selectedInspectorEntry}
-                  onSearchQueryChange={state.handleSearchQueryChange}
-                  onSearch={() => {
-                    void state.handleSearch();
-                  }}
-                  onInspectEntry={entry => {
-                    void state.handleInspectWorkspaceEntry(entry);
-                  }}
-                  screenStyles={screenStyles}
-                />
-              </View>
-            </View>
-          </Stack>
-        </AppFrame>
-      </ScrollView>
+        {/* ── RIGHT: Context pane ── */}
+        <View
+          style={[
+            screenStyles.detailPane,
+            isCompactLayout ? screenStyles.detailPaneCompact : null,
+          ]}>
+          <ScrollView contentContainerStyle={screenStyles.detailPaneInner}>
+            <WorkbenchInspectorSection
+              selectedInspectorEntry={state.selectedInspectorEntry}
+              selectedInspectorChildren={state.selectedInspectorChildren}
+              selectedInspectorContent={state.selectedInspectorContent}
+              inspectorLoading={state.inspectorLoading}
+              selectedCwd={state.selectedCwd}
+              selectedDiffPath={state.selectedDiffPath}
+              selectedDiffOutput={state.selectedDiffOutput}
+              selectedDiffError={state.selectedDiffError}
+              diffLoading={state.diffLoading}
+              selectedGitDiffCommand={state.selectedGitDiffCommand}
+              onInspectEntry={entry => {
+                void state.handleInspectWorkspaceEntry(entry);
+              }}
+              onBrowseDirectory={relativePath => {
+                void state.handleBrowseDirectory(relativePath);
+              }}
+              onLoadDiff={() => {
+                void state.handleLoadSelectedDiff();
+              }}
+              screenStyles={screenStyles}
+            />
+
+            <WorkbenchDirectorySection
+              trustedWorkspace={state.trustedWorkspace}
+              workspaceEntries={state.workspaceEntries}
+              selectedInspectorEntry={state.selectedInspectorEntry}
+              onInspectEntry={entry => {
+                void state.handleInspectWorkspaceEntry(entry);
+              }}
+              screenStyles={screenStyles}
+            />
+
+            <WorkbenchSearchSection
+              trustedWorkspace={state.trustedWorkspace}
+              textInputsReady={state.textInputsReady}
+              searchQuery={state.searchQuery}
+              searching={state.searching}
+              searchResults={state.searchResults}
+              selectedInspectorEntry={state.selectedInspectorEntry}
+              onSearchQueryChange={state.handleSearchQueryChange}
+              onSearch={() => {
+                void state.handleSearch();
+              }}
+              onInspectEntry={entry => {
+                void state.handleInspectWorkspaceEntry(entry);
+              }}
+              screenStyles={screenStyles}
+            />
+          </ScrollView>
+        </View>
+      </View>
     </View>
   );
 }

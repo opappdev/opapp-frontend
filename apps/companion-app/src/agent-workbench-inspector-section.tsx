@@ -15,7 +15,6 @@ import {
   formatWorkspaceEntryMeta,
   resolveWorkspaceKindLabel,
 } from './agent-workbench-resolvers';
-import {DetailField} from './agent-workbench-components';
 import {type createScreenStyles, terminalFontFamily} from './agent-workbench-styles';
 
 type WorkbenchInspectorSectionProps = {
@@ -70,26 +69,21 @@ export function WorkbenchInspectorSection({
         />
       ) : (
         <View style={screenStyles.sectionBody}>
-          <View style={screenStyles.detailGrid}>
-            <DetailField
-              label={appI18n.agentWorkbench.labels.relativePath}
-              value={
-                selectedInspectorEntry.relativePath ||
-                appI18n.agentWorkbench.workspace.rootLabel
-              }
-            />
-            <DetailField
-              label={appI18n.agentWorkbench.labels.currentType}
-              value={resolveWorkspaceKindLabel(selectedInspectorEntry.kind)}
-            />
-            <DetailField
-              label={appI18n.agentWorkbench.labels.size}
-              value={formatSizeBytes(selectedInspectorEntry.sizeBytes)}
-            />
-            <DetailField
-              label={appI18n.agentWorkbench.labels.childCount}
-              value={`${selectedInspectorChildren.length}`}
-            />
+          <View style={screenStyles.toolCardMeta}>
+            <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]} numberOfLines={1}>
+              {selectedInspectorEntry.relativePath || appI18n.agentWorkbench.workspace.rootLabel}
+            </Text>
+            <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+              {resolveWorkspaceKindLabel(selectedInspectorEntry.kind)}
+            </Text>
+            <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+              {formatSizeBytes(selectedInspectorEntry.sizeBytes)}
+            </Text>
+            {selectedInspectorChildren.length > 0 ? (
+              <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                {`${selectedInspectorChildren.length} items`}
+              </Text>
+            ) : null}
           </View>
 
           {inspectorLoading ? (

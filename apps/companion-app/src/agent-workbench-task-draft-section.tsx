@@ -68,100 +68,92 @@ export function WorkbenchTaskDraftSection({
         />
       ) : (
         <View style={screenStyles.sectionBody}>
-          <View style={screenStyles.inputFieldGroup}>
-            <Text style={[screenStyles.inputLabel, {color: palette.inkSoft}]}>
-              {appI18n.agentWorkbench.labels.draftGoal}
-            </Text>
-            {textInputsReady ? (
-              <View
+          {/* Goal input — no label, placeholder-only */}
+          {textInputsReady ? (
+            <View
+              style={[
+                screenStyles.textInputShell,
+                {
+                  borderColor: palette.border,
+                  backgroundColor: palette.panel,
+                },
+              ]}>
+              <RNTextInput
+                testID='agent-workbench.task.goal-input'
+                value={draftGoal}
+                onChangeText={onDraftGoalChange}
+                placeholder={
+                  appI18n.agentWorkbench.taskDraft.goalPlaceholder
+                }
+                placeholderTextColor={palette.inkSoft}
                 style={[
-                  screenStyles.textInputShell,
+                  screenStyles.textInputField,
                   {
-                    borderColor: palette.border,
-                    backgroundColor: palette.panel,
+                    color: palette.ink,
                   },
-                ]}>
-                <RNTextInput
-                  testID='agent-workbench.task.goal-input'
-                  value={draftGoal}
-                  onChangeText={onDraftGoalChange}
-                  placeholder={
-                    appI18n.agentWorkbench.taskDraft.goalPlaceholder
-                  }
-                  placeholderTextColor={palette.inkSoft}
-                  style={[
-                    screenStyles.textInputField,
-                    {
-                      color: palette.ink,
-                    },
-                  ]}
-                />
-              </View>
-            ) : (
-              <View
-                style={[
-                  screenStyles.textInputPlaceholder,
-                  {
-                    borderColor: palette.border,
-                    backgroundColor: palette.panel,
-                  },
-                ]}>
-                <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
-                  {appI18n.agentWorkbench.taskDraft.goalPlaceholder}
-                </Text>
-              </View>
-            )}
-          </View>
+                ]}
+              />
+            </View>
+          ) : (
+            <View
+              style={[
+                screenStyles.textInputPlaceholder,
+                {
+                  borderColor: palette.border,
+                  backgroundColor: palette.panel,
+                },
+              ]}>
+              <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+                {appI18n.agentWorkbench.taskDraft.goalPlaceholder}
+              </Text>
+            </View>
+          )}
 
-          <View style={screenStyles.inputFieldGroup}>
-            <Text style={[screenStyles.inputLabel, {color: palette.inkSoft}]}>
-              {appI18n.agentWorkbench.labels.draftCommand}
-            </Text>
-            {textInputsReady ? (
-              <View
+          {/* Command input — no label */}
+          {textInputsReady ? (
+            <View
+              style={[
+                screenStyles.textInputShell,
+                screenStyles.textInputMultilineShell,
+                {
+                  borderColor: palette.border,
+                  backgroundColor: palette.panel,
+                },
+              ]}>
+              <RNTextInput
+                testID='agent-workbench.task.command-input'
+                value={draftCommand}
+                onChangeText={onDraftCommandChange}
+                placeholder={
+                  appI18n.agentWorkbench.taskDraft.commandPlaceholder
+                }
+                placeholderTextColor={palette.inkSoft}
+                multiline
+                textAlignVertical='top'
                 style={[
-                  screenStyles.textInputShell,
-                  screenStyles.textInputMultilineShell,
+                  screenStyles.textInputField,
+                  screenStyles.textInputMultiline,
                   {
-                    borderColor: palette.border,
-                    backgroundColor: palette.panel,
+                    color: palette.ink,
                   },
-                ]}>
-                <RNTextInput
-                  testID='agent-workbench.task.command-input'
-                  value={draftCommand}
-                  onChangeText={onDraftCommandChange}
-                  placeholder={
-                    appI18n.agentWorkbench.taskDraft.commandPlaceholder
-                  }
-                  placeholderTextColor={palette.inkSoft}
-                  multiline
-                  textAlignVertical='top'
-                  style={[
-                    screenStyles.textInputField,
-                    screenStyles.textInputMultiline,
-                    {
-                      color: palette.ink,
-                    },
-                  ]}
-                />
-              </View>
-            ) : (
-              <View
-                style={[
-                  screenStyles.textInputPlaceholder,
-                  screenStyles.textInputMultilineShell,
-                  {
-                    borderColor: palette.border,
-                    backgroundColor: palette.panel,
-                  },
-                ]}>
-                <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
-                  {appI18n.agentWorkbench.taskDraft.commandPlaceholder}
-                </Text>
-              </View>
-            )}
-          </View>
+                ]}
+              />
+            </View>
+          ) : (
+            <View
+              style={[
+                screenStyles.textInputPlaceholder,
+                screenStyles.textInputMultilineShell,
+                {
+                  borderColor: palette.border,
+                  backgroundColor: palette.panel,
+                },
+              ]}>
+              <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+                {appI18n.agentWorkbench.taskDraft.commandPlaceholder}
+              </Text>
+            </View>
+          )}
 
           <View style={screenStyles.choiceGrid}>
             <ChoiceChip

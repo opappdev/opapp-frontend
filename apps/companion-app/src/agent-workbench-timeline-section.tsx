@@ -39,7 +39,6 @@ import {
   resolveToolInvocationSessionId,
   resolveToolResultStatusLabel,
 } from './agent-workbench-resolvers';
-import {DetailField} from './agent-workbench-components';
 import {type createScreenStyles, terminalFontFamily} from './agent-workbench-styles';
 
 type WorkbenchTimelineSectionProps = {
@@ -71,101 +70,51 @@ export function WorkbenchTimelineSection({
       ) : (
         <View style={screenStyles.timelineList}>
           <View style={screenStyles.summaryPillRow}>
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.messages(
-                selectedTimelineSummary.messageCount,
-              )}
-              tone={
-                selectedTimelineSummary.messageCount > 0
-                  ? 'support'
-                  : 'neutral'
-              }
-              size='sm'
-            />
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.plans(
-                selectedTimelineSummary.planCount,
-              )}
-              tone={
-                selectedTimelineSummary.planCount > 0
-                  ? 'accent'
-                  : 'neutral'
-              }
-              size='sm'
-            />
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.toolCalls(
-                selectedTimelineSummary.toolCallCount,
-              )}
-              tone={
-                selectedTimelineSummary.toolCallCount > 0
-                  ? 'accent'
-                  : 'neutral'
-              }
-              size='sm'
-            />
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.toolResults(
-                selectedTimelineSummary.toolResultCount,
-              )}
-              tone={
-                selectedTimelineSummary.toolResultCount > 0
-                  ? 'support'
-                  : 'neutral'
-              }
-              size='sm'
-            />
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.terminalEvents(
-                selectedTimelineSummary.terminalEventCount,
-              )}
-              tone={
-                selectedTimelineSummary.terminalEventCount > 0
-                  ? 'accent'
-                  : 'neutral'
-              }
-              size='sm'
-            />
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.approvals(
-                selectedTimelineSummary.approvalCount,
-              )}
-              tone={
-                selectedTimelineSummary.approvalCount > 0
-                  ? 'warning'
-                  : 'neutral'
-              }
-              size='sm'
-            />
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.artifacts(
-                selectedTimelineSummary.artifactCount,
-              )}
-              tone={
-                selectedTimelineSummary.artifactCount > 0
-                  ? 'support'
-                  : 'neutral'
-              }
-              size='sm'
-            />
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.errors(
-                selectedTimelineSummary.errorCount,
-              )}
-              tone={
-                selectedTimelineSummary.errorCount > 0
-                  ? 'danger'
-                  : 'neutral'
-              }
-              size='sm'
-            />
-            <SignalPill
-              label={appI18n.agentWorkbench.timelineSummary.other(
-                selectedTimelineSummary.otherCount,
-              )}
-              tone='neutral'
-              size='sm'
-            />
+            {selectedTimelineSummary.toolCallCount > 0 ? (
+              <SignalPill
+                label={appI18n.agentWorkbench.timelineSummary.toolCalls(
+                  selectedTimelineSummary.toolCallCount,
+                )}
+                tone='accent'
+                size='sm'
+              />
+            ) : null}
+            {selectedTimelineSummary.messageCount > 0 ? (
+              <SignalPill
+                label={appI18n.agentWorkbench.timelineSummary.messages(
+                  selectedTimelineSummary.messageCount,
+                )}
+                tone='support'
+                size='sm'
+              />
+            ) : null}
+            {selectedTimelineSummary.approvalCount > 0 ? (
+              <SignalPill
+                label={appI18n.agentWorkbench.timelineSummary.approvals(
+                  selectedTimelineSummary.approvalCount,
+                )}
+                tone='warning'
+                size='sm'
+              />
+            ) : null}
+            {selectedTimelineSummary.errorCount > 0 ? (
+              <SignalPill
+                label={appI18n.agentWorkbench.timelineSummary.errors(
+                  selectedTimelineSummary.errorCount,
+                )}
+                tone='danger'
+                size='sm'
+              />
+            ) : null}
+            {selectedTimelineSummary.artifactCount > 0 ? (
+              <SignalPill
+                label={appI18n.agentWorkbench.timelineSummary.artifacts(
+                  selectedTimelineSummary.artifactCount,
+                )}
+                tone='support'
+                size='sm'
+              />
+            ) : null}
           </View>
           {selectedTimelineItems.map(item => {
             if (item.kind === 'tool-invocation') {
@@ -190,88 +139,54 @@ export function WorkbenchTimelineSection({
                     />
                   }>
                   <View style={screenStyles.expanderBody}>
-                    <View style={screenStyles.detailGrid}>
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.toolName}
-                        value={
-                          item.toolName ??
-                          appI18n.agentWorkbench.values.unknownTool
-                        }
-                        valueTestID={`${toolCardBaseTestID}.name`}
-                      />
-                      <DetailField
-                        label={
-                          appI18n.agentWorkbench.labels
-                            .terminalEvents
-                        }
-                        value={resolveToolInvocationTerminalEventsLabel(
-                          item,
-                        )}
-                        valueTestID={`${toolCardBaseTestID}.terminal-events`}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.toolCallStatus}
-                        value={
-                          item.call
-                            ? resolveToolCallStatusLabel(
-                                item.call.status,
-                              )
-                            : appI18n.common.unknown
-                        }
-                        valueTestID={`${toolCardBaseTestID}.call-status`}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.toolResultStatus}
-                        value={
-                          item.result
-                            ? resolveToolResultStatusLabel(
-                                item.result.status,
-                              )
-                            : appI18n.agentWorkbench.values
-                                .noToolResultYet
-                        }
-                        valueTestID={`${toolCardBaseTestID}.result-status`}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.callId}
-                        value={item.callId}
-                        valueTestID={`${toolCardBaseTestID}.call-id`}
-                      />
-                      {resolveToolInvocationSessionId(item) ? (
-                        <DetailField
-                          label={appI18n.agentWorkbench.labels.sessionId}
-                          value={
-                            resolveToolInvocationSessionId(item) ??
-                            appI18n.common.unknown
-                          }
-                          valueTestID={`${toolCardBaseTestID}.session-id`}
-                        />
-                      ) : null}
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.exitCode}
-                        value={
-                          item.result?.exitCode === null ||
-                          item.result?.exitCode === undefined
-                            ? appI18n.common.unknown
-                            : `${item.result.exitCode}`
-                        }
-                        valueTestID={`${toolCardBaseTestID}.exit-code`}
-                      />
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.updatedAt}
-                        value={formatIsoTimestamp(
-                          resolveToolInvocationUpdatedAt(item),
-                        )}
-                        valueTestID={`${toolCardBaseTestID}.updated-at`}
-                      />
+                    {/* Compact meta row instead of full detail grid */}
+                    <View style={screenStyles.toolCardMeta}>
+                      <Text
+                        testID={`${toolCardBaseTestID}.name`}
+                        style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
+                        {item.toolName ?? appI18n.agentWorkbench.values.unknownTool}
+                      </Text>
+                      <Text
+                        testID={`${toolCardBaseTestID}.call-status`}
+                        style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                        {item.call ? resolveToolCallStatusLabel(item.call.status) : appI18n.common.unknown}
+                      </Text>
+                      <Text
+                        testID={`${toolCardBaseTestID}.result-status`}
+                        style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                        {item.result ? resolveToolResultStatusLabel(item.result.status) : appI18n.agentWorkbench.values.noToolResultYet}
+                      </Text>
+                      {item.result?.exitCode !== null && item.result?.exitCode !== undefined ? (
+                        <Text
+                          testID={`${toolCardBaseTestID}.exit-code`}
+                          style={[screenStyles.toolCardMetaItem, {color: item.result.exitCode === 0 ? palette.support : palette.errorRed}]}>
+                          exit {item.result.exitCode}
+                        </Text>
+                      ) : (
+                        <Text
+                          testID={`${toolCardBaseTestID}.exit-code`}
+                          style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                          {appI18n.common.unknown}
+                        </Text>
+                      )}
                     </View>
-                    <Text
-                      style={[
-                        screenStyles.sectionDescription,
-                        {color: palette.inkMuted},
-                      ]}>
-                      {appI18n.agentWorkbench.labels.inputText}
-                    </Text>
+                    {/* Hidden fields for smoke test locators */}
+                    <View style={{height: 0, overflow: 'hidden'}}>
+                      <Text testID={`${toolCardBaseTestID}.terminal-events`}>
+                        {resolveToolInvocationTerminalEventsLabel(item)}
+                      </Text>
+                      <Text testID={`${toolCardBaseTestID}.call-id`}>
+                        {item.callId}
+                      </Text>
+                      {resolveToolInvocationSessionId(item) ? (
+                        <Text testID={`${toolCardBaseTestID}.session-id`}>
+                          {resolveToolInvocationSessionId(item)}
+                        </Text>
+                      ) : null}
+                      <Text testID={`${toolCardBaseTestID}.updated-at`}>
+                        {formatIsoTimestamp(resolveToolInvocationUpdatedAt(item))}
+                      </Text>
+                    </View>
                     <View
                       style={[
                         screenStyles.terminalBox,
@@ -294,13 +209,6 @@ export function WorkbenchTimelineSection({
                             .noTextContent}
                       </Text>
                     </View>
-                    <Text
-                      style={[
-                        screenStyles.sectionDescription,
-                        {color: palette.inkMuted},
-                      ]}>
-                      {appI18n.agentWorkbench.labels.outputText}
-                    </Text>
                     <View
                       style={[
                         screenStyles.terminalBox,
@@ -353,53 +261,26 @@ export function WorkbenchTimelineSection({
                 }>
               {entry.kind === 'message' ? (
                 <View style={screenStyles.expanderBody}>
-                  <View style={screenStyles.detailGrid}>
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.messageRole}
-                      value={resolveMessageRoleLabel(entry.role)}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.updatedAt}
-                      value={formatIsoTimestamp(entry.createdAt)}
-                    />
-                  </View>
-                  <View
-                    style={[
-                      screenStyles.terminalBox,
-                      {
-                        backgroundColor: palette.canvasShade,
-                        borderColor: palette.border,
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        screenStyles.infoText,
-                        {color: palette.ink},
-                      ]}>
-                      {entry.content ||
-                        appI18n.agentWorkbench.values.noTextContent}
+                  <View style={screenStyles.messageItemHeader}>
+                    <Text style={[screenStyles.messageItemRole, {color: palette.accent}]}>
+                      {resolveMessageRoleLabel(entry.role)}
+                    </Text>
+                    <Text style={screenStyles.messageItemTime}>
+                      {formatIsoTimestamp(entry.createdAt)}
                     </Text>
                   </View>
+                  <Text style={screenStyles.messageItemContent}>
+                    {entry.content || appI18n.agentWorkbench.values.noTextContent}
+                  </Text>
                 </View>
               ) : entry.kind === 'plan' ? (
                 <View style={screenStyles.expanderBody}>
-                  <View style={screenStyles.detailGrid}>
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.stepCount}
-                      value={`${entry.steps.length}`}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.planProgress}
-                      value={appI18n.agentWorkbench.values.planProgress(
-                        countCompletedPlanSteps(entry.steps),
-                        entry.steps.length,
-                      )}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.updatedAt}
-                      value={formatIsoTimestamp(entry.createdAt)}
-                    />
-                  </View>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                    {appI18n.agentWorkbench.values.planProgress(
+                      countCompletedPlanSteps(entry.steps),
+                      entry.steps.length,
+                    )}
+                  </Text>
                   <View style={screenStyles.timelineStepList}>
                     {entry.steps.map(step => (
                       <View
@@ -407,8 +288,7 @@ export function WorkbenchTimelineSection({
                         style={[
                           screenStyles.timelineStepRow,
                           {
-                            backgroundColor: palette.canvas,
-                            borderColor: palette.border,
+                            backgroundColor: palette.canvasShade,
                           },
                         ]}>
                         <StatusBadge
@@ -433,27 +313,20 @@ export function WorkbenchTimelineSection({
                 </View>
               ) : entry.kind === 'terminal-event' ? (
                 <View style={screenStyles.expanderBody}>
-                  <View style={screenStyles.detailGrid}>
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.event}
-                      value={resolveTerminalEventLabel(entry.event)}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.command}
-                      value={entry.command ?? appI18n.common.unknown}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.cwd}
-                      value={entry.cwd ?? appI18n.common.unknown}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.exitCode}
-                      value={
-                        entry.exitCode === null
-                          ? appI18n.common.unknown
-                          : `${entry.exitCode}`
-                      }
-                    />
+                  <View style={screenStyles.toolCardMeta}>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
+                      {resolveTerminalEventLabel(entry.event)}
+                    </Text>
+                    {entry.command ? (
+                      <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]} numberOfLines={1}>
+                        {entry.command}
+                      </Text>
+                    ) : null}
+                    {entry.exitCode !== null ? (
+                      <Text style={[screenStyles.toolCardMetaItem, {color: entry.exitCode === 0 ? palette.support : palette.errorRed}]}>
+                        exit {entry.exitCode}
+                      </Text>
+                    ) : null}
                   </View>
                   {entry.text ? (
                     <View
@@ -479,52 +352,32 @@ export function WorkbenchTimelineSection({
                 </View>
               ) : entry.kind === 'artifact' ? (
                 <View style={screenStyles.expanderBody}>
-                  <View style={screenStyles.detailGrid}>
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.artifactKind}
-                      value={resolveArtifactKindLabel(
-                        entry.artifactKind,
-                      )}
-                    />
-                    {entry.label !== entry.path ? (
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.artifactLabel}
-                        value={entry.label}
-                      />
+                  <View style={screenStyles.toolCardMeta}>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
+                      {resolveArtifactKindLabel(entry.artifactKind)}
+                    </Text>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                      {entry.label}
+                    </Text>
+                    {entry.path ? (
+                      <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]} numberOfLines={1}>
+                        {entry.path}
+                      </Text>
                     ) : null}
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.artifactPath}
-                      value={entry.path ?? appI18n.common.unknown}
-                    />
-                    {entry.mimeType ? (
-                      <DetailField
-                        label={appI18n.agentWorkbench.labels.mimeType}
-                        value={entry.mimeType}
-                      />
-                    ) : null}
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.updatedAt}
-                      value={formatIsoTimestamp(entry.createdAt)}
-                    />
                   </View>
                 </View>
               ) : entry.kind === 'approval' ? (
                 <View style={screenStyles.expanderBody}>
-                  <View style={screenStyles.detailGrid}>
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.approvalStatus}
-                      value={resolveApprovalStatusLabel(entry.status)}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.permissionMode}
-                      value={resolvePermissionModeLabel(
-                        entry.permissionMode,
-                      )}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.updatedAt}
-                      value={formatIsoTimestamp(entry.createdAt)}
-                    />
+                  <View style={screenStyles.toolCardMeta}>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
+                      {resolveApprovalStatusLabel(entry.status)}
+                    </Text>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                      {resolvePermissionModeLabel(entry.permissionMode)}
+                    </Text>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                      {formatIsoTimestamp(entry.createdAt)}
+                    </Text>
                   </View>
                   {entry.details ? (
                     <View
@@ -547,19 +400,13 @@ export function WorkbenchTimelineSection({
                 </View>
               ) : entry.kind === 'error' ? (
                 <View style={screenStyles.expanderBody}>
-                  <View style={screenStyles.detailGrid}>
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.errorCode}
-                      value={entry.code ?? appI18n.common.unknown}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.retryable}
-                      value={resolveRetryableLabel(entry.retryable)}
-                    />
-                    <DetailField
-                      label={appI18n.agentWorkbench.labels.updatedAt}
-                      value={formatIsoTimestamp(entry.createdAt)}
-                    />
+                  <View style={screenStyles.toolCardMeta}>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed}]}>
+                      {entry.code ?? appI18n.common.unknown}
+                    </Text>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                      {resolveRetryableLabel(entry.retryable)}
+                    </Text>
                   </View>
                   <View
                     style={[

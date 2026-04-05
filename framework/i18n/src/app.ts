@@ -636,6 +636,7 @@ export const zhCNApp = {
       permissionMode: '权限模式',
       errorCode: '错误码',
       retryable: '可重试',
+      runDetailExpanderTitle: '详细信息',
     },
     status: {
       idle: '空闲',

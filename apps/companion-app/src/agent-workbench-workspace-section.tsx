@@ -4,13 +4,13 @@ import {appI18n} from '@opapp/framework-i18n';
 import {
   ChoiceChip,
   EmptyState,
+  useTheme,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget, WorkspaceEntry} from '@opapp/framework-filesystem';
 import type {WorkspaceChoiceItem} from './agent-workbench-model';
 import {
   formatWorkspaceSelection,
 } from './agent-workbench-resolvers';
-import {DetailField} from './agent-workbench-components';
 import type {createScreenStyles} from './agent-workbench-styles';
 
 type WorkbenchWorkspaceSectionProps = {
@@ -30,6 +30,8 @@ export function WorkbenchWorkspaceSection({
   onBrowseDirectory,
   screenStyles,
 }: WorkbenchWorkspaceSectionProps) {
+  const {palette} = useTheme();
+
   return (
     <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
@@ -43,19 +45,18 @@ export function WorkbenchWorkspaceSection({
         />
       ) : (
         <View style={screenStyles.sectionBody}>
-          <DetailField
-            label={appI18n.agentWorkbench.labels.rootPath}
-            value={trustedWorkspace.rootPath}
-            valueTestID='agent-workbench.detail.root-path'
-          />
-          <DetailField
-            label={appI18n.agentWorkbench.labels.selectedCwd}
-            value={formatWorkspaceSelection(
-              selectedWorkspaceStat,
-              trustedWorkspace,
-            )}
-            valueTestID='agent-workbench.detail.selected-cwd'
-          />
+          <Text
+            testID='agent-workbench.detail.root-path'
+            style={{color: palette.inkMuted, ...screenStyles.infoText}}
+            numberOfLines={1}>
+            {trustedWorkspace.rootPath}
+          </Text>
+          <Text
+            testID='agent-workbench.detail.selected-cwd'
+            style={{color: palette.ink, ...screenStyles.infoText}}
+            numberOfLines={1}>
+            {formatWorkspaceSelection(selectedWorkspaceStat, trustedWorkspace)}
+          </Text>
           <View style={screenStyles.choiceGrid}>
             {workspaceChoices.map(choice => (
               <ChoiceChip

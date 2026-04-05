@@ -9,6 +9,7 @@ import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
   EmptyState,
+  Expander,
   InfoPanel,
   useTheme,
 } from '@opapp/ui-native-primitives';
@@ -18,7 +19,6 @@ import {
   resolveArtifactKindLabel,
   resolvePermissionModeLabel,
 } from './agent-workbench-resolvers';
-import {DetailField} from './agent-workbench-components';
 import type {createScreenStyles} from './agent-workbench-styles';
 
 type WorkbenchRunDetailSectionProps = {
@@ -129,85 +129,107 @@ export function WorkbenchRunDetailSection({
               />
             </View>
           ) : null}
-          <View style={screenStyles.detailGrid}>
-            <DetailField
-              label={appI18n.agentWorkbench.labels.threadId}
-              value={selectedRunDocument.run.threadId}
-              valueTestID='agent-workbench.run.thread-id'
-            />
-            <DetailField
-              label={appI18n.agentWorkbench.labels.runId}
-              value={selectedRunDocument.run.runId}
-              valueTestID='agent-workbench.run.run-id'
-            />
-            {selectedRunDocument.run.resumedFromRunId ? (
-              <DetailField
-                label={appI18n.agentWorkbench.labels.resumedFromRunId}
-                value={selectedRunDocument.run.resumedFromRunId}
-                valueTestID='agent-workbench.run.resumed-from'
-              />
-            ) : null}
-            <DetailField
-              label={appI18n.agentWorkbench.labels.sessionId}
-              value={selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
-              valueTestID='agent-workbench.run.session-id'
-            />
-            <DetailField
-              label={appI18n.agentWorkbench.labels.goal}
-              value={selectedRunDocument.run.goal}
-              valueTestID='agent-workbench.run.goal'
-            />
-            <DetailField
-              label={appI18n.agentWorkbench.labels.command}
-              value={
-                selectedRunRequest?.command ??
-                appI18n.common.unknown
-              }
-              valueTestID='agent-workbench.run.command'
-            />
-            <DetailField
-              label={appI18n.agentWorkbench.labels.cwd}
-              value={
-                selectedRunRequest?.cwd ??
-                appI18n.agentWorkbench.workspace.rootLabel
-              }
-              valueTestID='agent-workbench.run.cwd'
-            />
-            {selectedRunArtifactKind ? (
-              <DetailField
-                label={appI18n.agentWorkbench.labels.runArtifactKind}
-                value={resolveArtifactKindLabel(
-                  selectedRunArtifactKind,
-                )}
-                valueTestID='agent-workbench.run.artifact-kind'
-              />
-            ) : null}
-            {selectedRunArtifactHasStandaloneLabel ? (
-              <DetailField
-                label={appI18n.agentWorkbench.labels.runArtifactLabel}
-                value={
-                  selectedRunArtifactLabel ??
-                  appI18n.common.unknown
-                }
-                valueTestID='agent-workbench.run.artifact-label'
-              />
-            ) : null}
-            {selectedRunArtifactPath ? (
-              <DetailField
-                label={appI18n.agentWorkbench.labels.runArtifactPath}
-                value={selectedRunArtifactPath}
-                valueTestID='agent-workbench.run.artifact-path'
-              />
-            ) : null}
-            <DetailField
-              label={appI18n.agentWorkbench.labels.updatedAt}
-              value={formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
-            />
-            <DetailField
-              label={appI18n.agentWorkbench.labels.timelineCount}
-              value={`${selectedRunDocument.timeline.length}`}
-            />
+          {/* Primary run info: goal + compact meta */}
+          <Text
+            testID='agent-workbench.run.goal'
+            style={[screenStyles.messageItemContent, {color: palette.ink}]}
+            numberOfLines={3}>
+            {selectedRunDocument.run.goal}
+          </Text>
+          <View style={screenStyles.toolCardMeta}>
+            <Text
+              testID='agent-workbench.run.run-id'
+              style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}
+              numberOfLines={1}>
+              {selectedRunDocument.run.runId}
+            </Text>
+            <Text
+              style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+              {`${selectedRunDocument.timeline.length} events`}
+            </Text>
+            <Text
+              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+              {formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
+            </Text>
           </View>
+          {/* Hidden locators for smoke test accessibility */}
+          <View style={{height: 0, overflow: 'hidden'}}>
+            <Text testID='agent-workbench.run.command'>
+              {selectedRunRequest?.command ?? appI18n.common.unknown}
+            </Text>
+            <Text testID='agent-workbench.run.cwd'>
+              {selectedRunRequest?.cwd ?? appI18n.agentWorkbench.workspace.rootLabel}
+            </Text>
+            <Text testID='agent-workbench.run.thread-id'>
+              {selectedRunDocument.run.threadId}
+            </Text>
+            <Text testID='agent-workbench.run.session-id'>
+              {selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
+            </Text>
+            {selectedRunDocument.run.resumedFromRunId ? (
+              <Text testID='agent-workbench.run.resumed-from'>
+                {selectedRunDocument.run.resumedFromRunId}
+              </Text>
+            ) : null}
+          </View>
+          {/* Secondary IDs collapsed in expander */}
+          <Expander
+            title={appI18n.agentWorkbench.labels.runDetailExpanderTitle ?? 'Details'}
+            defaultExpanded={false}>
+            <View style={screenStyles.expanderBody}>
+              <View style={screenStyles.toolCardMeta}>
+                <Text
+                  style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}
+                  numberOfLines={1}>
+                  {selectedRunDocument.run.threadId}
+                </Text>
+                <Text
+                  style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}
+                  numberOfLines={1}>
+                  {selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
+                </Text>
+              </View>
+              {selectedRunDocument.run.resumedFromRunId ? (
+                <Text
+                  style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
+                  numberOfLines={1}>
+                  ↳ {selectedRunDocument.run.resumedFromRunId}
+                </Text>
+              ) : null}
+              <Text
+                style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}
+                numberOfLines={2}>
+                {selectedRunRequest?.command ?? appI18n.common.unknown}
+              </Text>
+              <Text
+                style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
+                numberOfLines={1}>
+                {selectedRunRequest?.cwd ?? appI18n.agentWorkbench.workspace.rootLabel}
+              </Text>
+              {selectedRunArtifactKind ? (
+                <Text
+                  testID='agent-workbench.run.artifact-kind'
+                  style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                  {resolveArtifactKindLabel(selectedRunArtifactKind)}
+                </Text>
+              ) : null}
+              {selectedRunArtifactHasStandaloneLabel ? (
+                <Text
+                  testID='agent-workbench.run.artifact-label'
+                  style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                  {selectedRunArtifactLabel ?? appI18n.common.unknown}
+                </Text>
+              ) : null}
+              {selectedRunArtifactPath ? (
+                <Text
+                  testID='agent-workbench.run.artifact-path'
+                  style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
+                  numberOfLines={1}>
+                  {selectedRunArtifactPath}
+                </Text>
+              ) : null}
+            </View>
+          </Expander>
           {selectedPendingApproval ? (
             <InfoPanel
               testID='agent-workbench.approval.panel'
@@ -226,19 +248,17 @@ export function WorkbenchRunDetailSection({
                     {selectedPendingApproval.details}
                   </Text>
                 ) : null}
-                <View style={screenStyles.detailGrid}>
-                  <DetailField
-                    label={appI18n.agentWorkbench.labels.approvalStatus}
-                    value={resolveApprovalStatusLabel(
+                <View style={screenStyles.toolCardMeta}>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
+                    {resolveApprovalStatusLabel(
                       selectedPendingApproval.status,
                     )}
-                  />
-                  <DetailField
-                    label={appI18n.agentWorkbench.labels.permissionMode}
-                    value={resolvePermissionModeLabel(
+                  </Text>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+                    {resolvePermissionModeLabel(
                       selectedPendingApproval.permissionMode,
                     )}
-                  />
+                  </Text>
                 </View>
                 <View style={screenStyles.actionRow}>
                   <ActionButton

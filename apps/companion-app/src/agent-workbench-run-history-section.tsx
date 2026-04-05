@@ -4,11 +4,9 @@ import type {AgentRunDocument} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   useTheme,
-  appSpacing,
 } from '@opapp/ui-native-primitives';
 import {
   formatIsoTimestamp,
-  resolveRunStatusLabel,
   resolveRunStatusTone,
 } from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
@@ -63,9 +61,11 @@ export function WorkbenchRunHistorySection({
               onPress={() => {
                 onSelectRun(document);
               }}
-              style={[
+              style={({pressed, hovered}: {pressed: boolean; hovered?: boolean}) => [
                 screenStyles.listRow,
                 isActive ? screenStyles.listRowActive : null,
+                !isActive && hovered ? {backgroundColor: palette.panel} : null,
+                pressed ? {opacity: 0.7} : null,
               ]}>
               {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
               <View style={{flex: 1, minWidth: 0, gap: 2}}>
@@ -79,18 +79,17 @@ export function WorkbenchRunHistorySection({
                     document.run.request?.command ||
                     document.run.runId}
                 </Text>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.xs}}>
-                  <Text numberOfLines={1} style={[screenStyles.listRowDetail, {color: resolveRunStatusTone(document.run.status) === 'danger' ? palette.errorRed : palette.inkMuted}]}>
-                    {resolveRunStatusLabel(document.run.status)}
-                  </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                  <View style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: 3,
+                    backgroundColor: resolveRunStatusTone(document.run.status) === 'danger' ? palette.errorRed : resolveRunStatusTone(document.run.status) === 'support' ? palette.support : palette.inkSoft,
+                    opacity: isLatest ? 1 : 0.6,
+                  }} />
                   <Text numberOfLines={1} style={screenStyles.listRowDetail}>
                     {formatIsoTimestamp(document.run.updatedAt)}
                   </Text>
-                  {isLatest ? (
-                    <Text style={[screenStyles.listRowDetail, {color: palette.accent, fontSize: 8}]}>
-                      ●
-                    </Text>
-                  ) : null}
                 </View>
               </View>
             </Pressable>

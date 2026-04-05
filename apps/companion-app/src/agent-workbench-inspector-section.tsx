@@ -5,6 +5,7 @@ import {
   ActionButton,
   InfoPanel,
   useTheme,
+  appSpacing,
 } from '@opapp/ui-native-primitives';
 import type {AgentTerminalShell} from '@opapp/framework-agent-runtime';
 import type {WorkspaceEntry} from '@opapp/framework-filesystem';
@@ -56,7 +57,7 @@ export function WorkbenchInspectorSection({
 
   return (
     <View style={screenStyles.sectionCardCompact}>
-      <Text style={[screenStyles.sectionTitle, {color: palette.accent, borderBottomColor: palette.accent}]}>
+      <Text style={[screenStyles.sectionTitle, {borderBottomColor: palette.accent}]}>
         {appI18n.agentWorkbench.sections.inspectorTitle}
       </Text>
 
@@ -66,10 +67,11 @@ export function WorkbenchInspectorSection({
         </Text>
       ) : (
         <View style={screenStyles.sectionBody}>
-          <View style={screenStyles.toolCardMeta}>
-            <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]} numberOfLines={1}>
-              {selectedInspectorEntry.relativePath || appI18n.agentWorkbench.workspace.rootLabel}
-            </Text>
+          {/* File/dir path as the hero content */}
+          <Text style={[screenStyles.toolCardTitle, {color: palette.ink}]} numberOfLines={2}>
+            {selectedInspectorEntry.relativePath || appI18n.agentWorkbench.workspace.rootLabel}
+          </Text>
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm}}>
             <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
               {resolveWorkspaceKindLabel(selectedInspectorEntry.kind)}
             </Text>
@@ -115,9 +117,11 @@ export function WorkbenchInspectorSection({
                         onPress={() => {
                           onInspectEntry(entry);
                         }}
-                        style={[
+                        style={({pressed, hovered}: {pressed: boolean; hovered?: boolean}) => [
                           screenStyles.listRow,
                           isActive && screenStyles.listRowActive,
+                          !isActive && hovered ? {backgroundColor: palette.panel} : null,
+                          pressed ? {opacity: 0.7} : null,
                         ]}>
                         {isActive ? (
                           <View style={screenStyles.listRowIndicator} />
@@ -176,28 +180,26 @@ export function WorkbenchInspectorSection({
 
           {selectedInspectorEntry.kind === 'file' ? (
             <View style={screenStyles.sectionBody}>
-              <Text style={screenStyles.sectionTitle}>
-                {appI18n.agentWorkbench.sections.diffTitle}
-              </Text>
-              <Text style={screenStyles.sectionDescription}>
-                {appI18n.agentWorkbench.sections.diffDescription}
-              </Text>
-
-              {selectedGitDiffCommand ? (
-                <ActionButton
-                  label={
-                    diffLoading
-                      ? appI18n.agentWorkbench.actions.loadingDiff
-                      : selectedDiffPath ===
-                          selectedInspectorEntry.relativePath
-                        ? appI18n.agentWorkbench.actions.refreshDiff
-                        : appI18n.agentWorkbench.actions.loadDiff
-                  }
-                  onPress={onLoadDiff}
-                  disabled={diffLoading}
-                  tone='ghost'
-                />
-              ) : null}
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm}}>
+                <Text style={[screenStyles.sectionTitle, {flex: 1, marginBottom: 0}]}>
+                  {appI18n.agentWorkbench.sections.diffTitle}
+                </Text>
+                {selectedGitDiffCommand ? (
+                  <ActionButton
+                    label={
+                      diffLoading
+                        ? appI18n.agentWorkbench.actions.loadingDiff
+                        : selectedDiffPath ===
+                            selectedInspectorEntry.relativePath
+                          ? appI18n.agentWorkbench.actions.refreshDiff
+                          : appI18n.agentWorkbench.actions.loadDiff
+                    }
+                    onPress={onLoadDiff}
+                    disabled={diffLoading}
+                    tone='ghost'
+                  />
+                ) : null}
+              </View>
 
               {selectedDiffError ? (
                 <InfoPanel

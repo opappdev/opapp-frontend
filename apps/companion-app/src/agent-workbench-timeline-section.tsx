@@ -109,11 +109,11 @@ export function WorkbenchTimelineSection({
                 style={[
                   screenStyles.messageItem,
                   isUser
-                    ? {backgroundColor: palette.panelEmphasis}
+                    ? {backgroundColor: palette.panelEmphasis, borderLeftWidth: 2, borderLeftColor: palette.accent}
                     : {backgroundColor: palette.panel},
                 ]}>
                 <View style={screenStyles.messageItemHeader}>
-                  <Text style={[screenStyles.messageItemRole, isUser ? {color: palette.support} : null]}>
+                  <Text style={[screenStyles.messageItemRole, isUser ? {color: palette.accent} : null]}>
                     {resolveMessageRoleLabel(entry.role)}
                   </Text>
                   <Text style={screenStyles.messageItemTime}>
@@ -334,21 +334,22 @@ function renderToolInvocation(
         />
       }>
       <View style={screenStyles.expanderBody}>
-        {/* Meta row — compact, single line */}
+        {/* Status meta — compact inline */}
         <View style={screenStyles.toolCardMeta}>
           <Text
             testID={`${toolCardBaseTestID}.name`}
             style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
             {item.toolName ?? appI18n.agentWorkbench.values.unknownTool}
           </Text>
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, opacity: 0.3}]}>·</Text>
           <Text
             testID={`${toolCardBaseTestID}.call-status`}
-            style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+            style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
             {item.call ? resolveToolCallStatusLabel(item.call.status) : appI18n.common.unknown}
           </Text>
           <Text
             testID={`${toolCardBaseTestID}.result-status`}
-            style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+            style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
             {item.result ? resolveToolResultStatusLabel(item.result.status) : appI18n.agentWorkbench.values.noToolResultYet}
           </Text>
           {item.result?.exitCode !== null && item.result?.exitCode !== undefined ? (
@@ -360,7 +361,7 @@ function renderToolInvocation(
           ) : (
             <Text
               testID={`${toolCardBaseTestID}.exit-code`}
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, opacity: 0.3, fontFamily: terminalFontFamily}]}>
+              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, opacity: 0.2, fontFamily: terminalFontFamily}]}>
               —
             </Text>
           )}

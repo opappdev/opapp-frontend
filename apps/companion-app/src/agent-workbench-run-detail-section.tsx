@@ -11,11 +11,11 @@ import {
   Expander,
   InfoPanel,
   useTheme,
+  appSpacing,
   appTypography,
 } from '@opapp/ui-native-primitives';
 import {
   formatIsoTimestamp,
-  resolveApprovalStatusLabel,
   resolveArtifactKindLabel,
   resolvePermissionModeLabel,
 } from './agent-workbench-resolvers';
@@ -84,28 +84,6 @@ export function WorkbenchRunDetailSection({
 
   return (
     <View style={screenStyles.sectionCard}>
-      {/* Historical run banner (kept for testID compat) */}
-      {viewingHistoricalRun && latestThreadRunDocument ? (
-        <InfoPanel
-          title={appI18n.agentWorkbench.runHistory.viewingHistoricalTitle}
-          tone='neutral'
-          testID='agent-workbench.run-history.viewing-historical'>
-          <View style={screenStyles.sectionBody}>
-            <Text style={[screenStyles.sectionDescription, {color: palette.inkMuted}]}>
-              {appI18n.agentWorkbench.runHistory.viewingHistoricalDescription(
-                latestThreadRunDocument.run.runId,
-              )}
-            </Text>
-            <ActionButton
-              testID='agent-workbench.action.focus-latest-run'
-              label={appI18n.agentWorkbench.actions.focusLatestRun}
-              onPress={onFocusLatestRun}
-              tone='ghost'
-            />
-          </View>
-        </InfoPanel>
-      ) : null}
-
       {/* Run goal as hero heading */}
       <Text
         testID='agent-workbench.run.goal'
@@ -212,18 +190,12 @@ export function WorkbenchRunDetailSection({
         title={appI18n.agentWorkbench.labels.runDetailExpanderTitle ?? 'Details'}
         defaultExpanded={false}>
         <View style={screenStyles.expanderBody}>
-          <View style={screenStyles.toolCardMeta}>
-            <Text
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}
-              numberOfLines={1}>
-              {selectedRunDocument.run.threadId}
-            </Text>
-            <Text
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}
-              numberOfLines={1}>
-              {selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
-            </Text>
-          </View>
+          {/* IDs on a single line */}
+          <Text
+            style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
+            numberOfLines={1}>
+            {selectedRunDocument.run.threadId} · {selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
+          </Text>
           {selectedRunDocument.run.resumedFromRunId ? (
             <Text
               style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
@@ -231,16 +203,19 @@ export function WorkbenchRunDetailSection({
               ↳ {selectedRunDocument.run.resumedFromRunId}
             </Text>
           ) : null}
-          <Text
-            style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}
-            numberOfLines={2}>
-            {selectedRunRequest?.command ?? appI18n.common.unknown}
-          </Text>
-          <Text
-            style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
-            numberOfLines={1}>
-            {selectedRunRequest?.cwd ?? appI18n.agentWorkbench.workspace.rootLabel}
-          </Text>
+          {/* Command + cwd */}
+          <View style={[screenStyles.transcriptTerminal, {marginVertical: 0}]}>
+            <Text
+              style={[screenStyles.terminalText, {color: palette.ink, fontFamily: 'Consolas'}]}
+              numberOfLines={2}>
+              $ {selectedRunRequest?.command ?? appI18n.common.unknown}
+            </Text>
+            <Text
+              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, marginTop: appSpacing.xxs}]}
+              numberOfLines={1}>
+              {selectedRunRequest?.cwd ?? appI18n.agentWorkbench.workspace.rootLabel}
+            </Text>
+          </View>
           {selectedRunArtifactKind ? (
             <Text
               testID='agent-workbench.run.artifact-kind'
@@ -266,13 +241,13 @@ export function WorkbenchRunDetailSection({
         </View>
       </Expander>
 
-      {/* Pending approval — decision-focused card */}
+      {/* Pending approval — decision interrupt card */}
       {selectedPendingApproval ? (
         <InfoPanel
           testID='agent-workbench.approval.panel'
           title={appI18n.agentWorkbench.approval.pendingTitle}
           tone='accent'>
-          <View style={screenStyles.approvalPanel}>
+          <View style={{gap: appSpacing.sm2}}>
             <Text style={{
               ...appTypography.bodyStrong,
               color: palette.ink,
@@ -284,24 +259,17 @@ export function WorkbenchRunDetailSection({
               <Text
                 style={[
                   screenStyles.terminalText,
-                  {color: palette.inkMuted, fontFamily: 'Consolas', opacity: 0.8},
+                  {color: palette.inkMuted, fontFamily: 'Consolas'},
                 ]}
-                numberOfLines={6}>
+                numberOfLines={4}>
                 {selectedPendingApproval.details}
               </Text>
             ) : null}
-            <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-              <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
-                {resolveApprovalStatusLabel(
-                  selectedPendingApproval.status,
-                )}
-              </Text>
-              <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
-                {resolvePermissionModeLabel(
-                  selectedPendingApproval.permissionMode,
-                )}
-              </Text>
-            </View>
+            <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.6}]}>
+              {resolvePermissionModeLabel(
+                selectedPendingApproval.permissionMode,
+              )}
+            </Text>
             <View style={screenStyles.actionRow}>
               <ActionButton
                 testID='agent-workbench.action.approve-request'

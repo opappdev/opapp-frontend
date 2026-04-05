@@ -151,10 +151,10 @@ export function AgentWorkbenchScreen() {
         </View>
       ) : null}
 
-      {/* ── Historical run banner — subtle ── */}
+      {/* ── Historical run banner ── */}
       {state.viewingHistoricalRun && state.latestThreadRunDocument ? (
         <View style={screenStyles.historicalBanner}>
-          <Text style={[screenStyles.sectionDescription, {flex: 1}]}>
+          <Text style={[screenStyles.infoText, {color: palette.inkMuted, flex: 1}]} numberOfLines={1}>
             {appI18n.agentWorkbench.runHistory.viewingHistoricalDescription(
               state.latestThreadRunDocument.run.runId,
             )}

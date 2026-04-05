@@ -340,7 +340,7 @@ export function createScreenStyles(palette: AppPalette) {
     messageItemTime: {
       ...appTypography.label,
       color: palette.inkMuted,
-      opacity: 0.5,
+      opacity: 0.4,
     },
     messageItemContent: {
       ...appTypography.body,
@@ -479,11 +479,11 @@ export function createScreenStyles(palette: AppPalette) {
 
     /* ── Composer (task input bar) ─────────────────────── */
     composerBar: {
-      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopWidth: 1,
       borderTopColor: palette.border,
       backgroundColor: palette.canvas,
       paddingHorizontal: 56,
-      paddingVertical: appSpacing.lg,
+      paddingVertical: appSpacing.lg2,
       gap: appSpacing.sm,
     },
     composerInputRow: {

@@ -4,8 +4,9 @@ import type {AgentThreadSummary} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   useTheme,
+  appTypography,
 } from '@opapp/ui-native-primitives';
-import {formatThreadSubtitle} from './agent-workbench-resolvers';
+import {formatIsoTimestamp, resolveRunStatusTone} from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
 
 type WorkbenchThreadsSectionProps = {
@@ -45,9 +46,11 @@ export function WorkbenchThreadsSection({
                 onPress={() => {
                   onSelectThread(thread.threadId);
                 }}
-                style={[
+                style={({pressed, hovered}: {pressed: boolean; hovered?: boolean}) => [
                   screenStyles.listRow,
                   isActive ? screenStyles.listRowActive : null,
+                  !isActive && hovered ? {backgroundColor: palette.panel} : null,
+                  pressed ? {opacity: 0.7} : null,
                 ]}>
                 {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
                 <View style={{flex: 1, minWidth: 0, gap: 2}}>
@@ -59,11 +62,22 @@ export function WorkbenchThreadsSection({
                     ]}>
                     {thread.title}
                   </Text>
-                  <Text
-                    numberOfLines={1}
-                    style={screenStyles.listRowDetail}>
-                    {formatThreadSubtitle(thread)}
-                  </Text>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                    {thread.lastRunStatus ? (
+                      <View style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: 3,
+                        backgroundColor: resolveRunStatusTone(thread.lastRunStatus) === 'danger' ? palette.errorRed : resolveRunStatusTone(thread.lastRunStatus) === 'support' ? palette.support : palette.inkSoft,
+                        opacity: 0.7,
+                      }} />
+                    ) : null}
+                    <Text
+                      numberOfLines={1}
+                      style={screenStyles.listRowDetail}>
+                      {formatIsoTimestamp(thread.updatedAt)}
+                    </Text>
+                  </View>
                 </View>
               </Pressable>
             );

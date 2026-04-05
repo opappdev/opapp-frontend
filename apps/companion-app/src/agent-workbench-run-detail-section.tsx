@@ -116,14 +116,14 @@ export function WorkbenchRunDetailSection({
       <View style={screenStyles.runActionsRow}>
         <Text
           testID='agent-workbench.run.run-id'
-          style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}
+          style={[screenStyles.toolCardMetaItem, {color: palette.accent, fontWeight: '600'}]}
           numberOfLines={1}>
           {selectedRunDocument.run.runId}
         </Text>
-        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
           {`${selectedRunDocument.timeline.length} events`}
         </Text>
-        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
           {formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
         </Text>
         <View style={{flex: 1}} />

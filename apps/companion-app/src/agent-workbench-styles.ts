@@ -299,7 +299,7 @@ export function createScreenStyles(palette: AppPalette) {
 
     /* ── Lists ────────────────────────────────────────── */
     threadList: {
-      gap: 2,
+      gap: appSpacing.xxs,
     },
     timelineList: {
       gap: appSpacing.xl,
@@ -314,7 +314,7 @@ export function createScreenStyles(palette: AppPalette) {
       borderRadius: appRadius.badge,
       borderWidth: 0,
       paddingHorizontal: appSpacing.sm2,
-      paddingVertical: appSpacing.xs,
+      paddingVertical: appSpacing.sm,
     },
     timelineStepText: {
       flex: 1,
@@ -373,7 +373,7 @@ export function createScreenStyles(palette: AppPalette) {
     toolCardMeta: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: appSpacing.sm2,
+      gap: appSpacing.md,
       paddingLeft: appSpacing.xxs,
     },
     toolCardMetaItem: {
@@ -451,7 +451,7 @@ export function createScreenStyles(palette: AppPalette) {
     runActionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: appSpacing.sm2,
+      gap: appSpacing.md,
       paddingVertical: appSpacing.xs,
     },
 
@@ -500,7 +500,7 @@ export function createScreenStyles(palette: AppPalette) {
     composerActionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: appSpacing.sm2,
+      gap: appSpacing.md,
     },
 
     /* ── Transcript inline elements ───────────────────── */
@@ -515,7 +515,7 @@ export function createScreenStyles(palette: AppPalette) {
       borderRadius: appRadius.control,
       backgroundColor: palette.canvasShade,
       paddingHorizontal: appSpacing.lg2,
-      paddingVertical: appSpacing.sm2,
+      paddingVertical: appSpacing.lg,
       marginVertical: appSpacing.xxs,
     },
 

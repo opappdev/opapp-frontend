@@ -436,7 +436,7 @@ function renderToolInvocation(
         </View>
         {/* Input block */}
         <View style={[screenStyles.transcriptTerminal, {marginVertical: 0}]}>
-          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, marginBottom: 4, fontWeight: '700'}]}>$ input</Text>
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, marginBottom: appSpacing.xs, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 10}]}>$ input</Text>
           <Text
             testID={`${toolCardBaseTestID}.input`}
             style={[
@@ -449,7 +449,7 @@ function renderToolInvocation(
         </View>
         {/* Output block */}
         <View style={[screenStyles.transcriptTerminal, {marginVertical: 0}]}>
-          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, marginBottom: 4, fontWeight: '700'}]}>→ output</Text>
+          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, marginBottom: appSpacing.xs, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 10}]}>→ output</Text>
           <Text
             testID={`${toolCardBaseTestID}.output`}
             style={[

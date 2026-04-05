@@ -188,7 +188,8 @@ export function WorkbenchRunDetailSection({
       {/* Collapsed details */}
       <Expander
         title={appI18n.agentWorkbench.labels.runDetailExpanderTitle ?? 'Details'}
-        defaultExpanded={false}>
+        defaultExpanded={false}
+        style={{borderLeftWidth: 2, borderLeftColor: palette.border}}>
         <View style={screenStyles.expanderBody}>
           <View style={screenStyles.toolCardMeta}>
             <Text

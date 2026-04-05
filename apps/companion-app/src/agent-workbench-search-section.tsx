@@ -54,7 +54,7 @@ export function WorkbenchSearchSection({
                 screenStyles.textInputShell,
                 {
                   borderColor: palette.border,
-                  backgroundColor: palette.panel,
+                  backgroundColor: palette.canvasShade,
                 },
               ]}>
               <RNTextInput
@@ -77,7 +77,7 @@ export function WorkbenchSearchSection({
                 screenStyles.textInputPlaceholder,
                 {
                   borderColor: palette.border,
-                  backgroundColor: palette.panel,
+                  backgroundColor: palette.canvasShade,
                 },
               ]}>
               <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
@@ -124,7 +124,10 @@ export function WorkbenchSearchSection({
                     <Text
                       style={[
                         screenStyles.listRowLabel,
-                        {color: isActive ? palette.accent : palette.ink},
+                        {
+                          color: isActive ? palette.accent : palette.ink,
+                          fontWeight: entry.kind === 'directory' ? '600' : undefined,
+                        },
                       ]}
                       numberOfLines={1}>
                       {entry.name}

@@ -18,7 +18,7 @@ export function WorkbenchTerminalSection({
   // Don't render anything when there's no terminal output
   if (!terminalTranscript) {
     return (
-      <View style={[screenStyles.transcriptTerminal, {opacity: 0.6}]}>
+      <View style={[screenStyles.terminalBox, {opacity: 0.6, backgroundColor: palette.canvasShade}]}>
         <Text
           testID='agent-workbench.terminal.transcript'
           style={[

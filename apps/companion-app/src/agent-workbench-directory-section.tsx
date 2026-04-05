@@ -63,7 +63,10 @@ export function WorkbenchDirectorySection({
               <Text
                 style={[
                   screenStyles.listRowLabel,
-                  {color: isActive ? palette.accent : palette.ink},
+                  {
+                    color: isActive ? palette.accent : palette.ink,
+                    fontWeight: entry.kind === 'directory' ? '600' : undefined,
+                  },
                 ]}
                 numberOfLines={1}>
                 {entry.name}

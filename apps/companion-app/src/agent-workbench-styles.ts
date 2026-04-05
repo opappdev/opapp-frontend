@@ -234,7 +234,7 @@ export function createScreenStyles(palette: AppPalette) {
     },
     listRowIndicator: {
       width: 3,
-      height: 20,
+      height: 24,
       borderRadius: 1.5,
       backgroundColor: palette.accent,
     },
@@ -422,6 +422,8 @@ export function createScreenStyles(palette: AppPalette) {
       paddingHorizontal: appSpacing.sm,
       borderRadius: appRadius.badge,
       backgroundColor: palette.canvasShade,
+      borderLeftWidth: 2,
+      borderLeftColor: palette.accent,
     },
 
     /* ── Historical run banner ────────────────────────── */
@@ -466,6 +468,9 @@ export function createScreenStyles(palette: AppPalette) {
       alignItems: 'center',
       gap: appSpacing.md,
       paddingVertical: appSpacing.xs,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.border,
+      paddingTop: appSpacing.sm,
     },
 
     /* ── Mode toggle ──────────────────────────────────── */

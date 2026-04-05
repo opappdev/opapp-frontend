@@ -191,7 +191,7 @@ export function createScreenStyles(palette: AppPalette) {
       color: palette.inkMuted,
       ...appTypography.caption,
       lineHeight: 18,
-      opacity: 0.7,
+      opacity: 0.8,
     },
     sectionBody: {
       gap: appSpacing.sm2,

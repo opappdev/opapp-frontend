@@ -221,7 +221,7 @@ export function WorkbenchTimelineSection({
                   ) : null}
                   <View style={{flex: 1}} />
                   {entry.exitCode !== null ? (
-                    <Text style={[screenStyles.toolCardMetaItem, {color: entry.exitCode === 0 ? palette.support : palette.errorRed, fontWeight: '700'}]}>
+                    <Text style={[screenStyles.toolCardMetaItem, {color: entry.exitCode === 0 ? palette.support : palette.errorRed, fontWeight: '700', fontFamily: terminalFontFamily}]}>
                       exit {entry.exitCode}
                     </Text>
                   ) : null}
@@ -412,13 +412,13 @@ function renderToolInvocation(
           {item.result?.exitCode !== null && item.result?.exitCode !== undefined ? (
             <Text
               testID={`${toolCardBaseTestID}.exit-code`}
-              style={[screenStyles.toolCardMetaItem, {color: item.result.exitCode === 0 ? palette.support : palette.errorRed}]}>
+              style={[screenStyles.toolCardMetaItem, {color: item.result.exitCode === 0 ? palette.support : palette.errorRed, fontFamily: terminalFontFamily}]}>
               exit {item.result.exitCode}
             </Text>
           ) : (
             <Text
               testID={`${toolCardBaseTestID}.exit-code`}
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, opacity: 0.4}]}>
+              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, opacity: 0.4, fontFamily: terminalFontFamily}]}>
               —
             </Text>
           )}

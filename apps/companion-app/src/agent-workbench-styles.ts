@@ -142,7 +142,7 @@ export function createScreenStyles(palette: AppPalette) {
     /** Right detail drawer */
     detailPane: {
       width: detailPaneWidth,
-      backgroundColor: palette.panel,
+      backgroundColor: palette.canvasShade,
       borderLeftWidth: 1,
       borderLeftColor: palette.border,
     },
@@ -180,7 +180,9 @@ export function createScreenStyles(palette: AppPalette) {
       letterSpacing: 1.0,
       textTransform: 'uppercase',
       marginBottom: appSpacing.xs,
-      paddingBottom: appSpacing.xxs,
+      paddingBottom: appSpacing.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.border,
     },
     sectionDescription: {
       color: palette.inkMuted,
@@ -206,6 +208,8 @@ export function createScreenStyles(palette: AppPalette) {
       paddingHorizontal: appSpacing.sm2,
       paddingVertical: appSpacing.sm2,
       borderRadius: appRadius.compact,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.border,
     },
     listRowActive: {
       backgroundColor: palette.accentSoft,
@@ -408,8 +412,10 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: appSpacing.sm,
-      paddingVertical: appSpacing.xs,
-      paddingHorizontal: appSpacing.xxs,
+      paddingVertical: appSpacing.sm,
+      paddingHorizontal: appSpacing.sm,
+      borderRadius: appRadius.badge,
+      backgroundColor: palette.canvasShade,
     },
 
     /* ── Historical run banner ────────────────────────── */

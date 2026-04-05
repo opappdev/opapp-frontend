@@ -413,8 +413,8 @@ function renderToolInvocation(
           ) : (
             <Text
               testID={`${toolCardBaseTestID}.exit-code`}
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
-              {appI18n.common.unknown}
+              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, opacity: 0.4}]}>
+              —
             </Text>
           )}
         </View>

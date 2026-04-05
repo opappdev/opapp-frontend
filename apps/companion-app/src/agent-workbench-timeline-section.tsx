@@ -250,6 +250,7 @@ export function WorkbenchTimelineSection({
                   {
                     borderLeftWidth: 3,
                     borderLeftColor: palette.accent,
+                    backgroundColor: palette.panelEmphasis,
                   },
                 ]}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.xs}}>

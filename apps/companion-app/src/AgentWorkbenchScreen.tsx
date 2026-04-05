@@ -220,6 +220,8 @@ export function AgentWorkbenchScreen() {
               screenStyles={screenStyles}
             />
 
+            <View style={screenStyles.sectionDivider} />
+
             {/* Run history — second priority */}
             <WorkbenchRunHistorySection
               threadRunDocuments={state.threadRunDocuments}

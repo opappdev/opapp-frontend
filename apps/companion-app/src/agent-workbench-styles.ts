@@ -1,6 +1,5 @@
 import {Platform, StyleSheet} from 'react-native';
 import {
-  appLayout,
   appRadius,
   appSpacing,
   appTypography,
@@ -459,7 +458,7 @@ export function createScreenStyles(palette: AppPalette) {
       textAlign: 'center',
       maxWidth: 420,
       lineHeight: 24,
-      opacity: 0.5,
+      opacity: 0.6,
     },
 
     /* ── Run actions inline row ───────────────────────── */
@@ -526,7 +525,7 @@ export function createScreenStyles(palette: AppPalette) {
       height: 1,
       backgroundColor: palette.border,
       marginVertical: appSpacing.sm,
-      opacity: 0.2,
+      opacity: 0.3,
     },
     /** Inline terminal block within transcript */
     transcriptTerminal: {

@@ -103,9 +103,9 @@ export function WorkbenchRunDetailSection({
         testID='agent-workbench.run.goal'
         style={[
           {
-            ...appTypography.subheading,
+            ...appTypography.title,
             color: palette.ink,
-            lineHeight: 24,
+            lineHeight: 28,
           },
         ]}
         numberOfLines={3}>

@@ -133,10 +133,10 @@ export function createScreenStyles(palette: AppPalette) {
     /** Main pane scrollable body — generous horizontal padding */
     mainPaneInner: {
       flex: 1,
-      gap: appSpacing.sm,
+      gap: appSpacing.sm2,
       paddingHorizontal: 40,
-      paddingTop: appSpacing.xl2,
-      paddingBottom: appSpacing.lg2,
+      paddingTop: appSpacing.xxl,
+      paddingBottom: appSpacing.xl,
     },
 
     /** Right detail drawer */
@@ -180,6 +180,7 @@ export function createScreenStyles(palette: AppPalette) {
       letterSpacing: 1.0,
       textTransform: 'uppercase',
       marginBottom: appSpacing.xs,
+      paddingBottom: appSpacing.xxs,
     },
     sectionDescription: {
       color: palette.inkMuted,
@@ -301,7 +302,7 @@ export function createScreenStyles(palette: AppPalette) {
       gap: 2,
     },
     timelineList: {
-      gap: appSpacing.lg,
+      gap: appSpacing.xl,
     },
     timelineStepList: {
       gap: appSpacing.xxs,
@@ -335,7 +336,7 @@ export function createScreenStyles(palette: AppPalette) {
     messageItemRole: {
       ...appTypography.captionBold,
       color: palette.accent,
-      letterSpacing: 0.6,
+      letterSpacing: 0.8,
       textTransform: 'uppercase',
     },
     messageItemTime: {

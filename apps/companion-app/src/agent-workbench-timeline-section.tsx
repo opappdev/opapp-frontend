@@ -377,6 +377,7 @@ function renderToolInvocation(
       }
       headerTestID={`${toolCardBaseTestID}.toggle`}
       contentTestID={`${toolCardBaseTestID}.content`}
+      style={{borderLeftWidth: 2, borderLeftColor: palette.accent}}
       trailing={
         <SignalPill
           label={resolveToolInvocationTrailingLabel(item)}

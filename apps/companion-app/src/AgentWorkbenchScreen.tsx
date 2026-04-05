@@ -56,33 +56,38 @@ export function AgentWorkbenchScreen() {
 
   return (
     <View testID='agent-workbench.screen' style={screenStyles.screen}>
-      {/* ── Compact toolbar — status pills + essential actions only ── */}
+      {/* ── Toolbar — status indicators + grouped actions ── */}
       <Toolbar
         testID='agent-workbench.toolbar'
         style={screenStyles.toolbar}>
-        <SignalPill
-          testID='agent-workbench.status.workspace'
-          label={
-            state.trustedWorkspace
-              ? appI18n.agentWorkbench.workspace.ready
-              : appI18n.agentWorkbench.workspace.missing
-          }
-          tone={state.trustedWorkspace ? 'support' : 'warning'}
-          size='sm'
-        />
-        <StatusBadge
-          testID='agent-workbench.status.run'
-          label={resolveRunStatusLabel(state.selectedRunStatus)}
-          tone={resolveRunStatusTone(state.selectedRunStatus)}
-          emphasis='soft'
-          size='sm'
-        />
-        {state.activeRunInfo ? (
-          <View style={screenStyles.toolbarBusy}>
-            <ActivityIndicator size='small' color={palette.accent} />
-          </View>
-        ) : null}
+        {/* Status group — left aligned */}
+        <View style={screenStyles.toolbarGroup}>
+          <SignalPill
+            testID='agent-workbench.status.workspace'
+            label={
+              state.trustedWorkspace
+                ? appI18n.agentWorkbench.workspace.ready
+                : appI18n.agentWorkbench.workspace.missing
+            }
+            tone={state.trustedWorkspace ? 'support' : 'warning'}
+            size='sm'
+          />
+          <StatusBadge
+            testID='agent-workbench.status.run'
+            label={resolveRunStatusLabel(state.selectedRunStatus)}
+            tone={resolveRunStatusTone(state.selectedRunStatus)}
+            emphasis='soft'
+            size='sm'
+          />
+          {state.activeRunInfo ? (
+            <View style={screenStyles.toolbarBusy}>
+              <ActivityIndicator size='small' color={palette.accent} />
+            </View>
+          ) : null}
+        </View>
+
         <View style={{flex: 1}} />
+
         {/* Primary actions group */}
         <View style={screenStyles.toolbarGroup}>
           {state.activeRunInfo ? (
@@ -126,8 +131,9 @@ export function AgentWorkbenchScreen() {
             tone='ghost'
           />
         </View>
-        {/* Divider */}
+
         <View style={screenStyles.toolbarDivider} />
+
         {/* Utility actions group */}
         <View style={screenStyles.toolbarGroup}>
           {state.selectedCwd ? (

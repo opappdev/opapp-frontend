@@ -5,6 +5,7 @@ import {appI18n} from '@opapp/framework-i18n';
 import {
   SignalPill,
   useTheme,
+  appSpacing,
 } from '@opapp/ui-native-primitives';
 import {
   formatIsoTimestamp,
@@ -36,7 +37,7 @@ export function WorkbenchRunHistorySection({
         <Text style={screenStyles.sectionTitle}>
           {appI18n.agentWorkbench.sections.runHistoryTitle}
         </Text>
-        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: 6}]}>
+        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: appSpacing.sm2}]}>
           {appI18n.agentWorkbench.empty.runHistoryDescription}
         </Text>
       </View>
@@ -68,7 +69,7 @@ export function WorkbenchRunHistorySection({
                 isActive ? screenStyles.listRowActive : null,
               ]}>
               {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
-              <View style={{flex: 1, minWidth: 0, gap: 2}}>
+              <View style={{flex: 1, minWidth: 0, gap: appSpacing.xxs}}>
                 <Text
                   numberOfLines={2}
                   style={[
@@ -79,7 +80,7 @@ export function WorkbenchRunHistorySection({
                     document.run.request?.command ||
                     document.run.runId}
                 </Text>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.xs}}>
                   <SignalPill
                     label={resolveRunStatusLabel(document.run.status)}
                     tone={resolveRunStatusTone(document.run.status)}

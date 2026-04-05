@@ -4,6 +4,7 @@ import type {AgentThreadSummary} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   useTheme,
+  appSpacing,
 } from '@opapp/ui-native-primitives';
 import {formatThreadSubtitle} from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
@@ -30,7 +31,7 @@ export function WorkbenchThreadsSection({
       </Text>
 
       {threads.length === 0 ? (
-        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: 6}]}>
+        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: appSpacing.sm2}]}>
           {appI18n.agentWorkbench.empty.threadsDescription}
         </Text>
       ) : (
@@ -50,7 +51,7 @@ export function WorkbenchThreadsSection({
                   isActive ? screenStyles.listRowActive : null,
                 ]}>
                 {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
-                <View style={{flex: 1, minWidth: 0, gap: 2}}>
+                <View style={{flex: 1, minWidth: 0, gap: appSpacing.xxs}}>
                   <Text
                     numberOfLines={2}
                     style={[

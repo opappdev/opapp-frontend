@@ -5,6 +5,8 @@ import {
   ActionButton,
   InfoPanel,
   useTheme,
+  appSpacing,
+  appRadius,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget} from '@opapp/framework-filesystem';
 import type {WorkbenchTaskDraft} from './agent-workbench-model';
@@ -182,6 +184,11 @@ export function WorkbenchTaskDraftSection({
           accessibilityRole='button'
           onPress={() => {
             setShowAdvanced(prev => !prev);
+          }}
+          style={{
+            paddingHorizontal: appSpacing.sm2,
+            paddingVertical: appSpacing.xxs,
+            borderRadius: appRadius.badge,
           }}>
           <Text style={[screenStyles.listRowMeta, {color: palette.inkSoft}]}>
             {showAdvanced ? '▾ command' : '▸ command'}

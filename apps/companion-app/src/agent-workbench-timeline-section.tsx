@@ -120,9 +120,6 @@ export function WorkbenchTimelineSection({
         ) : null}
       </View>
 
-      {/* Divider between summary and timeline */}
-      <View style={screenStyles.transcriptDivider} />
-
       {/* Timeline items as a unified conversation stream */}
       <View style={screenStyles.timelineList}>
         {selectedTimelineItems.map(item => {
@@ -141,7 +138,7 @@ export function WorkbenchTimelineSection({
                 style={[
                   screenStyles.messageItem,
                   isUser
-                    ? {borderLeftWidth: 3, borderLeftColor: palette.support}
+                    ? {borderLeftWidth: 3, borderLeftColor: palette.support, backgroundColor: palette.panelEmphasis}
                     : {backgroundColor: palette.canvasShade},
                 ]}>
                 <View style={screenStyles.messageItemHeader}>
@@ -152,7 +149,7 @@ export function WorkbenchTimelineSection({
                     {formatIsoTimestamp(entry.createdAt)}
                   </Text>
                 </View>
-                <Text style={screenStyles.messageItemContent}>
+                <Text style={screenStyles.messageItemContent} selectable>
                   {entry.content || appI18n.agentWorkbench.values.noTextContent}
                 </Text>
               </View>
@@ -162,8 +159,8 @@ export function WorkbenchTimelineSection({
           /* Plan entries — inline step list */
           if (entry.kind === 'plan') {
             return (
-              <View key={item.key} style={[screenStyles.sectionCard, {paddingVertical: appSpacing.xs}]}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+              <View key={item.key} style={[screenStyles.transcriptTerminal]}>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: appSpacing.sm}}>
                   <Text style={[screenStyles.messageItemRole, {color: palette.inkMuted}]}>
                     {appI18n.agentWorkbench.values.planProgress(
                       countCompletedPlanSteps(entry.steps),
@@ -182,7 +179,7 @@ export function WorkbenchTimelineSection({
                       key={step.stepId}
                       style={[
                         screenStyles.timelineStepRow,
-                        {backgroundColor: palette.canvasShade},
+                        {backgroundColor: palette.panel},
                       ]}>
                       <StatusBadge
                         label={resolvePlanStepStatusLabel(step.status)}
@@ -209,7 +206,7 @@ export function WorkbenchTimelineSection({
           if (entry.kind === 'terminal-event') {
             return (
               <View key={item.key} style={screenStyles.transcriptTerminal}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4}}>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.xs}}>
                   <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent, fontWeight: '700'}]}>
                     {resolveTerminalEventLabel(entry.event)}
                   </Text>
@@ -249,10 +246,9 @@ export function WorkbenchTimelineSection({
                   {
                     borderLeftWidth: 3,
                     borderLeftColor: palette.accent,
-                    paddingVertical: appSpacing.sm,
                   },
                 ]}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4}}>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.xs}}>
                   <SignalPill
                     label={resolveApprovalStatusLabel(entry.status)}
                     tone='warning'
@@ -267,13 +263,13 @@ export function WorkbenchTimelineSection({
                   </Text>
                 </View>
                 {entry.title ? (
-                  <Text style={[screenStyles.infoText, {color: palette.ink, marginTop: 2}]}>
+                  <Text style={[screenStyles.infoText, {color: palette.ink, marginTop: appSpacing.xxs}]}>
                     {entry.title}
                   </Text>
                 ) : null}
                 {entry.details ? (
                   <Text
-                    style={[screenStyles.terminalText, {color: palette.inkMuted, fontFamily: terminalFontFamily, marginTop: 4}]}
+                    style={[screenStyles.terminalText, {color: palette.inkMuted, fontFamily: terminalFontFamily, marginTop: appSpacing.xs}]}
                     numberOfLines={6}>
                     {entry.details}
                   </Text>
@@ -292,10 +288,9 @@ export function WorkbenchTimelineSection({
                   {
                     borderLeftWidth: 3,
                     borderLeftColor: palette.errorRed,
-                    paddingVertical: appSpacing.sm,
                   },
                 ]}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm}}>
                   <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed, fontWeight: '700'}]}>
                     {entry.code ?? appI18n.common.unknown}
                   </Text>
@@ -303,7 +298,7 @@ export function WorkbenchTimelineSection({
                     {resolveRetryableLabel(entry.retryable)}
                   </Text>
                 </View>
-                <Text style={[screenStyles.infoText, {color: palette.ink, marginTop: 4}]}>
+                <Text style={[screenStyles.infoText, {color: palette.ink, marginTop: appSpacing.xs}]}>
                   {entry.message}
                 </Text>
               </View>
@@ -319,7 +314,7 @@ export function WorkbenchTimelineSection({
                   screenStyles.transcriptTerminal,
                   {borderLeftWidth: 3, borderLeftColor: palette.support},
                 ]}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm}}>
                   <SignalPill
                     label={resolveArtifactKindLabel(entry.artifactKind)}
                     tone='support'

@@ -180,7 +180,10 @@ export function WorkbenchTimelineSection({
                       key={step.stepId}
                       style={[
                         screenStyles.timelineStepRow,
-                        {backgroundColor: palette.panel},
+                        {
+                          backgroundColor: palette.panel,
+                          borderLeftColor: step.status === 'completed' ? palette.support : step.status === 'in_progress' ? palette.accent : palette.border,
+                        },
                       ]}>
                       <StatusBadge
                         label={resolvePlanStepStatusLabel(step.status)}

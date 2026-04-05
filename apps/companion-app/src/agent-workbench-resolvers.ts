@@ -327,6 +327,31 @@ export function resolveToolInvocationTitle(item: WorkbenchToolInvocationTimeline
     : appI18n.agentWorkbench.events.toolCall;
 }
 
+/**
+ * Human-readable title for tool invocation Expander.
+ * Shows the actual command/input instead of raw tool name.
+ * For shell_command: "$ git status"
+ * For other tools: "toolName: first line of input"
+ * Falls back to resolveToolInvocationTitle.
+ */
+export function resolveToolInvocationHumanTitle(item: WorkbenchToolInvocationTimelineItem) {
+  const inputText = item.call?.inputText;
+  if (inputText) {
+    const firstLine = inputText.split('\n')[0].trim();
+    if (item.toolName === 'shell_command') {
+      return firstLine.length <= 60
+        ? `$ ${firstLine}`
+        : `$ ${firstLine.substring(0, 57)}…`;
+    }
+    if (item.toolName) {
+      return firstLine.length <= 48
+        ? `${item.toolName}: ${firstLine}`
+        : `${item.toolName}: ${firstLine.substring(0, 45)}…`;
+    }
+  }
+  return resolveToolInvocationTitle(item);
+}
+
 export function resolveToolInvocationTone(item: WorkbenchToolInvocationTimelineItem) {
   if (item.result) {
     return resolveToolResultStatusTone(item.result.status);

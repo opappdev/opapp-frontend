@@ -31,6 +31,7 @@ import {
   resolveTimelineEntryTone,
   resolveTimelineEntryTrailingLabel,
   resolveToolCallStatusLabel,
+  resolveToolInvocationHumanTitle,
   resolveToolInvocationTerminalEventsLabel,
   resolveToolInvocationTitle,
   resolveToolInvocationTone,
@@ -215,42 +216,44 @@ export function WorkbenchTimelineSection({
                   screenStyles.transcriptTerminal,
                   {backgroundColor: palette.panelEmphasis, paddingVertical: appSpacing.sm2},
                 ]}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.xxs}}>
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent, fontWeight: '600'}]}>
-                    {resolveApprovalStatusLabel(entry.status)}
-                  </Text>
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.6}]}>
-                    {resolvePermissionModeLabel(entry.permissionMode)}
-                  </Text>
-                </View>
                 {entry.title ? (
-                  <Text style={[screenStyles.infoText, {color: palette.ink}]}>
+                  <Text style={[screenStyles.infoText, {color: palette.ink, fontWeight: '600', marginBottom: appSpacing.xxs}]}>
                     {entry.title}
                   </Text>
                 ) : null}
                 {entry.details ? (
                   <Text
-                    style={[screenStyles.terminalText, {color: palette.inkMuted, fontFamily: terminalFontFamily, marginTop: appSpacing.xxs}]}
+                    style={[screenStyles.terminalText, {color: palette.inkMuted, fontFamily: terminalFontFamily}]}
                     numberOfLines={4}>
                     {entry.details}
                   </Text>
                 ) : null}
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginTop: appSpacing.xs}}>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
+                    {resolveApprovalStatusLabel(entry.status)}
+                  </Text>
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                    {resolvePermissionModeLabel(entry.permissionMode)}
+                  </Text>
+                </View>
               </View>
             );
           }
 
-          /* Error — inline accent */
+          /* Error — message first, code as secondary meta */
           if (entry.kind === 'error') {
             return (
               <View
                 key={item.key}
                 style={[screenStyles.transcriptTerminal, {backgroundColor: `${palette.errorRed}08`}]}>
-                <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed, fontWeight: '600', marginBottom: appSpacing.xxs}]}>
-                  {entry.code ?? appI18n.common.unknown}
-                </Text>
                 <Text style={[screenStyles.infoText, {color: palette.ink}]}>
                   {entry.message}
                 </Text>
+                {entry.code ? (
+                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed, marginTop: appSpacing.xxs}]}>
+                    {entry.code}
+                  </Text>
+                ) : null}
               </View>
             );
           }
@@ -316,7 +319,7 @@ function renderToolInvocation(
   return (
     <Expander
       key={item.key}
-      title={resolveToolInvocationTitle(item)}
+      title={resolveToolInvocationHumanTitle(item)}
       defaultExpanded={
         item.toolInvocationIndex === 0 ||
         !item.result ||
@@ -334,40 +337,17 @@ function renderToolInvocation(
         />
       }>
       <View style={screenStyles.expanderBody}>
-        {/* Status meta — compact inline */}
-        <View style={screenStyles.toolCardMeta}>
-          <Text
-            testID={`${toolCardBaseTestID}.name`}
-            style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
+        {/* Hidden fields for smoke test locators — all testIDs preserved */}
+        <View style={{height: 0, overflow: 'hidden'}}>
+          <Text testID={`${toolCardBaseTestID}.name`}>
             {item.toolName ?? appI18n.agentWorkbench.values.unknownTool}
           </Text>
-          <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, opacity: 0.3}]}>·</Text>
-          <Text
-            testID={`${toolCardBaseTestID}.call-status`}
-            style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+          <Text testID={`${toolCardBaseTestID}.call-status`}>
             {item.call ? resolveToolCallStatusLabel(item.call.status) : appI18n.common.unknown}
           </Text>
-          <Text
-            testID={`${toolCardBaseTestID}.result-status`}
-            style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+          <Text testID={`${toolCardBaseTestID}.result-status`}>
             {item.result ? resolveToolResultStatusLabel(item.result.status) : appI18n.agentWorkbench.values.noToolResultYet}
           </Text>
-          {item.result?.exitCode !== null && item.result?.exitCode !== undefined ? (
-            <Text
-              testID={`${toolCardBaseTestID}.exit-code`}
-              style={[screenStyles.toolCardMetaItem, {color: item.result.exitCode === 0 ? palette.support : palette.errorRed, fontFamily: terminalFontFamily}]}>
-              exit {item.result.exitCode}
-            </Text>
-          ) : (
-            <Text
-              testID={`${toolCardBaseTestID}.exit-code`}
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, opacity: 0.2, fontFamily: terminalFontFamily}]}>
-              —
-            </Text>
-          )}
-        </View>
-        {/* Hidden fields for smoke test locators */}
-        <View style={{height: 0, overflow: 'hidden'}}>
           <Text testID={`${toolCardBaseTestID}.terminal-events`}>
             {resolveToolInvocationTerminalEventsLabel(item)}
           </Text>
@@ -383,6 +363,16 @@ function renderToolInvocation(
             {formatIsoTimestamp(resolveToolInvocationUpdatedAt(item))}
           </Text>
         </View>
+        {/* Compact result summary — just exit code when available */}
+        {item.result?.exitCode !== null && item.result?.exitCode !== undefined ? (
+          <View style={screenStyles.toolCardMeta}>
+            <Text
+              testID={`${toolCardBaseTestID}.exit-code`}
+              style={[screenStyles.toolCardMetaItem, {color: item.result.exitCode === 0 ? palette.support : palette.errorRed, fontFamily: terminalFontFamily}]}>
+              exit {item.result.exitCode}
+            </Text>
+          </View>
+        ) : null}
         {/* Input — inline command preview */}
         <View style={[screenStyles.transcriptTerminal, {marginVertical: 0}]}>
           <Text

@@ -368,7 +368,7 @@ export function createScreenStyles(palette: AppPalette) {
       borderLeftColor: palette.accent,
       backgroundColor: palette.canvasShade,
       paddingHorizontal: appSpacing.lg2,
-      paddingVertical: appSpacing.md,
+      paddingVertical: appSpacing.lg,
     },
     toolCardHeader: {
       flexDirection: 'row',
@@ -430,7 +430,7 @@ export function createScreenStyles(palette: AppPalette) {
       alignItems: 'center',
       gap: appSpacing.md,
       paddingHorizontal: 40,
-      paddingVertical: appSpacing.sm2,
+      paddingVertical: appSpacing.md,
       backgroundColor: palette.accentSoft,
       borderBottomWidth: 1,
       borderBottomColor: palette.accent,

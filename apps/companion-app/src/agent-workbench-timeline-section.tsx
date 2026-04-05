@@ -140,7 +140,7 @@ export function WorkbenchTimelineSection({
                   screenStyles.messageItem,
                   isUser
                     ? {borderLeftWidth: 3, borderLeftColor: palette.support, backgroundColor: palette.panelEmphasis}
-                    : {backgroundColor: palette.canvasShade},
+                    : {backgroundColor: palette.canvasShade, borderLeftWidth: 2, borderLeftColor: palette.border},
                 ]}>
                 <View style={screenStyles.messageItemHeader}>
                   <Text style={[screenStyles.messageItemRole, isUser ? {color: palette.support} : null]}>

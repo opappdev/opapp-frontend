@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {ActivityIndicator, Pressable, ScrollView, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
@@ -54,6 +54,12 @@ export function WorkbenchInspectorSection({
   screenStyles,
 }: WorkbenchInspectorSectionProps) {
   const {palette} = useTheme();
+  const [showAllChildren, setShowAllChildren] = useState(false);
+  const INSPECTOR_COLLAPSED_LIMIT = 12;
+  const hasChildOverflow = selectedInspectorChildren.length > INSPECTOR_COLLAPSED_LIMIT;
+  const visibleChildren = showAllChildren
+    ? selectedInspectorChildren
+    : selectedInspectorChildren.slice(0, INSPECTOR_COLLAPSED_LIMIT);
 
   return (
     <View style={screenStyles.sectionCardCompact}>
@@ -107,7 +113,7 @@ export function WorkbenchInspectorSection({
                 </Text>
               ) : (
                 <View style={screenStyles.threadList}>
-                  {selectedInspectorChildren.map(entry => {
+                  {visibleChildren.map(entry => {
                     const isActive =
                       selectedInspectorEntry.relativePath ===
                       entry.relativePath;
@@ -148,6 +154,18 @@ export function WorkbenchInspectorSection({
                       </Pressable>
                     );
                   })}
+                  {hasChildOverflow ? (
+                    <Pressable
+                      onPress={() => setShowAllChildren(prev => !prev)}
+                      style={({pressed}: {pressed: boolean}) => [
+                        screenStyles.listRow,
+                        pressed ? {opacity: 0.7} : null,
+                      ]}>
+                      <Text style={[screenStyles.listRowMeta, {color: palette.inkMuted, paddingVertical: appSpacing.xxs}]}>
+                        {showAllChildren ? '收起' : `+ ${selectedInspectorChildren.length - INSPECTOR_COLLAPSED_LIMIT} 更多`}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               )}
             </View>

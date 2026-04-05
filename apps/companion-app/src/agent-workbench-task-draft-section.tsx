@@ -189,6 +189,7 @@ export function WorkbenchTaskDraftSection({
             paddingHorizontal: appSpacing.sm2,
             paddingVertical: appSpacing.xxs,
             borderRadius: appRadius.badge,
+            backgroundColor: palette.canvasShade,
           }}>
           <Text style={[screenStyles.listRowMeta, {color: palette.inkSoft}]}>
             {showAdvanced ? '▾ command' : '▸ command'}

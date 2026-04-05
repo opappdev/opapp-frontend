@@ -19,7 +19,7 @@ export function DetailField({
       style={[
         baseStyles.detailField,
         {
-          backgroundColor: palette.canvas,
+          backgroundColor: palette.canvasShade,
           borderColor: palette.border,
         },
       ]}>

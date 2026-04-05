@@ -241,7 +241,7 @@ export function createScreenStyles(palette: AppPalette) {
 
     /* ── Approval / action grids ──────────────────────── */
     approvalPanel: {
-      gap: appSpacing.md,
+      gap: appSpacing.lg,
     },
     detailGrid: {
       flexDirection: 'row',
@@ -498,8 +498,8 @@ export function createScreenStyles(palette: AppPalette) {
 
     /* ── Composer (task input bar) ─────────────────────── */
     composerBar: {
-      borderTopWidth: 1,
-      borderTopColor: palette.border,
+      borderTopWidth: 2,
+      borderTopColor: palette.accent,
       backgroundColor: palette.panelEmphasis,
       paddingHorizontal: 40,
       paddingVertical: appSpacing.lg2,
@@ -543,6 +543,8 @@ export function createScreenStyles(palette: AppPalette) {
       backgroundColor: palette.canvasShade,
       borderWidth: 1,
       borderColor: palette.border,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.accent,
     },
     workspaceSelectorLabel: {
       ...appTypography.caption,

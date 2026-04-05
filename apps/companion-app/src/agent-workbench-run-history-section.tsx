@@ -1,14 +1,15 @@
 import React from 'react';
-import {Text, View} from 'react-native';
+import {Pressable, Text, View} from 'react-native';
 import type {AgentRunDocument} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
-  ChoiceChip,
-  EmptyState,
+  SignalPill,
+  useTheme,
 } from '@opapp/ui-native-primitives';
 import {
   formatIsoTimestamp,
   resolveRunStatusLabel,
+  resolveRunStatusTone,
 } from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
 
@@ -27,57 +28,77 @@ export function WorkbenchRunHistorySection({
   onSelectRun,
   screenStyles,
 }: WorkbenchRunHistorySectionProps) {
+  const {palette} = useTheme();
+
+  if (threadRunDocuments.length === 0) {
+    return (
+      <View style={screenStyles.sectionCardCompact}>
+        <Text style={screenStyles.sectionTitle}>
+          {appI18n.agentWorkbench.sections.runHistoryTitle}
+        </Text>
+        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: 6}]}>
+          {appI18n.agentWorkbench.empty.runHistoryDescription}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.runHistoryTitle}
       </Text>
 
-      {threadRunDocuments.length === 0 ? (
-        <EmptyState
-          title={appI18n.agentWorkbench.empty.runHistoryTitle}
-          description={
-            appI18n.agentWorkbench.empty.runHistoryDescription
-          }
-        />
-      ) : (
-        <View style={screenStyles.threadList}>
-          {threadRunDocuments.map((document, index) => (
-            <ChoiceChip
+      <View style={screenStyles.threadList}>
+        {threadRunDocuments.map((document, index) => {
+          const isActive = document.run.runId === selectedRunId;
+          const isLatest =
+            document.run.runId === latestThreadRunDocument?.run.runId;
+          return (
+            <Pressable
               key={document.run.runId}
               testID={`agent-workbench.run-history.index-${index}`}
-              label={
-                document.run.goal ||
-                document.run.request?.command ||
-                document.run.runId
-              }
-              detail={`${resolveRunStatusLabel(document.run.status)} · ${formatIsoTimestamp(document.run.updatedAt)}`}
-              meta={
-                document.run.runId === latestThreadRunDocument?.run.runId
-                  ? appI18n.agentWorkbench.runHistory.latest(
-                      document.run.runId,
-                    )
-                  : document.run.resumedFromRunId
-                  ? appI18n.agentWorkbench.runHistory.resumedFrom(
-                      document.run.resumedFromRunId,
-                    )
-                  : document.run.runId
-              }
-              active={document.run.runId === selectedRunId}
-              activeBadgeLabel={
-                appI18n.agentWorkbench.runHistory.selectedBadge
-              }
-              inactiveBadgeLabel={
-                appI18n.agentWorkbench.runHistory.availableBadge
-              }
+              accessibilityRole='button'
+              accessibilityState={{selected: isActive}}
               onPress={() => {
                 onSelectRun(document);
               }}
-              style={screenStyles.choiceChip}
-            />
-          ))}
-        </View>
-      )}
+              style={[
+                screenStyles.listRow,
+                isActive ? screenStyles.listRowActive : null,
+              ]}>
+              {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
+              <View style={{flex: 1, minWidth: 0, gap: 2}}>
+                <Text
+                  numberOfLines={2}
+                  style={[
+                    screenStyles.listRowLabel,
+                    isActive ? {color: palette.ink, fontWeight: '700'} : {color: palette.inkMuted},
+                  ]}>
+                  {document.run.goal ||
+                    document.run.request?.command ||
+                    document.run.runId}
+                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                  <SignalPill
+                    label={resolveRunStatusLabel(document.run.status)}
+                    tone={resolveRunStatusTone(document.run.status)}
+                    size='sm'
+                  />
+                  <Text numberOfLines={1} style={screenStyles.listRowDetail}>
+                    {formatIsoTimestamp(document.run.updatedAt)}
+                  </Text>
+                  {isLatest ? (
+                    <Text style={[screenStyles.listRowDetail, {color: palette.accent}]}>
+                      ●
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }

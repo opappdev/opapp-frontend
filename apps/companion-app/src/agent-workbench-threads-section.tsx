@@ -1,10 +1,9 @@
 import React from 'react';
-import {Text, View} from 'react-native';
+import {Pressable, Text, View} from 'react-native';
 import type {AgentThreadSummary} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
-  ChoiceChip,
-  EmptyState,
+  useTheme,
 } from '@opapp/ui-native-primitives';
 import {formatThreadSubtitle} from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
@@ -22,6 +21,8 @@ export function WorkbenchThreadsSection({
   onSelectThread,
   screenStyles,
 }: WorkbenchThreadsSectionProps) {
+  const {palette} = useTheme();
+
   return (
     <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
@@ -29,27 +30,44 @@ export function WorkbenchThreadsSection({
       </Text>
 
       {threads.length === 0 ? (
-        <EmptyState
-          title={appI18n.agentWorkbench.empty.threadsTitle}
-          description={appI18n.agentWorkbench.empty.threadsDescription}
-        />
+        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: 6}]}>
+          {appI18n.agentWorkbench.empty.threadsDescription}
+        </Text>
       ) : (
         <View style={screenStyles.threadList}>
-          {threads.map(thread => (
-            <ChoiceChip
-              key={thread.threadId}
-              label={thread.title}
-              detail={formatThreadSubtitle(thread)}
-              meta={thread.lastRunId ?? appI18n.common.unknown}
-              active={thread.threadId === selectedThreadId}
-              activeBadgeLabel={appI18n.agentWorkbench.threads.selectedBadge}
-              inactiveBadgeLabel={appI18n.agentWorkbench.threads.availableBadge}
-              onPress={() => {
-                onSelectThread(thread.threadId);
-              }}
-              style={screenStyles.choiceChip}
-            />
-          ))}
+          {threads.map(thread => {
+            const isActive = thread.threadId === selectedThreadId;
+            return (
+              <Pressable
+                key={thread.threadId}
+                accessibilityRole='button'
+                accessibilityState={{selected: isActive}}
+                onPress={() => {
+                  onSelectThread(thread.threadId);
+                }}
+                style={[
+                  screenStyles.listRow,
+                  isActive ? screenStyles.listRowActive : null,
+                ]}>
+                {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
+                <View style={{flex: 1, minWidth: 0, gap: 2}}>
+                  <Text
+                    numberOfLines={2}
+                    style={[
+                      screenStyles.listRowLabel,
+                      isActive ? {color: palette.ink, fontWeight: '700'} : {color: palette.inkMuted},
+                    ]}>
+                    {thread.title}
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={screenStyles.listRowDetail}>
+                    {formatThreadSubtitle(thread)}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
       )}
     </View>

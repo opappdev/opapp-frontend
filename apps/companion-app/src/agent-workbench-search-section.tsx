@@ -1,10 +1,8 @@
 import React from 'react';
-import {Text, TextInput as RNTextInput, View} from 'react-native';
+import {Pressable, Text, TextInput as RNTextInput, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
-  ChoiceChip,
-  EmptyState,
   useTheme,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget, WorkspaceEntry} from '@opapp/framework-filesystem';
@@ -45,10 +43,9 @@ export function WorkbenchSearchSection({
       </Text>
 
       {!trustedWorkspace ? (
-        <EmptyState
-          title={appI18n.agentWorkbench.empty.searchTitle}
-          description={appI18n.agentWorkbench.empty.searchDescription}
-        />
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+          {appI18n.agentWorkbench.empty.searchDescription}
+        </Text>
       ) : (
         <View style={screenStyles.sectionBody}>
           {textInputsReady ? (
@@ -103,29 +100,46 @@ export function WorkbenchSearchSection({
             tone='ghost'
           />
           {searchResults.length === 0 ? (
-            <EmptyState
-              title={appI18n.agentWorkbench.empty.searchTitle}
-              description={appI18n.agentWorkbench.empty.searchDescription}
-            />
+            <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+              {appI18n.agentWorkbench.empty.searchDescription}
+            </Text>
           ) : (
             <View style={screenStyles.threadList}>
-              {searchResults.map(entry => (
-                <ChoiceChip
-                  key={`${entry.relativePath}:${entry.kind}`}
-                  label={entry.name}
-                  detail={entry.relativePath}
-                  meta={formatWorkspaceEntryMeta(entry)}
-                  active={
-                    selectedInspectorEntry?.relativePath === entry.relativePath
-                  }
-                  activeBadgeLabel={appI18n.agentWorkbench.inspector.selectedBadge}
-                  inactiveBadgeLabel={appI18n.agentWorkbench.inspector.availableBadge}
-                  onPress={() => {
-                    onInspectEntry(entry);
-                  }}
-                  style={screenStyles.choiceChip}
-                />
-              ))}
+              {searchResults.map(entry => {
+                const isActive =
+                  selectedInspectorEntry?.relativePath === entry.relativePath;
+                return (
+                  <Pressable
+                    key={`${entry.relativePath}:${entry.kind}`}
+                    onPress={() => {
+                      onInspectEntry(entry);
+                    }}
+                    style={[
+                      screenStyles.listRow,
+                      isActive && screenStyles.listRowActive,
+                    ]}>
+                    {isActive ? (
+                      <View style={screenStyles.listRowIndicator} />
+                    ) : null}
+                    <Text
+                      style={[
+                        screenStyles.listRowLabel,
+                        {color: isActive ? palette.accent : palette.ink},
+                      ]}
+                      numberOfLines={1}>
+                      {entry.name}
+                    </Text>
+                    <Text
+                      style={[
+                        screenStyles.listRowMeta,
+                        {color: palette.inkSoft},
+                      ]}
+                      numberOfLines={1}>
+                      {formatWorkspaceEntryMeta(entry)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         </View>

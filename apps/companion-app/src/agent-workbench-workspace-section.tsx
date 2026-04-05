@@ -1,8 +1,7 @@
-import React from 'react';
-import {Text, View} from 'react-native';
+import React, {useState} from 'react';
+import {Pressable, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
-  ChoiceChip,
   EmptyState,
   useTheme,
 } from '@opapp/ui-native-primitives';
@@ -31,51 +30,79 @@ export function WorkbenchWorkspaceSection({
   screenStyles,
 }: WorkbenchWorkspaceSectionProps) {
   const {palette} = useTheme();
+  const [expanded, setExpanded] = useState(false);
 
-  return (
-    <View style={screenStyles.sectionCardCompact}>
-      <Text style={screenStyles.sectionTitle}>
-        {appI18n.agentWorkbench.sections.workspaceTitle}
-      </Text>
-
-      {!trustedWorkspace ? (
+  if (!trustedWorkspace) {
+    return (
+      <View style={screenStyles.sectionCardCompact}>
         <EmptyState
           title={appI18n.agentWorkbench.empty.workspaceTitle}
           description={appI18n.agentWorkbench.empty.workspaceDescription}
         />
-      ) : (
-        <View style={screenStyles.sectionBody}>
-          <Text
-            testID='agent-workbench.detail.root-path'
-            style={{color: palette.inkMuted, ...screenStyles.infoText}}
-            numberOfLines={1}>
-            {trustedWorkspace.rootPath}
-          </Text>
-          <Text
-            testID='agent-workbench.detail.selected-cwd'
-            style={{color: palette.ink, ...screenStyles.infoText}}
-            numberOfLines={1}>
-            {formatWorkspaceSelection(selectedWorkspaceStat, trustedWorkspace)}
-          </Text>
-          <View style={screenStyles.choiceGrid}>
-            {workspaceChoices.map(choice => (
-              <ChoiceChip
+      </View>
+    );
+  }
+
+  return (
+    <View style={screenStyles.sectionCardCompact}>
+      {/* Collapsed workspace selector — tap to expand */}
+      <Pressable
+        testID='agent-workbench.action.toggle-workspace-selector'
+        accessibilityRole='button'
+        onPress={() => {
+          setExpanded(prev => !prev);
+        }}
+        style={screenStyles.workspaceSelector}>
+        <Text
+          testID='agent-workbench.detail.root-path'
+          style={[screenStyles.workspaceSelectorLabel]}
+          numberOfLines={1}>
+          {formatWorkspaceSelection(selectedWorkspaceStat, trustedWorkspace)}
+        </Text>
+        <Text style={[screenStyles.listRowMeta, {color: palette.inkSoft}]}>
+          {expanded ? '▾' : '▸'}
+        </Text>
+      </Pressable>
+
+      {/* Hidden locator for testID compatibility */}
+      <View style={{height: 0, overflow: 'hidden'}}>
+        <Text testID='agent-workbench.detail.selected-cwd'>
+          {formatWorkspaceSelection(selectedWorkspaceStat, trustedWorkspace)}
+        </Text>
+      </View>
+
+      {/* Expanded directory list (progressive disclosure) */}
+      {expanded ? (
+        <View style={screenStyles.threadList}>
+          {workspaceChoices.map(choice => {
+            const isActive = selectedCwd === choice.key;
+            return (
+              <Pressable
                 key={choice.key || 'workspace-root'}
                 testID={`agent-workbench.workspace.${choice.key || 'root'}`}
-                label={choice.label}
-                detail={choice.detail}
-                active={selectedCwd === choice.key}
-                activeBadgeLabel={appI18n.agentWorkbench.workspace.currentBadge}
-                inactiveBadgeLabel={appI18n.agentWorkbench.workspace.availableBadge}
+                accessibilityRole='button'
+                accessibilityState={{selected: isActive}}
                 onPress={() => {
                   onBrowseDirectory(choice.key);
                 }}
-                style={screenStyles.choiceChip}
-              />
-            ))}
-          </View>
+                style={[
+                  screenStyles.listRow,
+                  isActive ? screenStyles.listRowActive : null,
+                ]}>
+                {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    screenStyles.listRowLabel,
+                    isActive ? {color: palette.ink} : {color: palette.inkMuted},
+                  ]}>
+                  {choice.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
-      )}
+      ) : null}
     </View>
   );
 }

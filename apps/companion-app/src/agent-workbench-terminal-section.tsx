@@ -15,34 +15,40 @@ export function WorkbenchTerminalSection({
 }: WorkbenchTerminalSectionProps) {
   const {palette} = useTheme();
 
-  return (
-    <View style={screenStyles.sectionCardCompact}>
-      <Text style={screenStyles.sectionTitle}>
-        {appI18n.agentWorkbench.sections.terminalTitle}
-      </Text>
-
-      <View
-        style={[
-          screenStyles.terminalBox,
-          {
-            backgroundColor: palette.canvasShade,
-            borderColor: palette.border,
-          },
-        ]}>
-        <ScrollView style={screenStyles.terminalScroll}>
-          <Text
-            testID='agent-workbench.terminal.transcript'
-            style={[
-              screenStyles.terminalText,
-              {
-                color: palette.inkMuted,
-                fontFamily: terminalFontFamily,
-              },
-            ]}>
-            {terminalTranscript || appI18n.agentWorkbench.empty.terminalDescription}
-          </Text>
-        </ScrollView>
+  // Don't render anything when there's no terminal output
+  if (!terminalTranscript) {
+    return (
+      <View style={screenStyles.transcriptTerminal}>
+        <Text
+          testID='agent-workbench.terminal.transcript'
+          style={[
+            screenStyles.terminalText,
+            {
+              color: palette.inkSoft,
+              fontFamily: terminalFontFamily,
+            },
+          ]}>
+          {appI18n.agentWorkbench.empty.terminalDescription}
+        </Text>
       </View>
+    );
+  }
+
+  return (
+    <View style={screenStyles.transcriptTerminal}>
+      <ScrollView style={screenStyles.terminalScroll}>
+        <Text
+          testID='agent-workbench.terminal.transcript'
+          style={[
+            screenStyles.terminalText,
+            {
+              color: palette.ink,
+              fontFamily: terminalFontFamily,
+            },
+          ]}>
+          {terminalTranscript}
+        </Text>
+      </ScrollView>
     </View>
   );
 }

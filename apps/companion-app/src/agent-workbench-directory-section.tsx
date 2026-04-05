@@ -1,9 +1,8 @@
 import React from 'react';
-import {Text, View} from 'react-native';
+import {Pressable, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
-  ChoiceChip,
-  EmptyState,
+  useTheme,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget, WorkspaceEntry} from '@opapp/framework-filesystem';
 import {formatWorkspaceEntryMeta} from './agent-workbench-resolvers';
@@ -24,43 +23,63 @@ export function WorkbenchDirectorySection({
   onInspectEntry,
   screenStyles,
 }: WorkbenchDirectorySectionProps) {
+  const {palette} = useTheme();
+
+  if (!trustedWorkspace || workspaceEntries.length === 0) {
+    return (
+      <View style={screenStyles.sectionCardCompact}>
+        <Text style={screenStyles.sectionTitle}>
+          {appI18n.agentWorkbench.sections.directoryTitle}
+        </Text>
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+          {appI18n.agentWorkbench.empty.directoryDescription}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={screenStyles.sectionCardCompact}>
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.directoryTitle}
       </Text>
-
-      {!trustedWorkspace ? (
-        <EmptyState
-          title={appI18n.agentWorkbench.empty.directoryTitle}
-          description={appI18n.agentWorkbench.empty.directoryDescription}
-        />
-      ) : workspaceEntries.length === 0 ? (
-        <EmptyState
-          title={appI18n.agentWorkbench.empty.directoryTitle}
-          description={appI18n.agentWorkbench.empty.directoryDescription}
-        />
-      ) : (
-        <View style={screenStyles.threadList}>
-          {workspaceEntries.map(entry => (
-            <ChoiceChip
+      <View style={screenStyles.threadList}>
+        {workspaceEntries.map(entry => {
+          const isActive =
+            selectedInspectorEntry?.relativePath === entry.relativePath;
+          return (
+            <Pressable
               key={entry.relativePath || entry.name}
-              label={entry.name}
-              detail={entry.relativePath || appI18n.agentWorkbench.workspace.rootLabel}
-              meta={formatWorkspaceEntryMeta(entry)}
-              active={
-                selectedInspectorEntry?.relativePath === entry.relativePath
-              }
-              activeBadgeLabel={appI18n.agentWorkbench.inspector.selectedBadge}
-              inactiveBadgeLabel={appI18n.agentWorkbench.inspector.availableBadge}
               onPress={() => {
                 onInspectEntry(entry);
               }}
-              style={screenStyles.choiceChip}
-            />
-          ))}
-        </View>
-      )}
+              style={[
+                screenStyles.listRow,
+                isActive && screenStyles.listRowActive,
+              ]}>
+              {isActive ? (
+                <View style={screenStyles.listRowIndicator} />
+              ) : null}
+              <Text
+                style={[
+                  screenStyles.listRowLabel,
+                  {color: isActive ? palette.accent : palette.ink},
+                ]}
+                numberOfLines={1}>
+                {entry.name}
+              </Text>
+              <Text
+                style={[
+                  screenStyles.listRowMeta,
+                  {color: palette.inkSoft},
+                ]}
+                numberOfLines={1}>
+                {formatWorkspaceEntryMeta(entry)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }

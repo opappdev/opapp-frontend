@@ -1,10 +1,8 @@
 import React from 'react';
-import {ActivityIndicator, ScrollView, Text, View} from 'react-native';
+import {ActivityIndicator, Pressable, ScrollView, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
-  ChoiceChip,
-  EmptyState,
   InfoPanel,
   useTheme,
 } from '@opapp/ui-native-primitives';
@@ -63,10 +61,9 @@ export function WorkbenchInspectorSection({
       </Text>
 
       {!selectedInspectorEntry ? (
-        <EmptyState
-          title={appI18n.agentWorkbench.empty.inspectorTitle}
-          description={appI18n.agentWorkbench.empty.inspectorDescription}
-        />
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+          {appI18n.agentWorkbench.empty.inspectorDescription}
+        </Text>
       ) : (
         <View style={screenStyles.sectionBody}>
           <View style={screenStyles.toolCardMeta}>
@@ -103,36 +100,47 @@ export function WorkbenchInspectorSection({
                 tone='ghost'
               />
               {selectedInspectorChildren.length === 0 ? (
-                <EmptyState
-                  title={appI18n.agentWorkbench.empty.directoryTitle}
-                  description={
-                    appI18n.agentWorkbench.empty.directoryDescription
-                  }
-                />
+                <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                  {appI18n.agentWorkbench.empty.directoryDescription}
+                </Text>
               ) : (
                 <View style={screenStyles.threadList}>
-                  {selectedInspectorChildren.map(entry => (
-                    <ChoiceChip
-                      key={`${entry.relativePath}:${entry.kind}`}
-                      label={entry.name}
-                      detail={entry.relativePath}
-                      meta={formatWorkspaceEntryMeta(entry)}
-                      active={
-                        selectedInspectorEntry.relativePath ===
-                        entry.relativePath
-                      }
-                      activeBadgeLabel={
-                        appI18n.agentWorkbench.inspector.selectedBadge
-                      }
-                      inactiveBadgeLabel={
-                        appI18n.agentWorkbench.inspector.availableBadge
-                      }
-                      onPress={() => {
-                        onInspectEntry(entry);
-                      }}
-                      style={screenStyles.choiceChip}
-                    />
-                  ))}
+                  {selectedInspectorChildren.map(entry => {
+                    const isActive =
+                      selectedInspectorEntry.relativePath ===
+                      entry.relativePath;
+                    return (
+                      <Pressable
+                        key={`${entry.relativePath}:${entry.kind}`}
+                        onPress={() => {
+                          onInspectEntry(entry);
+                        }}
+                        style={[
+                          screenStyles.listRow,
+                          isActive && screenStyles.listRowActive,
+                        ]}>
+                        {isActive ? (
+                          <View style={screenStyles.listRowIndicator} />
+                        ) : null}
+                        <Text
+                          style={[
+                            screenStyles.listRowLabel,
+                            {color: isActive ? palette.accent : palette.ink},
+                          ]}
+                          numberOfLines={1}>
+                          {entry.name}
+                        </Text>
+                        <Text
+                          style={[
+                            screenStyles.listRowMeta,
+                            {color: palette.inkSoft},
+                          ]}
+                          numberOfLines={1}>
+                          {formatWorkspaceEntryMeta(entry)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -203,24 +211,16 @@ export function WorkbenchInspectorSection({
                 ? null
                 : !selectedGitDiffCommand
                   ? (
-                      <EmptyState
-                        title={
-                          appI18n.agentWorkbench.empty.diffUnavailableTitle
-                        }
-                        description={
-                          appI18n.agentWorkbench.empty.diffUnavailableDescription
-                        }
-                      />
+                      <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                        {appI18n.agentWorkbench.empty.diffUnavailableDescription}
+                      </Text>
                     )
                   : selectedDiffPath !==
                         selectedInspectorEntry.relativePath
                     ? (
-                        <EmptyState
-                          title={appI18n.agentWorkbench.empty.diffTitle}
-                          description={
-                            appI18n.agentWorkbench.empty.diffDescription
-                          }
-                        />
+                        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                          {appI18n.agentWorkbench.empty.diffDescription}
+                        </Text>
                       )
                     : diffLoading && !selectedDiffOutput
                       ? (
@@ -257,14 +257,9 @@ export function WorkbenchInspectorSection({
                             </View>
                           )
                         : (
-                            <EmptyState
-                              title={
-                                appI18n.agentWorkbench.empty.diffNoChangesTitle
-                              }
-                              description={
-                                appI18n.agentWorkbench.empty.diffNoChangesDescription
-                              }
-                            />
+                            <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+                              {appI18n.agentWorkbench.empty.diffNoChangesDescription}
+                            </Text>
                           )}
             </View>
           ) : null}

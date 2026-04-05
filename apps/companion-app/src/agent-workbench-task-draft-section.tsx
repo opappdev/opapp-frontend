@@ -1,10 +1,8 @@
-import React from 'react';
-import {Text, TextInput as RNTextInput, View} from 'react-native';
+import React, {useState} from 'react';
+import {Pressable, Text, TextInput as RNTextInput, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
-  ChoiceChip,
-  EmptyState,
   InfoPanel,
   useTheme,
 } from '@opapp/ui-native-primitives';
@@ -54,181 +52,201 @@ export function WorkbenchTaskDraftSection({
   screenStyles,
 }: WorkbenchTaskDraftSectionProps) {
   const {palette} = useTheme();
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  if (!trustedWorkspace) {
+    return null;
+  }
+
+  const canSubmit =
+    textInputsReady &&
+    trustedWorkspace &&
+    activeRunInfo === null &&
+    approvalBusy === null &&
+    taskDraftBusy === null &&
+    draftTask !== null &&
+    (draftRequiresApproval || draftTask.canRunDirect);
 
   return (
-    <View style={screenStyles.sectionCardPrimary}>
-      <Text style={screenStyles.sectionTitle}>
-        {appI18n.agentWorkbench.sections.taskDraftTitle}
-      </Text>
+    <View style={screenStyles.composerBar}>
+      {/* Direct mode guard */}
+      {!draftRequiresApproval && draftTask && !draftTask.canRunDirect ? (
+        <InfoPanel
+          title={appI18n.agentWorkbench.taskDraft.directModeGuardTitle}
+          tone='accent'>
+          <Text
+            style={[
+              screenStyles.sectionDescription,
+              {color: palette.inkMuted},
+            ]}>
+            {appI18n.agentWorkbench.taskDraft.directModeGuardDetail}
+          </Text>
+        </InfoPanel>
+      ) : null}
 
-      {!trustedWorkspace ? (
-        <EmptyState
-          title={appI18n.agentWorkbench.empty.workspaceTitle}
-          description={appI18n.agentWorkbench.empty.workspaceDescription}
-        />
-      ) : (
-        <View style={screenStyles.sectionBody}>
-          {/* Goal input — no label, placeholder-only */}
-          {textInputsReady ? (
-            <View
+      {/* Primary input: goal (task description) — always visible */}
+      <View style={screenStyles.composerInputRow}>
+        {textInputsReady ? (
+          <View
+            style={[
+              screenStyles.textInputShell,
+              {
+                flex: 1,
+                borderColor: palette.border,
+                backgroundColor: palette.canvasShade,
+              },
+            ]}>
+            <RNTextInput
+              testID='agent-workbench.task.goal-input'
+              value={draftGoal}
+              onChangeText={onDraftGoalChange}
+              placeholder={appI18n.agentWorkbench.taskDraft.goalPlaceholder}
+              placeholderTextColor={palette.inkSoft}
               style={[
-                screenStyles.textInputShell,
-                {
-                  borderColor: palette.border,
-                  backgroundColor: palette.panel,
-                },
-              ]}>
-              <RNTextInput
-                testID='agent-workbench.task.goal-input'
-                value={draftGoal}
-                onChangeText={onDraftGoalChange}
-                placeholder={
-                  appI18n.agentWorkbench.taskDraft.goalPlaceholder
-                }
-                placeholderTextColor={palette.inkSoft}
-                style={[
-                  screenStyles.textInputField,
-                  {
-                    color: palette.ink,
-                  },
-                ]}
-              />
-            </View>
-          ) : (
-            <View
-              style={[
-                screenStyles.textInputPlaceholder,
-                {
-                  borderColor: palette.border,
-                  backgroundColor: palette.panel,
-                },
-              ]}>
-              <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
-                {appI18n.agentWorkbench.taskDraft.goalPlaceholder}
-              </Text>
-            </View>
-          )}
-
-          {/* Command input — no label */}
-          {textInputsReady ? (
-            <View
-              style={[
-                screenStyles.textInputShell,
-                screenStyles.textInputMultilineShell,
-                {
-                  borderColor: palette.border,
-                  backgroundColor: palette.panel,
-                },
-              ]}>
-              <RNTextInput
-                testID='agent-workbench.task.command-input'
-                value={draftCommand}
-                onChangeText={onDraftCommandChange}
-                placeholder={
-                  appI18n.agentWorkbench.taskDraft.commandPlaceholder
-                }
-                placeholderTextColor={palette.inkSoft}
-                multiline
-                textAlignVertical='top'
-                style={[
-                  screenStyles.textInputField,
-                  screenStyles.textInputMultiline,
-                  {
-                    color: palette.ink,
-                  },
-                ]}
-              />
-            </View>
-          ) : (
-            <View
-              style={[
-                screenStyles.textInputPlaceholder,
-                screenStyles.textInputMultilineShell,
-                {
-                  borderColor: palette.border,
-                  backgroundColor: palette.panel,
-                },
-              ]}>
-              <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
-                {appI18n.agentWorkbench.taskDraft.commandPlaceholder}
-              </Text>
-            </View>
-          )}
-
-          <View style={screenStyles.choiceGrid}>
-            <ChoiceChip
-              testID='agent-workbench.task.mode.direct'
-              label={appI18n.agentWorkbench.taskDraft.directMode}
-              detail={appI18n.agentWorkbench.taskDraft.directModeDetail}
-              active={!draftRequiresApproval}
-              activeBadgeLabel={appI18n.agentWorkbench.taskDraft.activeBadge}
-              inactiveBadgeLabel={appI18n.agentWorkbench.taskDraft.availableBadge}
-              onPress={onSelectDirectMode}
-              style={screenStyles.choiceChip}
-            />
-            <ChoiceChip
-              testID='agent-workbench.task.mode.approval'
-              label={appI18n.agentWorkbench.taskDraft.approvalMode}
-              detail={appI18n.agentWorkbench.taskDraft.approvalModeDetail}
-              active={draftRequiresApproval}
-              activeBadgeLabel={appI18n.agentWorkbench.taskDraft.activeBadge}
-              inactiveBadgeLabel={appI18n.agentWorkbench.taskDraft.availableBadge}
-              onPress={onSelectApprovalMode}
-              style={screenStyles.choiceChip}
+                screenStyles.textInputField,
+                {color: palette.ink},
+              ]}
             />
           </View>
+        ) : (
+          <View
+            style={[
+              screenStyles.textInputPlaceholder,
+              {
+                flex: 1,
+                borderColor: palette.border,
+                backgroundColor: palette.canvasShade,
+              },
+            ]}>
+            <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+              {appI18n.agentWorkbench.taskDraft.goalPlaceholder}
+            </Text>
+          </View>
+        )}
 
-          <ActionButton
-            testID='agent-workbench.action.populate-write-approval-draft'
-            label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
-            onPress={onPopulateWriteApprovalDraft}
-            disabled={
-              !trustedWorkspace ||
-              activeRunInfo !== null ||
-              approvalBusy !== null ||
-              taskDraftBusy !== null
-            }
-            tone='ghost'
-          />
+        {/* Submit button inline with input */}
+        <ActionButton
+          testID='agent-workbench.action.start-draft-task'
+          label={
+            draftRequiresApproval
+              ? taskDraftBusy === 'requesting'
+                ? appI18n.agentWorkbench.actions.requestingDraftApproval
+                : appI18n.agentWorkbench.actions.requestDraftApproval
+              : taskDraftBusy === 'running'
+                ? appI18n.agentWorkbench.actions.runningDraftTask
+                : appI18n.agentWorkbench.actions.runDraftTask
+          }
+          onPress={onStartDraftTask}
+          disabled={!canSubmit}
+        />
+      </View>
 
-          {!draftRequiresApproval && draftTask && !draftTask.canRunDirect ? (
-            <InfoPanel
-              title={appI18n.agentWorkbench.taskDraft.directModeGuardTitle}
-              tone='accent'>
-              <Text
-                style={[
-                  screenStyles.sectionDescription,
-                  {color: palette.inkMuted},
-                ]}>
-                {appI18n.agentWorkbench.taskDraft.directModeGuardDetail}
-              </Text>
-            </InfoPanel>
-          ) : null}
-
-          <ActionButton
-            testID='agent-workbench.action.start-draft-task'
-            label={
-              draftRequiresApproval
-                ? taskDraftBusy === 'requesting'
-                  ? appI18n.agentWorkbench.actions.requestingDraftApproval
-                  : appI18n.agentWorkbench.actions.requestDraftApproval
-                : taskDraftBusy === 'running'
-                  ? appI18n.agentWorkbench.actions.runningDraftTask
-                  : appI18n.agentWorkbench.actions.runDraftTask
-            }
-            onPress={onStartDraftTask}
-            disabled={
-              !textInputsReady ||
-              !trustedWorkspace ||
-              activeRunInfo !== null ||
-              approvalBusy !== null ||
-              taskDraftBusy !== null ||
-              draftTask === null ||
-              (!draftRequiresApproval && !draftTask.canRunDirect)
-            }
-          />
+      {/* Secondary controls row — progressive disclosure */}
+      <View style={screenStyles.composerActionsRow}>
+        {/* Mode toggle */}
+        <View style={screenStyles.modeToggleRow}>
+          <Pressable
+            testID='agent-workbench.task.mode.direct'
+            onPress={onSelectDirectMode}
+            style={[
+              screenStyles.modeToggleItem,
+              !draftRequiresApproval ? screenStyles.modeToggleItemActive : null,
+            ]}>
+            <Text
+              style={[
+                screenStyles.modeToggleLabel,
+                !draftRequiresApproval ? screenStyles.modeToggleLabelActive : null,
+              ]}>
+              {appI18n.agentWorkbench.taskDraft.directMode}
+            </Text>
+          </Pressable>
+          <Pressable
+            testID='agent-workbench.task.mode.approval'
+            onPress={onSelectApprovalMode}
+            style={[
+              screenStyles.modeToggleItem,
+              draftRequiresApproval ? screenStyles.modeToggleItemActive : null,
+            ]}>
+            <Text
+              style={[
+                screenStyles.modeToggleLabel,
+                draftRequiresApproval ? screenStyles.modeToggleLabelActive : null,
+              ]}>
+              {appI18n.agentWorkbench.taskDraft.approvalMode}
+            </Text>
+          </Pressable>
         </View>
-      )}
+
+        <Pressable
+          testID='agent-workbench.action.toggle-command-input'
+          accessibilityRole='button'
+          onPress={() => {
+            setShowAdvanced(prev => !prev);
+          }}>
+          <Text style={[screenStyles.listRowMeta, {color: palette.inkSoft}]}>
+            {showAdvanced ? '▾ command' : '▸ command'}
+          </Text>
+        </Pressable>
+
+        <ActionButton
+          testID='agent-workbench.action.populate-write-approval-draft'
+          label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
+          onPress={onPopulateWriteApprovalDraft}
+          disabled={
+            !trustedWorkspace ||
+            activeRunInfo !== null ||
+            approvalBusy !== null ||
+            taskDraftBusy !== null
+          }
+          tone='ghost'
+        />
+
+        <View style={{flex: 1}} />
+      </View>
+
+      {/* Command input — hidden by default, progressive disclosure */}
+      {showAdvanced ? (
+        textInputsReady ? (
+          <View
+            style={[
+              screenStyles.textInputShell,
+              screenStyles.textInputMultilineShell,
+              {
+                borderColor: palette.border,
+                backgroundColor: palette.canvasShade,
+              },
+            ]}>
+            <RNTextInput
+              testID='agent-workbench.task.command-input'
+              value={draftCommand}
+              onChangeText={onDraftCommandChange}
+              placeholder={appI18n.agentWorkbench.taskDraft.commandPlaceholder}
+              placeholderTextColor={palette.inkSoft}
+              multiline
+              textAlignVertical='top'
+              style={[
+                screenStyles.textInputField,
+                screenStyles.textInputMultiline,
+                {color: palette.ink},
+              ]}
+            />
+          </View>
+        ) : (
+          <View
+            style={[
+              screenStyles.textInputPlaceholder,
+              screenStyles.textInputMultilineShell,
+              {
+                borderColor: palette.border,
+                backgroundColor: palette.canvasShade,
+              },
+            ]}>
+            <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+              {appI18n.agentWorkbench.taskDraft.commandPlaceholder}
+            </Text>
+          </View>
+        )
+      ) : null}
     </View>
   );
 }

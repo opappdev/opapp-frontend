@@ -159,8 +159,8 @@ export function WorkbenchTimelineSection({
           /* Plan entries — inline step list */
           if (entry.kind === 'plan') {
             return (
-              <View key={item.key} style={[screenStyles.transcriptTerminal]}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: appSpacing.sm}}>
+              <View key={item.key} style={[screenStyles.transcriptTerminal, {borderLeftWidth: 2, borderLeftColor: palette.support}]}>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.sm}}>
                   <Text style={[screenStyles.messageItemRole, {color: palette.inkMuted}]}>
                     {appI18n.agentWorkbench.values.planProgress(
                       countCompletedPlanSteps(entry.steps),
@@ -205,7 +205,7 @@ export function WorkbenchTimelineSection({
           /* Terminal events — inline terminal block */
           if (entry.kind === 'terminal-event') {
             return (
-              <View key={item.key} style={screenStyles.transcriptTerminal}>
+              <View key={item.key} style={[screenStyles.transcriptTerminal, {borderLeftWidth: 2, borderLeftColor: palette.inkSoft}]}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.xs}}>
                   <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent, fontWeight: '700'}]}>
                     {resolveTerminalEventLabel(entry.event)}

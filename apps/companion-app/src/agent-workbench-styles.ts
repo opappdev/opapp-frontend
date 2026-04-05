@@ -55,6 +55,7 @@ export function createScreenStyles(palette: AppPalette) {
       paddingHorizontal: appSpacing.lg2,
       borderBottomWidth: 1,
       borderBottomColor: palette.border,
+      backgroundColor: palette.panel,
       minHeight: 40,
     },
     toolbarBusy: {
@@ -213,6 +214,7 @@ export function createScreenStyles(palette: AppPalette) {
     },
     listRowActive: {
       backgroundColor: palette.accentSoft,
+      borderBottomColor: palette.accent,
     },
     listRowLabel: {
       ...appTypography.caption,
@@ -317,6 +319,8 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.sm,
       borderRadius: appRadius.badge,
       borderWidth: 0,
+      borderLeftWidth: 2,
+      borderLeftColor: palette.border,
       paddingHorizontal: appSpacing.sm2,
       paddingVertical: appSpacing.sm,
     },
@@ -425,9 +429,9 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.md,
       paddingHorizontal: 40,
       paddingVertical: appSpacing.sm2,
-      backgroundColor: palette.panelEmphasis,
+      backgroundColor: palette.accentSoft,
       borderBottomWidth: 1,
-      borderBottomColor: palette.border,
+      borderBottomColor: palette.accent,
     },
 
     /* ── Conversation empty state ─────────────────────── */

@@ -89,10 +89,12 @@ export function createScreenStyles(palette: AppPalette) {
     /* ── Status feedback bar ──────────────────────────── */
     feedbackBar: {
       paddingHorizontal: 40,
-      paddingVertical: appSpacing.sm,
-      backgroundColor: palette.panelEmphasis,
+      paddingVertical: appSpacing.sm2,
+      backgroundColor: palette.canvasShade,
       borderBottomWidth: 1,
       borderBottomColor: palette.border,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.accent,
     },
 
     /* ── 2+1 zone layout ──────────────────────────────── */

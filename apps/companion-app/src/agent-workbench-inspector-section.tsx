@@ -56,7 +56,7 @@ export function WorkbenchInspectorSection({
 
   return (
     <View style={screenStyles.sectionCardCompact}>
-      <Text style={screenStyles.sectionTitle}>
+      <Text style={[screenStyles.sectionTitle, {color: palette.accent, borderBottomColor: palette.accent}]}>
         {appI18n.agentWorkbench.sections.inspectorTitle}
       </Text>
 

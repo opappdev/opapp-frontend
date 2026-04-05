@@ -61,7 +61,7 @@ export function WorkbenchInspectorSection({
       </Text>
 
       {!selectedInspectorEntry ? (
-        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]} numberOfLines={2}>
           {appI18n.agentWorkbench.empty.inspectorDescription}
         </Text>
       ) : (

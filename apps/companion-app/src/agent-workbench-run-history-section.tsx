@@ -37,7 +37,7 @@ export function WorkbenchRunHistorySection({
         <Text style={screenStyles.sectionTitle}>
           {appI18n.agentWorkbench.sections.runHistoryTitle}
         </Text>
-        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: appSpacing.sm2}]}>
+        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: appSpacing.sm2}]} numberOfLines={2}>
           {appI18n.agentWorkbench.empty.runHistoryDescription}
         </Text>
       </View>

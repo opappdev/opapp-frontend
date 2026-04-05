@@ -484,5 +484,9 @@ export function resolveWorkspaceKindLabel(kind: WorkspaceEntry['kind']) {
 }
 
 export function formatWorkspaceEntryMeta(entry: WorkspaceEntry) {
-  return `${resolveWorkspaceKindLabel(entry.kind)} · ${formatSizeBytes(entry.sizeBytes)}`;
+  const kind = resolveWorkspaceKindLabel(entry.kind);
+  if (entry.sizeBytes === null || entry.sizeBytes < 0) {
+    return kind;
+  }
+  return `${kind} · ${formatSizeBytes(entry.sizeBytes)}`;
 }

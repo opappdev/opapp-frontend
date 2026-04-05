@@ -31,7 +31,7 @@ export function WorkbenchThreadsSection({
       </Text>
 
       {threads.length === 0 ? (
-        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: appSpacing.sm2}]}>
+        <Text style={[screenStyles.sectionDescription, {paddingHorizontal: appSpacing.sm2}]} numberOfLines={2}>
           {appI18n.agentWorkbench.empty.threadsDescription}
         </Text>
       ) : (

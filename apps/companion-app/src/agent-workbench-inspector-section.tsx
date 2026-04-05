@@ -16,6 +16,15 @@ import {
 } from './agent-workbench-resolvers';
 import {type createScreenStyles, terminalFontFamily} from './agent-workbench-styles';
 
+/** Classify a unified-diff line for colorization. */
+function classifyDiffLine(line: string): 'add' | 'remove' | 'header' | 'context' {
+  if (line.startsWith('@@')) return 'header';
+  if (line.startsWith('+++') || line.startsWith('---')) return 'header';
+  if (line.startsWith('+')) return 'add';
+  if (line.startsWith('-')) return 'remove';
+  return 'context';
+}
+
 type WorkbenchInspectorSectionProps = {
   selectedInspectorEntry: WorkspaceEntry | null;
   selectedInspectorChildren: ReadonlyArray<WorkspaceEntry>;
@@ -179,19 +188,30 @@ export function WorkbenchInspectorSection({
                 },
               ]}>
               <ScrollView style={screenStyles.terminalScroll}>
-                <Text
-                  style={[
-                    screenStyles.terminalText,
-                    {
-                      color: palette.ink,
-                      fontFamily: terminalFontFamily,
-                    },
-                  ]}>
-                  {selectedInspectorContent === null
-                    ? appI18n.agentWorkbench.empty.contentUnavailable
-                    : selectedInspectorContent ||
-                      appI18n.agentWorkbench.empty.fileContent}
-                </Text>
+                {selectedInspectorContent ? (
+                  <Text style={[screenStyles.terminalText, {fontFamily: terminalFontFamily}]}>
+                    {selectedInspectorContent.split('\n').map((line, i, arr) => (
+                      <Text key={i}>
+                        <Text style={{color: palette.inkSoft}}>
+                          {String(i + 1).padStart(String(arr.length).length)}
+                          {'  '}
+                        </Text>
+                        <Text style={{color: palette.ink}}>{line}</Text>
+                        {i < arr.length - 1 ? '\n' : ''}
+                      </Text>
+                    ))}
+                  </Text>
+                ) : (
+                  <Text
+                    style={[
+                      screenStyles.terminalText,
+                      {color: palette.ink, fontFamily: terminalFontFamily},
+                    ]}>
+                    {selectedInspectorContent === null
+                      ? appI18n.agentWorkbench.empty.contentUnavailable
+                      : appI18n.agentWorkbench.empty.fileContent}
+                  </Text>
+                )}
               </ScrollView>
             </View>
           )}
@@ -262,20 +282,42 @@ export function WorkbenchInspectorSection({
                                 {
                                   backgroundColor: palette.canvasShade,
                                   borderColor: palette.border,
+                                  paddingHorizontal: 0,
                                 },
                               ]}>
                               <ScrollView style={screenStyles.terminalScroll}>
-                                <Text
-                                  testID='agent-workbench.diff.output'
-                                  style={[
-                                    screenStyles.terminalText,
-                                    {
-                                      color: palette.ink,
-                                      fontFamily: terminalFontFamily,
-                                    },
-                                  ]}>
-                                  {selectedDiffOutput}
-                                </Text>
+                                <View testID='agent-workbench.diff.output'>
+                                  {selectedDiffOutput.split('\n').map((line, i) => {
+                                    const type = classifyDiffLine(line);
+                                    return (
+                                      <View
+                                        key={i}
+                                        style={{
+                                          backgroundColor:
+                                            type === 'add' ? palette.supportSoft
+                                            : type === 'remove' ? 'rgba(212, 87, 74, 0.12)'
+                                            : type === 'header' ? palette.panelEmphasis
+                                            : undefined,
+                                          paddingHorizontal: appSpacing.lg,
+                                        }}>
+                                        <Text
+                                          style={[
+                                            screenStyles.terminalText,
+                                            {
+                                              fontFamily: terminalFontFamily,
+                                              color:
+                                                type === 'add' ? palette.support
+                                                : type === 'remove' ? palette.errorRed
+                                                : type === 'header' ? palette.inkMuted
+                                                : palette.ink,
+                                            },
+                                          ]}>
+                                          {line}
+                                        </Text>
+                                      </View>
+                                    );
+                                  })}
+                                </View>
                               </ScrollView>
                             </View>
                           )

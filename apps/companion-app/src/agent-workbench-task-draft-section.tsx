@@ -86,7 +86,7 @@ export function WorkbenchTaskDraftSection({
         </InfoPanel>
       ) : null}
 
-      {/* Primary input: goal (task description) — always visible */}
+      {/* Primary input: goal (task description) — prominent */}
       <View style={screenStyles.composerInputRow}>
         {textInputsReady ? (
           <View
@@ -95,7 +95,7 @@ export function WorkbenchTaskDraftSection({
               {
                 flex: 1,
                 borderColor: palette.border,
-                backgroundColor: palette.canvasShade,
+                backgroundColor: palette.panel,
               },
             ]}>
             <RNTextInput
@@ -117,7 +117,7 @@ export function WorkbenchTaskDraftSection({
               {
                 flex: 1,
                 borderColor: palette.border,
-                backgroundColor: palette.canvasShade,
+                backgroundColor: palette.panel,
               },
             ]}>
             <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>

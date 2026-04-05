@@ -9,7 +9,6 @@ import {
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
-  SignalPill,
   StatusBadge,
   Toolbar,
   useTheme,
@@ -39,10 +38,10 @@ export function AgentWorkbenchScreen() {
   const isCompactLayout = width < appLayout.breakpoints.compact;
   const state = useAgentWorkbenchState();
 
-  // Detail pane shows by default when workspace is trusted (file browser + search
-  // are always useful), and also when a specific entry is inspected or search has results.
+  // Detail pane is contextual — only show when user has actively opened a file,
+  // is browsing a specific directory entry, or has search results to review.
+  // The default state is hidden to maximize conversation space (Copilot/Codex pattern).
   const hasDetailContent =
-    state.trustedWorkspace !== null ||
     state.selectedInspectorEntry !== null ||
     state.searchResults.length > 0;
 
@@ -62,16 +61,6 @@ export function AgentWorkbenchScreen() {
         style={screenStyles.toolbar}>
         {/* Status group — left aligned, minimal */}
         <View style={screenStyles.toolbarGroup}>
-          <SignalPill
-            testID='agent-workbench.status.workspace'
-            label={
-              state.trustedWorkspace
-                ? appI18n.agentWorkbench.workspace.ready
-                : appI18n.agentWorkbench.workspace.missing
-            }
-            tone={state.trustedWorkspace ? 'neutral' : 'warning'}
-            size='sm'
-          />
           <StatusBadge
             testID='agent-workbench.status.run'
             label={resolveRunStatusLabel(state.selectedRunStatus)}
@@ -134,30 +123,7 @@ export function AgentWorkbenchScreen() {
               tone='ghost'
             />
           ) : null}
-        </View>
-
-        <View style={screenStyles.toolbarDivider} />
-
-        {/* Utility group */}
-        <View style={screenStyles.toolbarGroup}>
-          {state.previousThreadRunDocument && !state.viewingHistoricalRun ? (
-            <ActionButton
-              testID='agent-workbench.action.view-previous-run'
-              label={appI18n.agentWorkbench.actions.viewPreviousRun}
-              onPress={state.handleViewPreviousRun}
-              tone='ghost'
-            />
-          ) : null}
-          {state.selectedCwd ? (
-            <ActionButton
-              testID='agent-workbench.action.browse-workspace-root'
-              label={appI18n.agentWorkbench.actions.browseWorkspaceRoot}
-              onPress={() => {
-                void state.handleBrowseDirectory('');
-              }}
-              tone='ghost'
-            />
-          ) : null}
+          <View style={screenStyles.toolbarDivider} />
           <ActionButton
             testID='agent-workbench.action.refresh'
             label={
@@ -280,6 +246,8 @@ export function AgentWorkbenchScreen() {
               approvalBusy={state.approvalBusy}
               viewingHistoricalRun={state.viewingHistoricalRun}
               latestThreadRunDocument={state.latestThreadRunDocument}
+              previousThreadRunDocument={state.previousThreadRunDocument}
+              selectedCwd={state.selectedCwd}
               onRetry={() => {
                 void state.handleRetrySelectedRun();
               }}
@@ -296,6 +264,10 @@ export function AgentWorkbenchScreen() {
                 void state.handleRejectSelectedRun();
               }}
               onFocusLatestRun={state.handleFocusLatestRun}
+              onViewPreviousRun={state.handleViewPreviousRun}
+              onBrowseWorkspaceRoot={() => {
+                void state.handleBrowseDirectory('');
+              }}
               screenStyles={screenStyles}
             />
 

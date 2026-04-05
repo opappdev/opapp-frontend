@@ -36,12 +36,16 @@ type WorkbenchRunDetailSectionProps = {
   approvalBusy: 'requesting' | 'approving' | 'rejecting' | null;
   viewingHistoricalRun: boolean;
   latestThreadRunDocument: AgentRunDocument | null;
+  previousThreadRunDocument: AgentRunDocument | null;
+  selectedCwd: string;
   onRetry: () => void;
   onRestore: () => void;
   onInspectArtifact: () => void;
   onApprove: () => void;
   onReject: () => void;
   onFocusLatestRun: () => void;
+  onViewPreviousRun: () => void;
+  onBrowseWorkspaceRoot: () => void;
   screenStyles: ReturnType<typeof createScreenStyles>;
 };
 
@@ -60,12 +64,16 @@ export function WorkbenchRunDetailSection({
   approvalBusy,
   viewingHistoricalRun,
   latestThreadRunDocument,
+  previousThreadRunDocument,
+  selectedCwd,
   onRetry,
   onRestore,
   onInspectArtifact,
   onApprove,
   onReject,
   onFocusLatestRun,
+  onViewPreviousRun,
+  onBrowseWorkspaceRoot,
   screenStyles,
 }: WorkbenchRunDetailSectionProps) {
   const {palette} = useTheme();
@@ -114,23 +122,33 @@ export function WorkbenchRunDetailSection({
       <View style={screenStyles.runActionsRow}>
         <Text
           testID='agent-workbench.run.run-id'
-          style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}
+          style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.5}]}
           numberOfLines={1}>
           {selectedRunDocument.run.runId}
         </Text>
-        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.5}]}>
+        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.3}]}>
           ·
         </Text>
-        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
-          {`${selectedRunDocument.timeline.length} events`}
-        </Text>
         <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.5}]}>
-          ·
-        </Text>
-        <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
           {formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
         </Text>
         <View style={{flex: 1}} />
+        {previousThreadRunDocument && !viewingHistoricalRun ? (
+          <ActionButton
+            testID='agent-workbench.action.view-previous-run'
+            label={appI18n.agentWorkbench.actions.viewPreviousRun}
+            onPress={onViewPreviousRun}
+            tone='ghost'
+          />
+        ) : null}
+        {selectedCwd ? (
+          <ActionButton
+            testID='agent-workbench.action.browse-workspace-root'
+            label={appI18n.agentWorkbench.actions.browseWorkspaceRoot}
+            onPress={onBrowseWorkspaceRoot}
+            tone='ghost'
+          />
+        ) : null}
         {selectedRunRequest ? (
           <>
             {canInspectSelectedRunArtifact ? (

@@ -22,7 +22,7 @@
   - Compact 密度：`appSpacingCompact`（所有值 -2px）
   - 密度映射：`appDensitySpacing` (`standard` / `compact`)
 - Typography: `appTypography`（`label` / `labelTight` / `labelTightBold` / `caption` / `captionStrong` / `captionBold` / `captionBody` / `captionTight` / `body` / `bodyStrong` / `bodyTight` / `bodyTightBold` / `subheading` / `sectionTitle` / `title` / `headline`）
-- Font Stack: `appFontFamily`（Windows: Segoe UI Variable Text, macOS: SF Pro Text, 其他: system default）
+- Font Family: `appFontFamily`（Windows: `Segoe UI Variable Text` 单一 family，macOS: `SF Pro Text` 单一 family，其他: system default；不要把 web CSS 逗号分隔 font stack 直接传给 RNW `TextInput`）
 - Letter Spacing: `appLetterSpacing`（`tight` / `normal` / `wide` / `wider` / `widest`）
 
 ## 2. Interactive States

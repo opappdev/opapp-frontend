@@ -91,42 +91,6 @@ export function AgentWorkbenchScreen() {
               tone='ghost'
             />
           ) : null}
-          {!state.activeRunInfo ? (
-            <ActionButton
-              testID='agent-workbench.action.run-git-status'
-              label={
-                state.activeRunInfo
-                  ? appI18n.agentWorkbench.actions.runningGitStatus
-                  : appI18n.agentWorkbench.actions.runGitStatus
-              }
-              onPress={() => {
-                void state.handleRunGitStatus();
-              }}
-              disabled={!state.trustedWorkspace || state.activeRunInfo !== null}
-              icon={iconCatalog.code}
-              tone='ghost'
-            />
-          ) : null}
-          {!state.activeRunInfo ? (
-            <ActionButton
-              testID='agent-workbench.action.request-write-approval'
-              label={
-                state.approvalBusy === 'requesting'
-                  ? appI18n.agentWorkbench.actions.requestingWriteApproval
-                  : appI18n.agentWorkbench.actions.requestWriteApproval
-              }
-              onPress={() => {
-                void state.handleRequestWriteApproval();
-              }}
-              disabled={
-                !state.trustedWorkspace ||
-                state.activeRunInfo !== null ||
-                state.approvalBusy !== null
-              }
-              icon={iconCatalog.shieldTask}
-              tone='ghost'
-            />
-          ) : null}
           <View style={screenStyles.toolbarDivider} />
           <ActionButton
             testID='agent-workbench.action.refresh'
@@ -309,6 +273,12 @@ export function AgentWorkbenchScreen() {
             onPopulateWriteApprovalDraft={
               state.handlePopulateWriteApprovalDraft
             }
+            onRunGitStatus={() => {
+              void state.handleRunGitStatus();
+            }}
+            onRequestWriteApproval={() => {
+              void state.handleRequestWriteApproval();
+            }}
             onStartDraftTask={() => {
               void state.handleStartDraftTask();
             }}

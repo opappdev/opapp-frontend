@@ -31,6 +31,8 @@ type WorkbenchTaskDraftSectionProps = {
   onSelectDirectMode: () => void;
   onSelectApprovalMode: () => void;
   onPopulateWriteApprovalDraft: () => void;
+  onRunGitStatus: () => void;
+  onRequestWriteApproval: () => void;
   onStartDraftTask: () => void;
   screenStyles: ReturnType<typeof createScreenStyles>;
 };
@@ -50,6 +52,8 @@ export function WorkbenchTaskDraftSection({
   onSelectDirectMode,
   onSelectApprovalMode,
   onPopulateWriteApprovalDraft,
+  onRunGitStatus,
+  onRequestWriteApproval,
   onStartDraftTask,
   screenStyles,
 }: WorkbenchTaskDraftSectionProps) {
@@ -205,6 +209,40 @@ export function WorkbenchTaskDraftSection({
           <Icon icon={iconCatalog.code} size={11} color={palette.inkSoft} />
           <Text style={[screenStyles.composerChipLabel, {color: palette.inkSoft}]}>
             {showAdvanced ? '▾ command' : '▸ command'}
+          </Text>
+        </Pressable>
+
+        {/* Quick action: run git status preset */}
+        <Pressable
+          testID='agent-workbench.action.run-git-status'
+          accessibilityRole='button'
+          onPress={onRunGitStatus}
+          disabled={!trustedWorkspace || activeRunInfo !== null}
+          style={[
+            screenStyles.composerChip,
+            {backgroundColor: palette.canvasShade},
+            (!trustedWorkspace || activeRunInfo !== null) ? {opacity: 0.4} : null,
+          ]}>
+          <Icon icon={iconCatalog.code} size={11} color={palette.inkSoft} />
+          <Text style={[screenStyles.composerChipLabel, {color: palette.inkSoft}]}>
+            {appI18n.agentWorkbench.actions.runGitStatus}
+          </Text>
+        </Pressable>
+
+        {/* Quick action: request write approval preset */}
+        <Pressable
+          testID='agent-workbench.action.request-write-approval'
+          accessibilityRole='button'
+          onPress={onRequestWriteApproval}
+          disabled={!trustedWorkspace || activeRunInfo !== null || approvalBusy !== null}
+          style={[
+            screenStyles.composerChip,
+            {backgroundColor: palette.canvasShade},
+            (!trustedWorkspace || activeRunInfo !== null || approvalBusy !== null) ? {opacity: 0.4} : null,
+          ]}>
+          <Icon icon={iconCatalog.shieldTask} size={11} color={palette.inkSoft} />
+          <Text style={[screenStyles.composerChipLabel, {color: palette.inkSoft}]}>
+            {appI18n.agentWorkbench.actions.requestWriteApproval}
           </Text>
         </Pressable>
 

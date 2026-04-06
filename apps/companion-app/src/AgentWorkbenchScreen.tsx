@@ -175,25 +175,11 @@ export function AgentWorkbenchScreen() {
             {/* Workspace selector — collapsed, tertiary priority */}
             <WorkbenchWorkspaceSection
               trustedWorkspace={state.trustedWorkspace}
-              textInputsReady={state.textInputsReady}
               selectedCwd={state.selectedCwd}
               selectedWorkspaceStat={state.selectedWorkspaceStat}
               workspaceChoices={state.workspaceChoices}
-              workspaceRootDraft={state.workspaceRootDraft}
-              workspaceRecoveryTarget={state.workspaceRecoveryTarget}
-              workspaceConfigBusy={state.workspaceConfigBusy}
               onBrowseDirectory={relativePath => {
                 void state.handleBrowseDirectory(relativePath);
-              }}
-              onWorkspaceRootDraftChange={state.handleWorkspaceRootDraftChange}
-              onTrustWorkspaceRoot={() => {
-                void state.handleTrustWorkspaceRoot();
-              }}
-              onClearTrustedWorkspaceRoot={() => {
-                void state.handleClearTrustedWorkspaceRoot();
-              }}
-              onTrustRecoveredWorkspace={() => {
-                void state.handleTrustRecoveredWorkspace();
               }}
               screenStyles={screenStyles}
             />
@@ -281,6 +267,9 @@ export function AgentWorkbenchScreen() {
             taskDraftBusy={state.taskDraftBusy}
             activeRunInfo={state.activeRunInfo}
             approvalBusy={state.approvalBusy}
+            workspaceRootDraft={state.workspaceRootDraft}
+            workspaceRecoveryTarget={state.workspaceRecoveryTarget}
+            workspaceConfigBusy={state.workspaceConfigBusy}
             onDraftGoalChange={state.handleDraftGoalChange}
             onDraftCommandChange={state.handleDraftCommandChange}
             onSelectDirectMode={state.handleSelectDirectDraftMode}
@@ -293,6 +282,16 @@ export function AgentWorkbenchScreen() {
             }}
             onStartDraftTask={() => {
               void state.handleStartDraftTask();
+            }}
+            onWorkspaceRootDraftChange={state.handleWorkspaceRootDraftChange}
+            onTrustWorkspaceRoot={() => {
+              void state.handleTrustWorkspaceRoot();
+            }}
+            onClearTrustedWorkspaceRoot={() => {
+              void state.handleClearTrustedWorkspaceRoot();
+            }}
+            onTrustRecoveredWorkspace={() => {
+              void state.handleTrustRecoveredWorkspace();
             }}
             screenStyles={screenStyles}
           />

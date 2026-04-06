@@ -486,6 +486,20 @@ export function createScreenStyles(palette: AppPalette) {
       paddingVertical: appSpacing.lg2,
       gap: appSpacing.sm,
     },
+    composerAssistRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    composerAssistCluster: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      flexWrap: 'wrap',
+      flexShrink: 1,
+    },
     composerInputRow: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -502,12 +516,107 @@ export function createScreenStyles(palette: AppPalette) {
       alignItems: 'center',
       gap: 4,
       paddingHorizontal: appSpacing.sm2,
-      paddingVertical: appSpacing.xxs,
+      paddingVertical: appSpacing.xs,
       borderRadius: appRadius.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      minHeight: 30,
+      maxWidth: '100%',
     },
     composerChipLabel: {
       ...appTypography.caption,
       letterSpacing: 0.2,
+    },
+    composerContextChip: {
+      maxWidth: 280,
+    },
+    composerContextChipLabel: {
+      flexShrink: 1,
+    },
+    composerStarterChip: {
+      paddingHorizontal: appSpacing.sm,
+    },
+    composerStarterChipLabel: {
+      fontWeight: '600',
+    },
+    composerShell: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: appRadius.panel,
+      paddingHorizontal: appSpacing.lg2,
+      paddingTop: appSpacing.sm2,
+      paddingBottom: appSpacing.sm,
+      gap: appSpacing.sm,
+    },
+    composerPromptInput: {
+      minHeight: 92,
+      maxHeight: 180,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+    },
+    composerPromptPlaceholder: {
+      minHeight: 92,
+      justifyContent: 'flex-start',
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+    },
+    composerShellDivider: {
+      height: StyleSheet.hairlineWidth,
+      opacity: 0.7,
+    },
+    composerShellFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    composerModeCluster: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      flexWrap: 'wrap',
+    },
+    composerModeChip: {
+      paddingHorizontal: appSpacing.sm2,
+    },
+    composerModeChipLabel: {
+      fontWeight: '600',
+    },
+    composerAdvancedPanel: {
+      minHeight: 56,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: appRadius.control,
+      paddingHorizontal: appSpacing.lg2,
+      paddingVertical: appSpacing.sm,
+    },
+    composerAdvancedInput: {
+      minHeight: 56,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+    },
+    composerRuntimeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    composerRuntimeCluster: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      flexWrap: 'wrap',
+      flexShrink: 1,
+    },
+    composerRuntimeChip: {
+      maxWidth: 220,
+    },
+    composerRuntimeWorkspaceLabel: {
+      flexShrink: 1,
+    },
+    composerRuntimeMeta: {
+      ...appTypography.caption,
+      textAlign: 'right',
+      flexShrink: 1,
     },
 
     /* ── Transcript inline elements ───────────────────── */
@@ -541,6 +650,13 @@ export function createScreenStyles(palette: AppPalette) {
       color: palette.inkMuted,
       flex: 1,
       minWidth: 0,
+    },
+    workspaceSetupCard: {
+      gap: appSpacing.xs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: appRadius.control,
+      paddingHorizontal: appSpacing.sm2,
+      paddingVertical: appSpacing.sm,
     },
   });
 }

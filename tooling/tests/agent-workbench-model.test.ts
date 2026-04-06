@@ -13,6 +13,7 @@ import {
   resolveWorkspaceGitDiffCandidate,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
+  resolveWorkbenchWorkspaceRecoveryTarget,
   summarizeWorkbenchTimeline,
   workbenchArtifactKindEnvVar,
   workbenchArtifactPathEnvVar,
@@ -60,6 +61,185 @@ export function run() {
       undefined,
     ),
     'opapp-frontend',
+  );
+  assert.deepEqual(
+    resolveWorkbenchWorkspaceRecoveryTarget({
+      selectedRunDocument: {
+        run: {
+          runId: 'run-selected',
+          threadId: 'thread-1',
+          sessionId: 'terminal-1',
+          goal: 'Inspect selected run',
+          status: 'completed',
+          createdAt: '2026-04-03T02:00:00.000Z',
+          updatedAt: '2026-04-03T02:00:01.000Z',
+          startedAt: '2026-04-03T02:00:00.000Z',
+          completedAt: '2026-04-03T02:00:01.000Z',
+          resumedFromRunId: null,
+          settings: {
+            workspace: {
+              rootPath: 'D:/code/opappdev',
+              displayName: 'opappdev',
+              trusted: true,
+            },
+            provider: {
+              providerId: 'custom-openai-compatible',
+              label: null,
+              apiFamily: 'chat-completions',
+              baseUrl: null,
+              model: null,
+            },
+            permissionMode: 'workspace-write',
+            approvalMode: 'manual',
+          },
+          request: {
+            command: 'git status',
+            cwd: 'opapp-frontend',
+            shell: 'powershell',
+            env: {},
+          },
+        },
+        timeline: [],
+      },
+      threadRunDocuments: [
+        {
+          run: {
+            runId: 'run-latest',
+            threadId: 'thread-1',
+            sessionId: 'terminal-2',
+            goal: 'Inspect latest run',
+            status: 'completed',
+            createdAt: '2026-04-03T02:00:02.000Z',
+            updatedAt: '2026-04-03T02:00:03.000Z',
+            startedAt: '2026-04-03T02:00:02.000Z',
+            completedAt: '2026-04-03T02:00:03.000Z',
+            resumedFromRunId: 'run-selected',
+            settings: {
+              workspace: {
+                rootPath: 'D:/code/opappdev-latest',
+                displayName: 'opappdev-latest',
+                trusted: true,
+              },
+              provider: {
+                providerId: 'custom-openai-compatible',
+                label: null,
+                apiFamily: 'chat-completions',
+                baseUrl: null,
+                model: null,
+              },
+              permissionMode: 'workspace-write',
+              approvalMode: 'manual',
+            },
+            request: {
+              command: 'git diff --stat',
+              cwd: 'opapp-desktop',
+              shell: 'powershell',
+              env: {},
+            },
+          },
+          timeline: [],
+        },
+      ],
+    }),
+    {
+      rootPath: 'D:/code/opappdev',
+      displayName: 'opappdev',
+      preferredCwd: 'opapp-frontend',
+      source: 'selected-run',
+    },
+  );
+  assert.deepEqual(
+    resolveWorkbenchWorkspaceRecoveryTarget({
+      selectedRunDocument: null,
+      threadRunDocuments: [
+        {
+          run: {
+            runId: 'run-latest-only',
+            threadId: 'thread-1',
+            sessionId: 'terminal-3',
+            goal: 'Inspect latest run',
+            status: 'completed',
+            createdAt: '2026-04-03T02:00:04.000Z',
+            updatedAt: '2026-04-03T02:00:05.000Z',
+            startedAt: '2026-04-03T02:00:04.000Z',
+            completedAt: '2026-04-03T02:00:05.000Z',
+            resumedFromRunId: null,
+            settings: {
+              workspace: {
+                rootPath: 'D:/code/opappdev-latest',
+                displayName: 'opappdev-latest',
+                trusted: true,
+              },
+              provider: {
+                providerId: 'custom-openai-compatible',
+                label: null,
+                apiFamily: 'chat-completions',
+                baseUrl: null,
+                model: null,
+              },
+              permissionMode: 'workspace-write',
+              approvalMode: 'manual',
+            },
+            request: {
+              command: 'git diff --stat',
+              cwd: 'opapp-desktop',
+              shell: 'powershell',
+              env: {},
+            },
+          },
+          timeline: [],
+        },
+      ],
+    }),
+    {
+      rootPath: 'D:/code/opappdev-latest',
+      displayName: 'opappdev-latest',
+      preferredCwd: 'opapp-desktop',
+      source: 'latest-thread-run',
+    },
+  );
+  assert.equal(
+    resolveWorkbenchWorkspaceRecoveryTarget({
+      selectedRunDocument: {
+        run: {
+          runId: 'run-without-workspace',
+          threadId: 'thread-1',
+          sessionId: 'terminal-4',
+          goal: 'Missing workspace',
+          status: 'failed',
+          createdAt: '2026-04-03T02:00:06.000Z',
+          updatedAt: '2026-04-03T02:00:07.000Z',
+          startedAt: null,
+          completedAt: '2026-04-03T02:00:07.000Z',
+          resumedFromRunId: null,
+          settings: {
+            workspace: {
+              rootPath: null,
+              displayName: null,
+              trusted: false,
+            },
+            provider: {
+              providerId: 'custom-openai-compatible',
+              label: null,
+              apiFamily: 'chat-completions',
+              baseUrl: null,
+              model: null,
+            },
+            permissionMode: 'workspace-write',
+            approvalMode: 'manual',
+          },
+          request: {
+            command: 'git status',
+            cwd: null,
+            shell: 'powershell',
+            env: {},
+          },
+        },
+        timeline: [],
+      },
+      threadRunDocuments: [],
+    }),
+    null,
   );
 
   const workspaceChoices = createWorkspaceChoices({

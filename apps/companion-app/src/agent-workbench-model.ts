@@ -39,6 +39,13 @@ export type WorkbenchRunArtifactSummary = {
   source: 'timeline' | 'request-env' | null;
 };
 
+export type WorkbenchWorkspaceRecoveryTarget = {
+  rootPath: string;
+  displayName: string | null;
+  preferredCwd: string | null;
+  source: 'selected-run' | 'latest-thread-run';
+};
+
 export type WorkbenchTimelineSummary = {
   totalCount: number;
   messageCount: number;
@@ -165,6 +172,47 @@ export function resolvePreferredWorkspacePath(
   }
 
   return directories[0]?.relativePath ?? '';
+}
+
+export function resolveWorkbenchWorkspaceRecoveryTarget({
+  selectedRunDocument,
+  threadRunDocuments,
+}: {
+  selectedRunDocument: AgentRunDocument | null;
+  threadRunDocuments: ReadonlyArray<AgentRunDocument>;
+}): WorkbenchWorkspaceRecoveryTarget | null {
+  const candidates: Array<{
+    source: WorkbenchWorkspaceRecoveryTarget['source'];
+    document: AgentRunDocument | null;
+  }> = [
+    {
+      source: 'selected-run',
+      document: selectedRunDocument,
+    },
+    {
+      source: 'latest-thread-run',
+      document: threadRunDocuments[0] ?? null,
+    },
+  ];
+  const seenRootPaths = new Set<string>();
+
+  for (const candidate of candidates) {
+    const workspace = candidate.document?.run.settings.workspace;
+    const rootPath = workspace?.rootPath?.trim() ?? '';
+    if (!rootPath || seenRootPaths.has(rootPath)) {
+      continue;
+    }
+
+    seenRootPaths.add(rootPath);
+    return {
+      rootPath,
+      displayName: workspace?.displayName ?? null,
+      preferredCwd: candidate.document?.run.request?.cwd ?? null,
+      source: candidate.source,
+    };
+  }
+
+  return null;
 }
 
 export function resolveSelectedThreadId(

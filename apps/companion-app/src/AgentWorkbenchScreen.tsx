@@ -175,11 +175,22 @@ export function AgentWorkbenchScreen() {
             {/* Workspace selector — collapsed, tertiary priority */}
             <WorkbenchWorkspaceSection
               trustedWorkspace={state.trustedWorkspace}
+              textInputsReady={state.textInputsReady}
               selectedCwd={state.selectedCwd}
               selectedWorkspaceStat={state.selectedWorkspaceStat}
               workspaceChoices={state.workspaceChoices}
+              workspaceRootDraft={state.workspaceRootDraft}
+              workspaceRecoveryTarget={state.workspaceRecoveryTarget}
+              workspaceConfigBusy={state.workspaceConfigBusy}
               onBrowseDirectory={relativePath => {
                 void state.handleBrowseDirectory(relativePath);
+              }}
+              onWorkspaceRootDraftChange={state.handleWorkspaceRootDraftChange}
+              onTrustWorkspaceRoot={() => {
+                void state.handleTrustWorkspaceRoot();
+              }}
+              onTrustRecoveredWorkspace={() => {
+                void state.handleTrustRecoveredWorkspace();
               }}
               screenStyles={screenStyles}
             />
@@ -258,6 +269,7 @@ export function AgentWorkbenchScreen() {
           {/* ── Composer bar pinned to bottom ── */}
           <WorkbenchTaskDraftSection
             trustedWorkspace={state.trustedWorkspace}
+            selectedCwd={state.selectedCwd}
             textInputsReady={state.textInputsReady}
             draftGoal={state.draftGoal}
             draftCommand={state.draftCommand}
@@ -275,9 +287,6 @@ export function AgentWorkbenchScreen() {
             }
             onRunGitStatus={() => {
               void state.handleRunGitStatus();
-            }}
-            onRequestWriteApproval={() => {
-              void state.handleRequestWriteApproval();
             }}
             onStartDraftTask={() => {
               void state.handleStartDraftTask();

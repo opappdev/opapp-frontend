@@ -25,6 +25,7 @@ import {
   readWorkspaceFile,
   readUserFile,
   searchWorkspacePaths,
+  setTrustedWorkspaceRoot,
   statWorkspacePath,
   type TrustedWorkspaceTarget,
   type WorkspaceEntry,
@@ -38,6 +39,7 @@ import {
   createWorkspaceChoices,
   resolveWorkbenchRunArtifactSummary,
   resolveWorkbenchTaskDraft,
+  resolveWorkbenchWorkspaceRecoveryTarget,
   resolvePreferredWorkspacePath,
   resolveSelectedThreadId,
   resolveThreadRunHistorySelection,
@@ -113,6 +115,7 @@ export function useAgentWorkbenchState() {
   const [selectedCwd, setSelectedCwd] = useState('');
   const [selectedWorkspaceStat, setSelectedWorkspaceStat] =
     useState<WorkspaceEntry | null>(null);
+  const [workspaceRootDraft, setWorkspaceRootDraft] = useState('');
 
   // ── search ──
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,6 +167,7 @@ export function useAgentWorkbenchState() {
   const [approvalBusy, setApprovalBusy] = useState<AgentWorkbenchApprovalBusy>(null);
   const [retryBusy, setRetryBusy] = useState(false);
   const [taskDraftBusy, setTaskDraftBusy] = useState<AgentWorkbenchTaskDraftBusy>(null);
+  const [workspaceConfigBusy, setWorkspaceConfigBusy] = useState(false);
 
   // ── status ──
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -185,6 +189,7 @@ export function useAgentWorkbenchState() {
   const inspectorRequestIdRef = useRef(0);
   const searchRequestIdRef = useRef(0);
   const interruptedRunsReconciledRef = useRef(false);
+  const workspaceDraftSeedRef = useRef('');
 
   // ── derived state ──
   const selectedRunStatus = selectedRunDocument?.run.status ?? null;
@@ -299,6 +304,14 @@ export function useAgentWorkbenchState() {
       }),
     [selectedCwd, trustedWorkspace, workspaceDirectories],
   );
+  const workspaceRecoveryTarget = useMemo(
+    () =>
+      resolveWorkbenchWorkspaceRecoveryTarget({
+        selectedRunDocument,
+        threadRunDocuments,
+      }),
+    [selectedRunDocument, threadRunDocuments],
+  );
 
   // ── write-approval preset sync ──
   useEffect(() => {
@@ -323,6 +336,31 @@ export function useAgentWorkbenchState() {
     draftRequiresApproval,
     workspaceWriteApprovalCommand.command,
   ]);
+
+  // ── workspace draft seed ──
+  useEffect(() => {
+    const nextSeed =
+      trustedWorkspace?.rootPath?.trim() ||
+      workspaceRecoveryTarget?.rootPath?.trim() ||
+      '';
+    if (!nextSeed) {
+      return;
+    }
+
+    setWorkspaceRootDraft(currentDraft => {
+      const normalizedCurrentDraft = currentDraft.trim();
+      const lastSeed = workspaceDraftSeedRef.current.trim();
+      if (
+        normalizedCurrentDraft.length > 0 &&
+        normalizedCurrentDraft !== lastSeed
+      ) {
+        return currentDraft;
+      }
+
+      workspaceDraftSeedRef.current = nextSeed;
+      return nextSeed;
+    });
+  }, [trustedWorkspace?.rootPath, workspaceRecoveryTarget?.rootPath]);
 
   // ── core helpers ──
   const resetSelectedDiff = useCallback(() => {
@@ -552,52 +590,67 @@ export function useAgentWorkbenchState() {
     }
   }, [refreshWorkbench]);
 
-  const handleRunGitStatus = useCallback(async () => {
+  const persistTrustedWorkspace = useCallback(
+    async (rootPath?: string) => {
+      const normalizedRootPath =
+        (typeof rootPath === 'string' ? rootPath : workspaceRootDraft).trim();
+      if (!normalizedRootPath) {
+        setStatusTone('danger');
+        setStatusMessage(appI18n.agentWorkbench.feedback.workspaceRootRequired);
+        return;
+      }
+
+      setWorkspaceConfigBusy(true);
+      try {
+        const persistedWorkspace =
+          await setTrustedWorkspaceRoot(normalizedRootPath);
+        if (!persistedWorkspace) {
+          throw new Error('Failed to set trusted workspace root.');
+        }
+
+        workspaceDraftSeedRef.current = persistedWorkspace.rootPath;
+        setWorkspaceRootDraft(persistedWorkspace.rootPath);
+        setStatusTone('support');
+        setStatusMessage(
+          appI18n.agentWorkbench.feedback.workspaceTrusted(
+            persistedWorkspace.displayName || persistedWorkspace.rootPath,
+          ),
+        );
+        await refreshWorkbench({
+          preferredCwd:
+            persistedWorkspace.rootPath === workspaceRecoveryTarget?.rootPath
+              ? workspaceRecoveryTarget.preferredCwd ?? selectedCwdRef.current
+              : selectedCwdRef.current,
+          preferredThreadId: selectedThreadIdRef.current,
+          preferredRunId: selectedRunIdRef.current,
+        });
+      } catch (error) {
+        logException('agent-workbench.workspace.set-root.failed', error, {
+          rootPath: normalizedRootPath,
+        });
+        setStatusTone('danger');
+        setStatusMessage(appI18n.agentWorkbench.feedback.workspaceTrustFailed);
+      } finally {
+        setWorkspaceConfigBusy(false);
+      }
+    },
+    [refreshWorkbench, workspaceRecoveryTarget, workspaceRootDraft],
+  );
+
+  const handleRunGitStatus = useCallback(() => {
     if (!trustedWorkspace) {
       setStatusTone('danger');
       setStatusMessage(appI18n.agentWorkbench.feedback.missingWorkspace);
       return;
     }
 
-    try {
-      const continuedThreadId = selectedThreadIdRef.current || undefined;
-      const handle = await openPersistedAgentTerminalRun({
-        threadId: continuedThreadId,
-        title: appI18n.agentWorkbench.run.gitStatusTitle,
-        goal: `${appI18n.agentWorkbench.run.gitStatusGoal} ${selectedCwdRef.current || trustedWorkspace.displayName || trustedWorkspace.rootPath}`,
-        command: 'git status',
-        cwd: selectedCwdRef.current || undefined,
-      });
-      const continuedFromRunId = handle.getSnapshot().run.resumedFromRunId;
-
-      attachActiveRunHandle(handle);
-      setStatusTone('support');
-      setStatusMessage(appI18n.agentWorkbench.feedback.runStarted);
-      logInteraction('agent-workbench.run.started', {
-        threadId: handle.threadId,
-        runId: handle.runId,
-        resumedFromRunId: continuedFromRunId,
-        cwd: selectedCwdRef.current,
-      });
-
-      await refreshWorkbench({
-        preferredCwd: selectedCwdRef.current,
-        preferredThreadId: handle.threadId,
-        preferredRunId: handle.runId,
-      });
-    } catch (error) {
-      logException('agent-workbench.run.failed', error, {
-        cwd: selectedCwdRef.current,
-      });
-      setStatusTone('danger');
-      setStatusMessage(appI18n.agentWorkbench.feedback.runFailed);
-      await refreshWorkbench({
-        preferredCwd: selectedCwdRef.current,
-        preferredThreadId: selectedThreadIdRef.current,
-        preferredRunId: selectedRunIdRef.current,
-      });
-    }
-  }, [attachActiveRunHandle, refreshWorkbench, trustedWorkspace]);
+    setDraftPresetId(null);
+    setDraftGoal(appI18n.agentWorkbench.run.gitStatusGoal);
+    setDraftCommand('git status');
+    setDraftRequiresApproval(false);
+    setStatusTone('neutral');
+    setStatusMessage(null);
+  }, [trustedWorkspace]);
 
   const handleStartDraftTask = useCallback(async () => {
     if (!trustedWorkspace) {
@@ -1234,6 +1287,25 @@ export function useAgentWorkbenchState() {
     setSelectedRunDocument(previousThreadRunDocument);
   }, [previousThreadRunDocument]);
 
+  const handleWorkspaceRootDraftChange = useCallback((text: string) => {
+    setWorkspaceRootDraft(text);
+  }, []);
+
+  const handleTrustWorkspaceRoot = useCallback(async () => {
+    await persistTrustedWorkspace();
+  }, [persistTrustedWorkspace]);
+
+  const handleTrustRecoveredWorkspace = useCallback(async () => {
+    if (!workspaceRecoveryTarget) {
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.workspaceRootRequired);
+      return;
+    }
+
+    setWorkspaceRootDraft(workspaceRecoveryTarget.rootPath);
+    await persistTrustedWorkspace(workspaceRecoveryTarget.rootPath);
+  }, [persistTrustedWorkspace, workspaceRecoveryTarget]);
+
   return {
     // loading
     loading,
@@ -1244,6 +1316,9 @@ export function useAgentWorkbenchState() {
     selectedCwd,
     selectedWorkspaceStat,
     workspaceChoices,
+    workspaceRootDraft,
+    workspaceRecoveryTarget,
+    workspaceConfigBusy,
     // search
     searchQuery,
     searching,
@@ -1324,5 +1399,8 @@ export function useAgentWorkbenchState() {
     handleSelectRun,
     handleFocusLatestRun,
     handleViewPreviousRun,
+    handleWorkspaceRootDraftChange,
+    handleTrustWorkspaceRoot,
+    handleTrustRecoveredWorkspace,
   };
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useRef} from 'react';
 import {Pressable, Text, View} from 'react-native';
 import type {AgentRunDocument} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
@@ -29,6 +29,7 @@ export function WorkbenchRunHistorySection({
   screenStyles,
 }: WorkbenchRunHistorySectionProps) {
   const {palette} = useTheme();
+  const suppressPressForKeyboardActivationRef = useRef<string | null>(null);
 
   if (threadRunDocuments.length === 0) {
     return (
@@ -54,13 +55,37 @@ export function WorkbenchRunHistorySection({
           const isActive = document.run.runId === selectedRunId;
           const isLatest =
             document.run.runId === latestThreadRunDocument?.run.runId;
+          const keyboardActivationProps = {
+            onKeyUp: (event: any) => {
+              const key = event?.nativeEvent?.key;
+              if (
+                key === 'Enter' ||
+                key === ' ' ||
+                key === 'Space' ||
+                key === 'Spacebar'
+              ) {
+                suppressPressForKeyboardActivationRef.current =
+                  document.run.runId;
+                onSelectRun(document);
+              }
+            },
+          } as any;
           return (
             <Pressable
               key={document.run.runId}
               testID={`agent-workbench.run-history.index-${index}`}
               accessibilityRole='button'
               accessibilityState={{selected: isActive}}
+              focusable
+              {...keyboardActivationProps}
               onPress={() => {
+                if (
+                  suppressPressForKeyboardActivationRef.current ===
+                  document.run.runId
+                ) {
+                  suppressPressForKeyboardActivationRef.current = null;
+                  return;
+                }
                 onSelectRun(document);
               }}
               style={({pressed, hovered}: {pressed: boolean; hovered?: boolean}) => [

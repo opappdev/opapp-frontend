@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Pressable, Text, TextInput as RNTextInput, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
@@ -26,6 +26,7 @@ type WorkbenchWorkspaceSectionProps = {
   onBrowseDirectory: (relativePath: string) => void;
   onWorkspaceRootDraftChange: (value: string) => void;
   onTrustWorkspaceRoot: () => void;
+  onClearTrustedWorkspaceRoot: () => void;
   onTrustRecoveredWorkspace: () => void;
   screenStyles: ReturnType<typeof createScreenStyles>;
 };
@@ -42,11 +43,20 @@ export function WorkbenchWorkspaceSection({
   onBrowseDirectory,
   onWorkspaceRootDraftChange,
   onTrustWorkspaceRoot,
+  onClearTrustedWorkspaceRoot,
   onTrustRecoveredWorkspace,
   screenStyles,
 }: WorkbenchWorkspaceSectionProps) {
   const {palette} = useTheme();
   const [expanded, setExpanded] = useState(false);
+  const [managementExpanded, setManagementExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!trustedWorkspace) {
+      setExpanded(false);
+      setManagementExpanded(false);
+    }
+  }, [trustedWorkspace]);
 
   if (!trustedWorkspace) {
     return (
@@ -169,6 +179,105 @@ export function WorkbenchWorkspaceSection({
           {formatWorkspaceSelection(selectedWorkspaceStat, trustedWorkspace)}
         </Text>
       </View>
+
+      <View style={screenStyles.actionRow}>
+        <ActionButton
+          testID='agent-workbench.action.toggle-workspace-management'
+          label={
+            managementExpanded
+              ? appI18n.agentWorkbench.workspace.hideManagementAction
+              : appI18n.agentWorkbench.workspace.manageAction
+          }
+          onPress={() => {
+            setManagementExpanded(prev => !prev);
+          }}
+          disabled={workspaceConfigBusy}
+          tone='ghost'
+        />
+        <ActionButton
+          testID='agent-workbench.action.clear-trusted-workspace-root'
+          label={
+            workspaceConfigBusy
+              ? appI18n.agentWorkbench.workspace.clearingRootAction
+              : appI18n.agentWorkbench.workspace.clearRootAction
+          }
+          onPress={onClearTrustedWorkspaceRoot}
+          disabled={workspaceConfigBusy}
+          tone='ghost'
+        />
+      </View>
+
+      {managementExpanded ? (
+        <View
+          style={[
+            screenStyles.workspaceSetupCard,
+            {
+              borderColor: palette.border,
+              backgroundColor: palette.panel,
+            },
+          ]}>
+          <Text style={[screenStyles.inputLabel, {color: palette.inkSoft}]}>
+            {appI18n.agentWorkbench.workspace.currentRootLabel}
+          </Text>
+          <Text
+            style={[screenStyles.infoText, {color: palette.ink}]}
+            numberOfLines={2}>
+            {trustedWorkspace.rootPath}
+          </Text>
+
+          <View style={screenStyles.inputFieldGroup}>
+            <Text style={[screenStyles.inputLabel, {color: palette.inkSoft}]}>
+              {appI18n.agentWorkbench.workspace.rootInputLabel}
+            </Text>
+            {textInputsReady ? (
+              <View
+                style={[
+                  screenStyles.textInputShell,
+                  {
+                    borderColor: palette.border,
+                    backgroundColor: palette.canvasShade,
+                  },
+                ]}>
+                <RNTextInput
+                  testID='agent-workbench.workspace.root-input'
+                  value={workspaceRootDraft}
+                  onChangeText={onWorkspaceRootDraftChange}
+                  placeholder={appI18n.agentWorkbench.workspace.rootInputPlaceholder}
+                  placeholderTextColor={palette.inkSoft}
+                  style={[screenStyles.textInputField, {color: palette.ink}]}
+                />
+              </View>
+            ) : (
+              <View
+                style={[
+                  screenStyles.textInputPlaceholder,
+                  {
+                    borderColor: palette.border,
+                    backgroundColor: palette.canvasShade,
+                  },
+                ]}>
+                <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+                  {appI18n.agentWorkbench.workspace.rootInputPlaceholder}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={screenStyles.actionRow}>
+            <ActionButton
+              testID='agent-workbench.action.set-trusted-workspace-root'
+              label={
+                workspaceConfigBusy
+                  ? appI18n.agentWorkbench.workspace.savingRootAction
+                  : appI18n.agentWorkbench.workspace.updateRootAction
+              }
+              onPress={onTrustWorkspaceRoot}
+              disabled={workspaceConfigBusy}
+              tone='ghost'
+            />
+          </View>
+        </View>
+      ) : null}
 
       {/* Expanded directory list (progressive disclosure) */}
       {expanded ? (

@@ -20,6 +20,7 @@ import {
   type PersistedAgentTerminalRunHandle,
 } from '@opapp/framework-agent-runtime';
 import {
+  clearTrustedWorkspaceRoot,
   getTrustedWorkspaceTarget,
   listWorkspaceDirectory,
   readWorkspaceFile,
@@ -608,6 +609,13 @@ export function useAgentWorkbenchState() {
           throw new Error('Failed to set trusted workspace root.');
         }
 
+        const currentTrustedWorkspaceRoot = trustedWorkspace?.rootPath?.trim() ?? '';
+        const workspaceRootChanged =
+          persistedWorkspace.rootPath !== currentTrustedWorkspaceRoot;
+        if (workspaceRootChanged) {
+          resetWorkspaceExplorer();
+        }
+
         workspaceDraftSeedRef.current = persistedWorkspace.rootPath;
         setWorkspaceRootDraft(persistedWorkspace.rootPath);
         setStatusTone('support');
@@ -619,8 +627,11 @@ export function useAgentWorkbenchState() {
         await refreshWorkbench({
           preferredCwd:
             persistedWorkspace.rootPath === workspaceRecoveryTarget?.rootPath
-              ? workspaceRecoveryTarget.preferredCwd ?? selectedCwdRef.current
-              : selectedCwdRef.current,
+              ? workspaceRecoveryTarget.preferredCwd ??
+                (workspaceRootChanged ? '' : selectedCwdRef.current)
+              : workspaceRootChanged
+                ? ''
+                : selectedCwdRef.current,
           preferredThreadId: selectedThreadIdRef.current,
           preferredRunId: selectedRunIdRef.current,
         });
@@ -634,8 +645,50 @@ export function useAgentWorkbenchState() {
         setWorkspaceConfigBusy(false);
       }
     },
-    [refreshWorkbench, workspaceRecoveryTarget, workspaceRootDraft],
+    [
+      refreshWorkbench,
+      resetWorkspaceExplorer,
+      trustedWorkspace?.rootPath,
+      workspaceRecoveryTarget,
+      workspaceRootDraft,
+    ],
   );
+
+  const handleClearTrustedWorkspaceRoot = useCallback(async () => {
+    setWorkspaceConfigBusy(true);
+    try {
+      const cleared = await clearTrustedWorkspaceRoot();
+      if (!cleared) {
+        throw new Error('Failed to clear trusted workspace root.');
+      }
+
+      resetWorkspaceExplorer();
+      const nextDraftSeed = workspaceRecoveryTarget?.rootPath?.trim() ?? '';
+      workspaceDraftSeedRef.current = nextDraftSeed;
+      setWorkspaceRootDraft(nextDraftSeed);
+      setStatusTone('neutral');
+      setStatusMessage(appI18n.agentWorkbench.feedback.workspaceCleared);
+
+      await refreshWorkbench({
+        preferredCwd: '',
+        preferredThreadId: selectedThreadIdRef.current,
+        preferredRunId: selectedRunIdRef.current,
+      });
+    } catch (error) {
+      logException('agent-workbench.workspace.clear-root.failed', error, {
+        rootPath: trustedWorkspace?.rootPath ?? null,
+      });
+      setStatusTone('danger');
+      setStatusMessage(appI18n.agentWorkbench.feedback.workspaceClearFailed);
+    } finally {
+      setWorkspaceConfigBusy(false);
+    }
+  }, [
+    refreshWorkbench,
+    resetWorkspaceExplorer,
+    trustedWorkspace?.rootPath,
+    workspaceRecoveryTarget?.rootPath,
+  ]);
 
   const handleRunGitStatus = useCallback(() => {
     if (!trustedWorkspace) {
@@ -1401,6 +1454,7 @@ export function useAgentWorkbenchState() {
     handleViewPreviousRun,
     handleWorkspaceRootDraftChange,
     handleTrustWorkspaceRoot,
+    handleClearTrustedWorkspaceRoot,
     handleTrustRecoveredWorkspace,
   };
 }

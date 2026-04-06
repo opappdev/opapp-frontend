@@ -189,6 +189,9 @@ export function AgentWorkbenchScreen() {
               onTrustWorkspaceRoot={() => {
                 void state.handleTrustWorkspaceRoot();
               }}
+              onClearTrustedWorkspaceRoot={() => {
+                void state.handleClearTrustedWorkspaceRoot();
+              }}
               onTrustRecoveredWorkspace={() => {
                 void state.handleTrustRecoveredWorkspace();
               }}

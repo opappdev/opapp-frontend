@@ -442,6 +442,10 @@ export const zhCNApp = {
         `已将 ${label} 设为 trusted workspace。`,
       workspaceTrustFailed:
         '设置 trusted workspace 失败，请确认目录存在且宿主桥可以访问它。',
+      workspaceCleared:
+        '已清除当前 trusted workspace。你可以恢复上次会话工作区，或重新输入新的 root。',
+      workspaceClearFailed:
+        '清除 trusted workspace 失败，请稍后重试。',
       runStarted: '已启动新的 terminal run。',
       runFailed: '启动 terminal run 失败，请查看最新 run 文档或宿主日志。',
       approvalRequested: '已创建新的待审批写入请求。',
@@ -509,7 +513,13 @@ export const zhCNApp = {
       rootInputLabel: 'Trusted workspace root',
       rootInputPlaceholder: '例如 D:/code/opappdev',
       saveRootAction: '设为 trusted workspace',
+      updateRootAction: '更新 trusted workspace',
       savingRootAction: '正在设置工作区...',
+      manageAction: '管理工作区',
+      hideManagementAction: '收起工作区设置',
+      clearRootAction: '清除 trusted workspace',
+      clearingRootAction: '正在清除工作区...',
+      currentRootLabel: '当前 trusted workspace',
       recoveryLabel: '上次会话工作区',
       recoveryAction: '重新信任上次工作区',
       directoryKind: 'directory',

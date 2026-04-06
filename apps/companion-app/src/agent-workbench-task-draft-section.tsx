@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   Text,
   TextInput as RNTextInput,
@@ -11,8 +12,10 @@ import {
   ActionButton,
   Icon,
   InfoPanel,
+  Tooltip,
   useTheme,
   iconCatalog,
+  type IconDefinition,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget} from '@opapp/framework-filesystem';
 import type {
@@ -53,6 +56,67 @@ type WorkbenchTaskDraftSectionProps = {
   onTrustRecoveredWorkspace: () => void;
   screenStyles: ReturnType<typeof createScreenStyles>;
 };
+
+type StarterActionButtonProps = {
+  testID: string;
+  label: string;
+  icon: IconDefinition;
+  disabled: boolean;
+  active?: boolean;
+  onPress: () => void;
+  screenStyles: ReturnType<typeof createScreenStyles>;
+};
+
+function StarterActionButton({
+  testID,
+  label,
+  icon,
+  disabled,
+  active = false,
+  onPress,
+  screenStyles,
+}: StarterActionButtonProps) {
+  const {palette} = useTheme();
+  const compactHoverMode = Platform.OS === 'windows';
+  const button = (
+    <Pressable
+      testID={testID}
+      accessibilityRole='button'
+      accessibilityLabel={label}
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        screenStyles.composerChip,
+        screenStyles.composerStarterChip,
+        compactHoverMode ? screenStyles.composerStarterIconChip : null,
+        {
+          backgroundColor: active ? palette.panelEmphasis : palette.canvasShade,
+          borderColor: active ? palette.accent : palette.border,
+        },
+        disabled ? {opacity: 0.45} : null,
+      ]}>
+      <Icon
+        icon={icon}
+        size={12}
+        color={active ? palette.accent : palette.inkSoft}
+      />
+      {!compactHoverMode ? (
+        <Text
+          style={[
+            screenStyles.composerChipLabel,
+            screenStyles.composerStarterChipLabel,
+            active
+              ? {color: palette.accent, fontWeight: '600'}
+              : {color: palette.inkSoft},
+          ]}>
+          {label}
+        </Text>
+      ) : null}
+    </Pressable>
+  );
+
+  return <Tooltip text={label}>{button}</Tooltip>;
+}
 
 export function WorkbenchTaskDraftSection({
   trustedWorkspace,
@@ -149,6 +213,7 @@ export function WorkbenchTaskDraftSection({
       : primaryActionTone;
   const primaryActionForegroundColor =
     primaryActionBusy || !primaryActionDisabled ? palette.canvas : palette.inkSoft;
+  const compactHoverMode = Platform.OS === 'windows';
 
   return (
     <View style={screenStyles.composerBar}>
@@ -168,90 +233,37 @@ export function WorkbenchTaskDraftSection({
 
       <View style={screenStyles.composerAssistRow}>
         <View style={screenStyles.composerAssistCluster}>
-          <Pressable
+          <StarterActionButton
             testID='agent-workbench.action.run-git-status'
-            accessibilityRole='button'
+            label={appI18n.agentWorkbench.actions.runGitStatus}
+            icon={iconCatalog.terminal}
+            disabled={!canUseStarter}
             onPress={onRunGitStatus}
-            disabled={!canUseStarter}
-            style={[
-              screenStyles.composerChip,
-              screenStyles.composerStarterChip,
-              {
-                backgroundColor: palette.canvasShade,
-                borderColor: palette.border,
-              },
-              !canUseStarter ? {opacity: 0.45} : null,
-            ]}>
-            <Icon icon={iconCatalog.terminal} size={12} color={palette.inkSoft} />
-            <Text
-              style={[
-                screenStyles.composerChipLabel,
-                screenStyles.composerStarterChipLabel,
-                {color: palette.inkSoft},
-              ]}>
-              {appI18n.agentWorkbench.actions.runGitStatus}
-            </Text>
-          </Pressable>
+            screenStyles={screenStyles}
+          />
 
-          <Pressable
+          <StarterActionButton
             testID='agent-workbench.action.populate-write-approval-draft'
-            accessibilityRole='button'
-            onPress={onPopulateWriteApprovalDraft}
+            label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
+            icon={iconCatalog.shieldTask}
             disabled={!canUseStarter}
-            style={[
-              screenStyles.composerChip,
-              screenStyles.composerStarterChip,
-              {
-                backgroundColor: palette.canvasShade,
-                borderColor: palette.border,
-              },
-              !canUseStarter ? {opacity: 0.45} : null,
-            ]}>
-            <Icon icon={iconCatalog.shieldTask} size={12} color={palette.inkSoft} />
-            <Text
-              style={[
-                screenStyles.composerChipLabel,
-                screenStyles.composerStarterChipLabel,
-                {color: palette.inkSoft},
-              ]}>
-              {appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
-            </Text>
-          </Pressable>
+            onPress={onPopulateWriteApprovalDraft}
+            screenStyles={screenStyles}
+          />
         </View>
 
         <View style={screenStyles.composerAssistCluster}>
-          <Pressable
+          <StarterActionButton
             testID='agent-workbench.action.toggle-command-input'
-            accessibilityRole='button'
+            label={advancedCommandLabel}
+            icon={iconCatalog.code}
+            disabled={false}
+            active={showAdvanced}
             onPress={() => {
               setShowAdvanced(prev => !prev);
             }}
-            style={[
-              screenStyles.composerChip,
-              screenStyles.composerStarterChip,
-              {
-                backgroundColor: showAdvanced
-                  ? palette.panelEmphasis
-                  : palette.canvasShade,
-                borderColor: showAdvanced ? palette.accent : palette.border,
-              },
-            ]}>
-            <Icon
-              icon={iconCatalog.code}
-              size={12}
-              color={showAdvanced ? palette.accent : palette.inkSoft}
-            />
-            <Text
-              style={[
-                screenStyles.composerChipLabel,
-                screenStyles.composerStarterChipLabel,
-                showAdvanced
-                  ? {color: palette.accent, fontWeight: '600'}
-                  : {color: palette.inkSoft},
-              ]}>
-              {advancedCommandLabel}
-            </Text>
-          </Pressable>
+            screenStyles={screenStyles}
+          />
         </View>
       </View>
 
@@ -303,42 +315,49 @@ export function WorkbenchTaskDraftSection({
         />
 
         <View style={screenStyles.composerShellFooter}>
-          <View style={screenStyles.composerShellFooterMeta}>
-            <Text
-              style={[
-                screenStyles.composerRuntimeMeta,
-                {color: palette.inkSoft},
-              ]}
-              numberOfLines={1}>
-              {primaryActionLabel}
-            </Text>
-          </View>
-          <Pressable
-            testID='agent-workbench.action.start-draft-task'
-            accessibilityRole='button'
-            accessibilityLabel={primaryActionLabel}
-            onPress={showStopAction ? onCancelRun : onStartDraftTask}
-            disabled={primaryActionDisabled}
-            style={({pressed}) => [
-              screenStyles.composerPrimaryAction,
-              {
-                backgroundColor: primaryActionBackgroundColor,
-                borderColor: primaryActionBorderColor,
-              },
-              pressed && !primaryActionDisabled
-                ? screenStyles.composerPrimaryActionPressed
-                : null,
-            ]}>
-            {primaryActionBusy ? (
-              <ActivityIndicator size='small' color={primaryActionForegroundColor} />
-            ) : (
-              <Icon
-                icon={primaryActionIcon}
-                size={15}
-                color={primaryActionForegroundColor}
-              />
-            )}
-          </Pressable>
+          {!compactHoverMode ? (
+            <View style={screenStyles.composerShellFooterMeta}>
+              <Text
+                style={[
+                  screenStyles.composerRuntimeMeta,
+                  {color: palette.inkSoft},
+                ]}
+                numberOfLines={1}>
+                {primaryActionLabel}
+              </Text>
+            </View>
+          ) : null}
+          <Tooltip text={primaryActionLabel}>
+            <Pressable
+              testID='agent-workbench.action.start-draft-task'
+              accessibilityRole='button'
+              accessibilityLabel={primaryActionLabel}
+              onPress={showStopAction ? onCancelRun : onStartDraftTask}
+              disabled={primaryActionDisabled}
+              style={({pressed}) => [
+                screenStyles.composerPrimaryAction,
+                {
+                  backgroundColor: primaryActionBackgroundColor,
+                  borderColor: primaryActionBorderColor,
+                },
+                pressed && !primaryActionDisabled
+                  ? screenStyles.composerPrimaryActionPressed
+                  : null,
+              ]}>
+              {primaryActionBusy ? (
+                <ActivityIndicator
+                  size='small'
+                  color={primaryActionForegroundColor}
+                />
+              ) : (
+                <Icon
+                  icon={primaryActionIcon}
+                  size={15}
+                  color={primaryActionForegroundColor}
+                />
+              )}
+            </Pressable>
+          </Tooltip>
         </View>
       </View>
 

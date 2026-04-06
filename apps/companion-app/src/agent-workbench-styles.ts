@@ -535,6 +535,12 @@ export function createScreenStyles(palette: AppPalette) {
     composerStarterChip: {
       paddingHorizontal: appSpacing.sm,
     },
+    composerStarterIconChip: {
+      width: 30,
+      minWidth: 30,
+      paddingHorizontal: 0,
+      justifyContent: 'center',
+    },
     composerStarterChipLabel: {
       fontWeight: '600',
     },

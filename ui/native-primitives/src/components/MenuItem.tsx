@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, Text } from 'react-native';
 import { useTheme } from '../theme';
 import { Icon, type IconDefinition } from '../icons';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './MenuItem.styles';
 
 export function MenuItem({
@@ -23,7 +27,16 @@ export function MenuItem({
   testID?: string;
 }) {
   const { palette } = useTheme();
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handleFocus,
+    handleBlur,
+  } = useDiscretePressableState();
   const fg = destructive
     ? palette.errorRed
     : disabled
@@ -36,16 +49,21 @@ export function MenuItem({
       accessibilityRole='menuitem'
       disabled={disabled}
       focusable={!disabled}
-      {...windowsFocusProps()}
+      {...windowsFocusProps({ nativeFocusRing: false })}
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={({ pressed, focused }: any) => [
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      style={({ pressed }: any) => [
         styles.menuItem,
         hovered && !pressed
           ? { backgroundColor: palette.canvasShade }
           : null,
-        focused && { backgroundColor: palette.canvasShade },
+        focusVisible ? { backgroundColor: palette.canvasShade } : null,
         pressed ? { backgroundColor: palette.canvasShade, opacity: 0.8 } : null,
         disabled ? { opacity: 0.45 } : null,
         desktopCursor,

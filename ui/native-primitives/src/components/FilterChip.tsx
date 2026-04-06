@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, StyleProp, Text, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './FilterChip.styles';
 
 export function FilterChip({
@@ -16,17 +20,31 @@ export function FilterChip({
   style?: StyleProp<ViewStyle>;
 }) {
   const { palette } = useTheme();
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handleFocus,
+    handleBlur,
+  } = useDiscretePressableState();
   return (
     <Pressable
       accessibilityRole='button'
       accessibilityState={{ selected: active }}
       focusable
-      {...windowsFocusProps()}
+      {...windowsFocusProps({ nativeFocusRing: false })}
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={({ pressed, focused }: any) => [
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      style={({ pressed }: any) => [
         styles.filterChip,
         active
           ? { backgroundColor: palette.accent, borderColor: palette.accent }
@@ -36,7 +54,7 @@ export function FilterChip({
             ? { backgroundColor: palette.accentHover }
             : { backgroundColor: palette.canvasShade }
           : null,
-        focused && { borderColor: palette.focusRing, borderWidth: 2 },
+        focusVisible ? { borderColor: palette.focusRing, borderWidth: 2 } : null,
         pressed ? styles.filterChipPressed : null,
         desktopCursor,
         style,

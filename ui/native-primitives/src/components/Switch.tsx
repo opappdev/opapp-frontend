@@ -1,7 +1,11 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { useTheme } from '../theme';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './Switch.styles';
 
 export function Switch({
@@ -18,7 +22,16 @@ export function Switch({
   testID?: string;
 }) {
   const { palette } = useTheme();
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handleFocus,
+    handleBlur,
+  } = useDiscretePressableState();
   const thumbAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
 
   const toggle = useCallback(() => {
@@ -58,11 +71,16 @@ export function Switch({
       accessibilityLabel={label}
       disabled={disabled}
       focusable={!disabled}
-      {...windowsFocusProps()}
+      {...windowsFocusProps({ nativeFocusRing: false })}
       onPress={toggle}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={({ focused }: any) => [
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      style={() => [
         styles.switchRow,
         disabled ? { opacity: 0.5 } : null,
         desktopCursor,
@@ -72,7 +90,11 @@ export function Switch({
         style={[
           styles.switchTrack,
           { backgroundColor: trackBg },
-          hovered && !disabled ? { borderColor: palette.borderStrong } : { borderColor: trackBg },
+          focusVisible
+            ? { borderColor: palette.focusRing }
+            : hovered && !disabled
+              ? { borderColor: palette.borderStrong }
+              : { borderColor: trackBg },
         ]}
       >
         <Animated.View

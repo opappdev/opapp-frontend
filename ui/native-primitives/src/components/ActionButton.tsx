@@ -1,8 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { Pressable, Text } from 'react-native';
 import { useTheme } from '../theme';
 import { Icon, type IconDefinition } from '../icons';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './ActionButton.styles';
 
 export function ActionButton({
@@ -21,7 +25,16 @@ export function ActionButton({
   testID?: string;
 }) {
   const { palette } = useTheme();
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handleFocus,
+    handleBlur,
+  } = useDiscretePressableState();
   const suppressPressForKeyboardActivationRef = useRef(false);
   const labelColor =
     disabled ? palette.inkSoft : tone === 'accent' ? palette.canvas : palette.ink;
@@ -31,7 +44,7 @@ export function ActionButton({
       accessibilityRole='button'
       disabled={disabled}
       focusable={!disabled}
-      {...windowsFocusProps()}
+      {...windowsFocusProps({ nativeFocusRing: false })}
       onPress={() => {
         if (disabled) {
           return;
@@ -57,9 +70,14 @@ export function ActionButton({
           onPress();
         }
       }}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={({ pressed, focused }: any) => [
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      style={({ pressed }: any) => [
         styles.actionButton,
         tone === 'accent'
           ? { backgroundColor: palette.accent, borderColor: palette.accent }
@@ -78,7 +96,9 @@ export function ActionButton({
             ? { backgroundColor: palette.accentHover }
             : { backgroundColor: palette.canvasShade }
           : null,
-        !disabled && focused && { borderColor: palette.focusRing, borderWidth: 2 },
+        !disabled && focusVisible
+          ? { borderColor: palette.focusRing, borderWidth: 2 }
+          : null,
         pressed && !disabled ? styles.actionButtonPressed : null,
         desktopCursor,
       ]}

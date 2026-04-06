@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
 import { Icon, type IconDefinition } from '../icons';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './SegmentedControl.styles';
 
 export type SegmentedControlItem<T extends string = string> = {
@@ -64,18 +68,32 @@ function SegmentedControlSegment<T extends string>({
   size: 'sm' | 'md';
 }) {
   const { palette } = useTheme();
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handleFocus,
+    handleBlur,
+  } = useDiscretePressableState();
 
   return (
     <Pressable
       accessibilityRole='tab'
       accessibilityState={{ selected: isSelected }}
       focusable
-      {...windowsFocusProps()}
+      {...windowsFocusProps({ nativeFocusRing: false })}
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={({ pressed, focused }: any) => [
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      style={({ pressed }: any) => [
         styles.segmentedControlSegment,
         size === 'sm'
           ? styles.segmentedControlSegmentSm
@@ -89,7 +107,7 @@ function SegmentedControlSegment<T extends string>({
         !isSelected && hovered && !pressed
           ? { backgroundColor: palette.canvasShade }
           : null,
-        focused && { borderColor: palette.focusRing },
+        focusVisible ? { borderColor: palette.focusRing } : null,
         pressed && !isSelected ? { opacity: 0.8 } : null,
         desktopCursor,
       ]}

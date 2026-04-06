@@ -12,8 +12,12 @@ import {
   Icon,
   IconButton,
   InfoPanel,
+  MenuItem,
+  MenuList,
+  Popover,
   SegmentedControl,
   Spinner,
+  TextInput,
   Tooltip,
   useTheme,
   iconCatalog,
@@ -182,6 +186,7 @@ export function WorkbenchTaskDraftSection({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showWorkspaceConfig, setShowWorkspaceConfig] = useState(false);
   const [showExecutionModePanel, setShowExecutionModePanel] = useState(false);
+  const [showWorkspaceActionMenu, setShowWorkspaceActionMenu] = useState(false);
   const hadWorkspaceRef = useRef(Boolean(trustedWorkspace));
 
   useEffect(() => {
@@ -223,6 +228,11 @@ export function WorkbenchTaskDraftSection({
     ? appI18n.agentWorkbench.taskDraft.manageWorkspaceAction
     : appI18n.agentWorkbench.taskDraft.chooseWorkspaceAction;
   const showWorkspacePanel = showWorkspaceConfig || !hasTrustedWorkspace;
+  useEffect(() => {
+    if (!showWorkspacePanel || trustedWorkspace === null) {
+      setShowWorkspaceActionMenu(false);
+    }
+  }, [showWorkspacePanel, trustedWorkspace]);
   const showStopAction = activeRunInfo !== null;
   const primaryActionBusy = !showStopAction && taskDraftBusy !== null;
   const primaryActionDisabled = showStopAction ? false : !canSubmit;
@@ -634,23 +644,18 @@ export function WorkbenchTaskDraftSection({
               {appI18n.agentWorkbench.workspace.rootInputLabel}
             </Text>
             {textInputsReady ? (
-              <View
-                style={[
-                  screenStyles.textInputShell,
-                  {
-                    borderColor: palette.border,
-                    backgroundColor: palette.canvasShade,
-                  },
-                ]}>
-                <RNTextInput
-                  testID='agent-workbench.workspace.root-input'
-                  value={workspaceRootDraft}
-                  onChangeText={onWorkspaceRootDraftChange}
-                  placeholder={appI18n.agentWorkbench.workspace.rootInputPlaceholder}
-                  placeholderTextColor={palette.inkSoft}
-                  style={[screenStyles.textInputField, {color: palette.ink}]}
-                />
-              </View>
+              <TextInput
+                testID='agent-workbench.workspace.root-input'
+                value={workspaceRootDraft}
+                onChangeText={onWorkspaceRootDraftChange}
+                onClear={
+                  workspaceRootDraft.length > 0
+                    ? () => onWorkspaceRootDraftChange('')
+                    : undefined
+                }
+                placeholder={appI18n.agentWorkbench.workspace.rootInputPlaceholder}
+                style={{width: '100%', backgroundColor: palette.canvasShade}}
+              />
             ) : (
               <View
                 style={[
@@ -668,32 +673,62 @@ export function WorkbenchTaskDraftSection({
           </View>
 
           <View style={screenStyles.actionRow}>
-            <ActionButton
-              testID='agent-workbench.action.set-trusted-workspace-root'
-              label={
-                workspaceConfigBusy
-                  ? appI18n.agentWorkbench.workspace.savingRootAction
-                  : hasTrustedWorkspace
-                    ? appI18n.agentWorkbench.workspace.updateRootAction
-                    : appI18n.agentWorkbench.workspace.saveRootAction
-              }
-              onPress={onTrustWorkspaceRoot}
-              disabled={workspaceConfigBusy}
-              tone='ghost'
-            />
             {hasTrustedWorkspace ? (
+              <Popover
+                visible={showWorkspaceActionMenu}
+                onDismiss={() => {
+                  setShowWorkspaceActionMenu(false);
+                }}
+                placement='bottom'
+                anchor={
+                  <ActionButton
+                    testID='agent-workbench.action.toggle-workspace-actions'
+                    label={workspaceActionLabel}
+                    onPress={() => {
+                      setShowWorkspaceActionMenu(prev => !prev);
+                    }}
+                    disabled={workspaceConfigBusy}
+                    tone='ghost'
+                    icon={iconCatalog.more}
+                  />
+                }>
+                <MenuList testID='agent-workbench.workspace.action-menu'>
+                  <MenuItem
+                    testID='agent-workbench.action.set-trusted-workspace-root'
+                    label={appI18n.agentWorkbench.workspace.updateRootAction}
+                    icon={iconCatalog.save}
+                    onPress={() => {
+                      setShowWorkspaceActionMenu(false);
+                      onTrustWorkspaceRoot();
+                    }}
+                    disabled={workspaceConfigBusy}
+                  />
+                  <MenuItem
+                    testID='agent-workbench.action.clear-trusted-workspace-root'
+                    label={appI18n.agentWorkbench.workspace.clearRootAction}
+                    icon={iconCatalog.delete_}
+                    destructive
+                    onPress={() => {
+                      setShowWorkspaceActionMenu(false);
+                      onClearTrustedWorkspaceRoot();
+                    }}
+                    disabled={workspaceConfigBusy}
+                  />
+                </MenuList>
+              </Popover>
+            ) : (
               <ActionButton
-                testID='agent-workbench.action.clear-trusted-workspace-root'
+                testID='agent-workbench.action.set-trusted-workspace-root'
                 label={
                   workspaceConfigBusy
-                    ? appI18n.agentWorkbench.workspace.clearingRootAction
-                    : appI18n.agentWorkbench.workspace.clearRootAction
+                    ? appI18n.agentWorkbench.workspace.savingRootAction
+                    : appI18n.agentWorkbench.workspace.saveRootAction
                 }
-                onPress={onClearTrustedWorkspaceRoot}
+                onPress={onTrustWorkspaceRoot}
                 disabled={workspaceConfigBusy}
                 tone='ghost'
               />
-            ) : null}
+            )}
           </View>
         </View>
       ) : null}

@@ -2,7 +2,11 @@ import React, { PropsWithChildren, useCallback, useState } from 'react';
 import { LayoutAnimation, Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
 import { Icon, type IconDefinition } from '../icons';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './Expander.styles';
 
 export function Expander({
@@ -27,7 +31,16 @@ export function Expander({
 }>) {
   const { palette, spacing } = useTheme();
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handleFocus,
+    handleBlur,
+  } = useDiscretePressableState();
 
   const toggle = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -41,11 +54,16 @@ export function Expander({
         accessibilityRole='button'
         accessibilityState={{ expanded }}
         focusable
-        {...windowsFocusProps()}
+        {...windowsFocusProps({ nativeFocusRing: false })}
         onPress={toggle}
-        onHoverIn={() => setHovered(true)}
-        onHoverOut={() => setHovered(false)}
-        style={({ pressed, focused }: any) => [
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        style={({ pressed }: any) => [
           styles.expanderHeader,
           {
             backgroundColor: palette.panel,
@@ -53,7 +71,7 @@ export function Expander({
             paddingHorizontal: spacing.lg,
           },
           hovered && !pressed ? { backgroundColor: palette.canvasShade } : null,
-          focused && { borderColor: palette.focusRing, borderWidth: 2 },
+          focusVisible ? { borderColor: palette.focusRing, borderWidth: 2 } : null,
           pressed ? { backgroundColor: palette.canvasShade } : null,
           desktopCursor,
         ]}

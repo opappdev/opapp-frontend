@@ -28,7 +28,7 @@
 ## 2. Interactive States
 
 - 状态集合固定为 `rest / hover / focus-visible / pressed / selected / disabled`（见 `appInteractionStates`）。
-- 所有交互组件均已配置 `focusable` + `enableFocusRing: true`（Windows 焦点环）。
+- 所有交互组件均已配置 `focusable`；离散动作控件默认采用更接近 `focus-visible` 的焦点语义，避免鼠标点击后长期保留外层焦点框。
 - 所有交互组件均已配置 `cursor: 'pointer'`（Windows 桌面光标）。
 - 组件态规范：
   - `ChoiceChip`: `idle/active + pressed + emphasized` 组合态

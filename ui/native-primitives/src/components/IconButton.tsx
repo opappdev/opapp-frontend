@@ -1,9 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { Platform, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
 import { Icon, type IconDefinition } from '../icons';
 import { Tooltip, type TooltipPlacement } from '../ToolTip';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './IconButton.styles';
 
 export type IconButtonSize = 'sm' | 'md' | 'lg';
@@ -38,7 +42,16 @@ export function IconButton({
   testID?: string;
 }) {
   const { palette } = useTheme();
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handleFocus,
+    handleBlur,
+  } = useDiscretePressableState();
   const suppressPressForKeyboardRef = useRef(false);
 
   const sizeSpec = iconButtonSizes[size];
@@ -83,7 +96,7 @@ export function IconButton({
       accessibilityState={{ disabled, selected: active }}
       disabled={disabled}
       focusable={!disabled}
-      {...windowsFocusProps()}
+      {...windowsFocusProps({ nativeFocusRing: false })}
       onPress={() => {
         if (disabled) return;
         if (suppressPressForKeyboardRef.current) {
@@ -100,9 +113,14 @@ export function IconButton({
           onPress();
         }
       }}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={({ pressed, focused }: any) => [
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      style={({ pressed }: any) => [
         styles.iconButton,
         {
           width: sizeSpec.box,
@@ -114,7 +132,7 @@ export function IconButton({
         !disabled && hovered && !pressed
           ? { backgroundColor: palette.canvasShade }
           : null,
-        !disabled && focused
+        !disabled && focusVisible
           ? { borderColor: palette.focusRing, borderWidth: 2 }
           : null,
         pressed && !disabled ? { opacity: 0.85, transform: [{ scale: 0.95 }] } : null,

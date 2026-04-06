@@ -1,8 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 import { appI18n } from '@opapp/framework-i18n';
 import { useTheme } from '../theme';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './ChoiceChip.styles';
 
 export function ChoiceChip({
@@ -33,7 +37,16 @@ export function ChoiceChip({
   testID?: string;
 }) {
   const { palette } = useTheme();
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handleFocus,
+    handleBlur,
+  } = useDiscretePressableState();
   const activationIdRef = useRef(0);
   const suppressPressForActivationRef = useRef<number | null>(null);
   const suppressPressForKeyboardActivationRef = useRef(false);
@@ -53,11 +66,16 @@ export function ChoiceChip({
       accessibilityRole='button'
       accessibilityState={{ selected: active }}
       focusable
-      {...windowsFocusProps()}
+      {...windowsFocusProps({ nativeFocusRing: false })}
       hitSlop={6}
       pressRetentionOffset={{ top: 12, right: 12, bottom: 12, left: 12 }}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       onPress={() => {
         if (suppressPressForKeyboardActivationRef.current) {
           suppressPressForKeyboardActivationRef.current = false;
@@ -92,7 +110,7 @@ export function ChoiceChip({
           onPress();
         }
       }}
-      style={({ pressed, focused }: any) => [
+      style={({ pressed }: any) => [
         styles.chip,
         active ? chipActive : chipIdle,
         emphasized
@@ -105,7 +123,7 @@ export function ChoiceChip({
             ? { borderColor: palette.accentHover }
             : { backgroundColor: palette.canvasShade, borderColor: palette.borderStrong }
           : null,
-        focused && { borderColor: palette.focusRing, borderWidth: 2 },
+        focusVisible ? { borderColor: palette.focusRing, borderWidth: 2 } : null,
         pressed && activationBehavior === 'press'
           ? active
             ? { backgroundColor: palette.accentSoft, borderColor: palette.accentHover }

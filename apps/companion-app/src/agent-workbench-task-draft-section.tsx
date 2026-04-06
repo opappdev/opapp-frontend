@@ -12,12 +12,8 @@ import {
   Icon,
   IconButton,
   InfoPanel,
-  MenuItem,
-  MenuList,
-  Popover,
   SegmentedControl,
   Spinner,
-  TextInput,
   Tooltip,
   useTheme,
   iconCatalog,
@@ -644,18 +640,23 @@ export function WorkbenchTaskDraftSection({
               {appI18n.agentWorkbench.workspace.rootInputLabel}
             </Text>
             {textInputsReady ? (
-              <TextInput
-                testID='agent-workbench.workspace.root-input'
-                value={workspaceRootDraft}
-                onChangeText={onWorkspaceRootDraftChange}
-                onClear={
-                  workspaceRootDraft.length > 0
-                    ? () => onWorkspaceRootDraftChange('')
-                    : undefined
-                }
-                placeholder={appI18n.agentWorkbench.workspace.rootInputPlaceholder}
-                style={{width: '100%', backgroundColor: palette.canvasShade}}
-              />
+              <View
+                style={[
+                  screenStyles.textInputShell,
+                  {
+                    borderColor: palette.border,
+                    backgroundColor: palette.canvasShade,
+                  },
+                ]}>
+                <RNTextInput
+                  testID='agent-workbench.workspace.root-input'
+                  value={workspaceRootDraft}
+                  onChangeText={onWorkspaceRootDraftChange}
+                  placeholder={appI18n.agentWorkbench.workspace.rootInputPlaceholder}
+                  placeholderTextColor={palette.inkSoft}
+                  style={[screenStyles.textInputField, {color: palette.ink}]}
+                />
+              </View>
             ) : (
               <View
                 style={[
@@ -674,48 +675,54 @@ export function WorkbenchTaskDraftSection({
 
           <View style={screenStyles.actionRow}>
             {hasTrustedWorkspace ? (
-              <Popover
-                visible={showWorkspaceActionMenu}
-                onDismiss={() => {
-                  setShowWorkspaceActionMenu(false);
-                }}
-                placement='bottom'
-                anchor={
-                  <ActionButton
-                    testID='agent-workbench.action.toggle-workspace-actions'
-                    label={workspaceActionLabel}
-                    onPress={() => {
-                      setShowWorkspaceActionMenu(prev => !prev);
-                    }}
-                    disabled={workspaceConfigBusy}
-                    tone='ghost'
-                    icon={iconCatalog.more}
-                  />
-                }>
-                <MenuList testID='agent-workbench.workspace.action-menu'>
-                  <MenuItem
-                    testID='agent-workbench.action.set-trusted-workspace-root'
-                    label={appI18n.agentWorkbench.workspace.updateRootAction}
-                    icon={iconCatalog.save}
-                    onPress={() => {
-                      setShowWorkspaceActionMenu(false);
-                      onTrustWorkspaceRoot();
-                    }}
-                    disabled={workspaceConfigBusy}
-                  />
-                  <MenuItem
-                    testID='agent-workbench.action.clear-trusted-workspace-root'
-                    label={appI18n.agentWorkbench.workspace.clearRootAction}
-                    icon={iconCatalog.delete_}
-                    destructive
-                    onPress={() => {
-                      setShowWorkspaceActionMenu(false);
-                      onClearTrustedWorkspaceRoot();
-                    }}
-                    disabled={workspaceConfigBusy}
-                  />
-                </MenuList>
-              </Popover>
+              <View style={screenStyles.workspaceActionMenuGroup}>
+                <ActionButton
+                  testID='agent-workbench.action.toggle-workspace-actions'
+                  label={workspaceActionLabel}
+                  onPress={() => {
+                    setShowWorkspaceActionMenu(prev => !prev);
+                  }}
+                  disabled={workspaceConfigBusy}
+                  tone='ghost'
+                  icon={iconCatalog.more}
+                />
+                {showWorkspaceActionMenu ? (
+                  <View
+                    testID='agent-workbench.workspace.action-menu'
+                    style={[
+                      screenStyles.workspaceActionMenuShell,
+                      {
+                        backgroundColor: palette.panel,
+                        borderColor: palette.border,
+                      },
+                    ]}>
+                    <View style={screenStyles.workspaceActionMenuList}>
+                      <ActionButton
+                        testID='agent-workbench.action.set-trusted-workspace-root'
+                        label={appI18n.agentWorkbench.workspace.updateRootAction}
+                        onPress={() => {
+                          setShowWorkspaceActionMenu(false);
+                          onTrustWorkspaceRoot();
+                        }}
+                        disabled={workspaceConfigBusy}
+                        tone='ghost'
+                        icon={iconCatalog.save}
+                      />
+                      <ActionButton
+                        testID='agent-workbench.action.clear-trusted-workspace-root'
+                        label={appI18n.agentWorkbench.workspace.clearRootAction}
+                        onPress={() => {
+                          setShowWorkspaceActionMenu(false);
+                          onClearTrustedWorkspaceRoot();
+                        }}
+                        disabled={workspaceConfigBusy}
+                        tone='ghost'
+                        icon={iconCatalog.delete_}
+                      />
+                    </View>
+                  </View>
+                ) : null}
+              </View>
             ) : (
               <ActionButton
                 testID='agent-workbench.action.set-trusted-workspace-root'

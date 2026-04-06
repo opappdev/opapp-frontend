@@ -245,6 +245,23 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.sm2,
       paddingTop: appSpacing.sm,
     },
+    workspaceActionMenuGroup: {
+      gap: appSpacing.xxs,
+      alignSelf: 'flex-start',
+      maxWidth: '100%',
+    },
+    workspaceActionMenuShell: {
+      minWidth: 220,
+      maxWidth: 280,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: appRadius.compact,
+      paddingVertical: 4,
+      paddingHorizontal: 4,
+      overflow: 'hidden',
+    },
+    workspaceActionMenuList: {
+      gap: 4,
+    },
     choiceGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',

@@ -7,6 +7,7 @@ import {
   useTheme,
   appSpacing,
   appRadius,
+  iconCatalog,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget} from '@opapp/framework-filesystem';
 import type {WorkbenchTaskDraft} from './agent-workbench-model';
@@ -140,6 +141,7 @@ export function WorkbenchTaskDraftSection({
           }
           onPress={onStartDraftTask}
           disabled={!canSubmit}
+          icon={draftRequiresApproval ? iconCatalog.shieldTask : iconCatalog.send}
         />
       </View>
 

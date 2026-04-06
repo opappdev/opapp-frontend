@@ -3,10 +3,12 @@ import {Pressable, Text, View} from 'react-native';
 import type {AgentRunDocument} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
+  Icon,
   useTheme,
 } from '@opapp/ui-native-primitives';
 import {
   formatIsoTimestamp,
+  resolveRunStatusIcon,
   resolveRunStatusTone,
 } from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
@@ -80,13 +82,12 @@ export function WorkbenchRunHistorySection({
                     document.run.runId}
                 </Text>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
-                  <View style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: 3,
-                    backgroundColor: resolveRunStatusTone(document.run.status) === 'danger' ? palette.errorRed : resolveRunStatusTone(document.run.status) === 'support' ? palette.support : palette.inkSoft,
-                    opacity: isLatest ? 1 : 0.6,
-                  }} />
+                  <Icon
+                    icon={resolveRunStatusIcon(document.run.status)}
+                    size={10}
+                    color={resolveRunStatusTone(document.run.status) === 'danger' ? palette.errorRed : resolveRunStatusTone(document.run.status) === 'support' ? palette.support : palette.inkSoft}
+                    style={{opacity: isLatest ? 1 : 0.6}}
+                  />
                   <Text numberOfLines={1} style={screenStyles.listRowDetail}>
                     {formatIsoTimestamp(document.run.updatedAt)}
                   </Text>

@@ -96,6 +96,8 @@ export const iconCatalog = {
   more:          { label: 'More',           glyph: '\uE712' },
   filter:        { label: 'Filter',         glyph: '\uE71C' },
   search:        { label: 'Search',         glyph: '\uE721' },
+  fullScreen:    { label: 'Full screen',    glyph: '\uE740' },
+  backToWindow:  { label: 'Back to window', glyph: '\uE73F' },
 
   // ── Status ──
   checkmark:     { label: 'Checkmark',      glyph: '\uE73E' },

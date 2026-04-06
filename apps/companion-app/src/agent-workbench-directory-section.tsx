@@ -2,11 +2,12 @@ import React, {useState} from 'react';
 import {Pressable, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
+  Icon,
   useTheme,
   appSpacing,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget, WorkspaceEntry} from '@opapp/framework-filesystem';
-import {formatWorkspaceEntryMeta} from './agent-workbench-resolvers';
+import {formatWorkspaceEntryMeta, resolveWorkspaceEntryIcon} from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
 
 const COLLAPSED_LIMIT = 8;
@@ -66,6 +67,11 @@ export function WorkbenchDirectorySection({
               {isActive ? (
                 <View style={screenStyles.listRowIndicator} />
               ) : null}
+              <Icon
+                icon={resolveWorkspaceEntryIcon(entry)}
+                size={12}
+                color={isActive ? palette.accent : palette.inkSoft}
+              />
               <Text
                 style={[
                   screenStyles.listRowLabel,

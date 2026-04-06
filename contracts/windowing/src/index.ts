@@ -48,6 +48,7 @@ export type WindowPolicyDefinition = {
   minWidth: number;
   minHeight: number;
   defaultPlacement: WindowPlacement;
+  defaultMaximized?: boolean;
   rememberWindowRect: boolean;
   allowManualResize: boolean;
   geometry: Record<

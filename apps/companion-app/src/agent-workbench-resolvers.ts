@@ -623,3 +623,36 @@ export function resolveApprovalTargetDescription(approval: AgentApprovalTimeline
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+//  Run status → icon
+// ---------------------------------------------------------------------------
+
+export function resolveRunStatusIcon(status: AgentRunStatus | null): IconDefinition {
+  switch (status) {
+    case 'running':
+      return iconCatalog.play;
+    case 'completed':
+      return iconCatalog.checkmark;
+    case 'failed':
+      return iconCatalog.errorBadge;
+    case 'needs-approval':
+      return iconCatalog.shieldTask;
+    case 'cancelled':
+      return iconCatalog.dismiss;
+    case 'interrupted':
+      return iconCatalog.warning;
+    case 'queued':
+      return iconCatalog.clock;
+    default:
+      return iconCatalog.chat;
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Workspace entry → icon
+// ---------------------------------------------------------------------------
+
+export function resolveWorkspaceEntryIcon(entry: WorkspaceEntry): IconDefinition {
+  return entry.kind === 'directory' ? iconCatalog.folder : iconCatalog.document;
+}

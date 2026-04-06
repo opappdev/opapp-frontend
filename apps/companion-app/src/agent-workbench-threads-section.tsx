@@ -3,10 +3,11 @@ import {Pressable, Text, View} from 'react-native';
 import type {AgentThreadSummary} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
+  Icon,
   useTheme,
   appTypography,
 } from '@opapp/ui-native-primitives';
-import {formatIsoTimestamp, resolveRunStatusTone} from './agent-workbench-resolvers';
+import {formatIsoTimestamp, resolveRunStatusIcon, resolveRunStatusTone} from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
 
 type WorkbenchThreadsSectionProps = {
@@ -64,13 +65,11 @@ export function WorkbenchThreadsSection({
                   </Text>
                   <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
                     {thread.lastRunStatus ? (
-                      <View style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: 3,
-                        backgroundColor: resolveRunStatusTone(thread.lastRunStatus) === 'danger' ? palette.errorRed : resolveRunStatusTone(thread.lastRunStatus) === 'support' ? palette.support : palette.inkSoft,
-                        opacity: 0.7,
-                      }} />
+                      <Icon
+                        icon={resolveRunStatusIcon(thread.lastRunStatus)}
+                        size={10}
+                        color={resolveRunStatusTone(thread.lastRunStatus) === 'danger' ? palette.errorRed : resolveRunStatusTone(thread.lastRunStatus) === 'support' ? palette.support : palette.inkSoft}
+                      />
                     ) : null}
                     <Text
                       numberOfLines={1}

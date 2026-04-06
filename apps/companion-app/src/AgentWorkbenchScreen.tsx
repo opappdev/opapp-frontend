@@ -13,6 +13,7 @@ import {
   Toolbar,
   useTheme,
   appLayout,
+  iconCatalog,
 } from '@opapp/ui-native-primitives';
 import {
   resolveRunStatusLabel,
@@ -86,6 +87,7 @@ export function AgentWorkbenchScreen() {
               onPress={() => {
                 void state.handleCancelRun();
               }}
+              icon={iconCatalog.stop}
               tone='ghost'
             />
           ) : null}
@@ -101,6 +103,7 @@ export function AgentWorkbenchScreen() {
                 void state.handleRunGitStatus();
               }}
               disabled={!state.trustedWorkspace || state.activeRunInfo !== null}
+              icon={iconCatalog.code}
               tone='ghost'
             />
           ) : null}
@@ -120,6 +123,7 @@ export function AgentWorkbenchScreen() {
                 state.activeRunInfo !== null ||
                 state.approvalBusy !== null
               }
+              icon={iconCatalog.shieldTask}
               tone='ghost'
             />
           ) : null}
@@ -135,6 +139,7 @@ export function AgentWorkbenchScreen() {
               void state.handleRefresh();
             }}
             disabled={state.refreshing}
+            icon={iconCatalog.refresh}
             tone='ghost'
           />
         </View>

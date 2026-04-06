@@ -5,6 +5,7 @@
     "minWidth": 960,
     "minHeight": 780,
     "defaultPlacement": "centered",
+    "defaultMaximized": true,
     "rememberWindowRect": true,
     "allowManualResize": true,
     "geometry": {
@@ -34,6 +35,7 @@
     "minWidth": 780,
     "minHeight": 820,
     "defaultPlacement": "centered",
+    "defaultMaximized": false,
     "rememberWindowRect": true,
     "allowManualResize": true,
     "geometry": {
@@ -63,6 +65,7 @@
     "minWidth": 860,
     "minHeight": 760,
     "defaultPlacement": "centered",
+    "defaultMaximized": false,
     "rememberWindowRect": true,
     "allowManualResize": true,
     "geometry": {

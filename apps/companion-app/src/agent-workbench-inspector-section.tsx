@@ -3,6 +3,7 @@ import {ActivityIndicator, Pressable, ScrollView, Text, View} from 'react-native
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
+  Icon,
   InfoPanel,
   useTheme,
   appSpacing,
@@ -12,6 +13,7 @@ import type {WorkspaceEntry} from '@opapp/framework-filesystem';
 import {
   formatSizeBytes,
   formatWorkspaceEntryMeta,
+  resolveWorkspaceEntryIcon,
   resolveWorkspaceKindLabel,
 } from './agent-workbench-resolvers';
 import {type createScreenStyles, terminalFontFamily} from './agent-workbench-styles';
@@ -141,6 +143,11 @@ export function WorkbenchInspectorSection({
                         {isActive ? (
                           <View style={screenStyles.listRowIndicator} />
                         ) : null}
+                        <Icon
+                          icon={resolveWorkspaceEntryIcon(entry)}
+                          size={12}
+                          color={isActive ? palette.accent : palette.inkSoft}
+                        />
                         <Text
                           style={[
                             screenStyles.listRowLabel,

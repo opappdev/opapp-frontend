@@ -11,6 +11,8 @@ import type {
   AgentTimelineEntry,
   AgentToolCallStatus,
   AgentToolResultStatus,
+  AgentSessionAttentionState,
+  AgentSessionLifecycleState,
 } from '@opapp/framework-agent-runtime';
 import type {AppTone} from '@opapp/ui-native-primitives';
 import {type IconDefinition, iconCatalog} from '@opapp/ui-native-primitives';
@@ -646,6 +648,66 @@ export function resolveRunStatusIcon(status: AgentRunStatus | null): IconDefinit
       return iconCatalog.clock;
     default:
       return iconCatalog.chat;
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Session attention & lifecycle resolvers
+// ---------------------------------------------------------------------------
+
+export function resolveSessionAttentionTone(attention: AgentSessionAttentionState): AppTone {
+  switch (attention) {
+    case 'unread':
+      return 'accent';
+    case 'stale-unread':
+      return 'warning';
+    case 'read':
+    default:
+      return 'neutral';
+  }
+}
+
+export function resolveSessionAttentionLabel(attention: AgentSessionAttentionState) {
+  switch (attention) {
+    case 'unread':
+      return appI18n.agentWorkbench.sessionAttention.unread;
+    case 'stale-unread':
+      return appI18n.agentWorkbench.sessionAttention.staleUnread;
+    case 'read':
+    default:
+      return appI18n.agentWorkbench.sessionAttention.read;
+  }
+}
+
+export function resolveSessionAttentionIcon(attention: AgentSessionAttentionState): IconDefinition {
+  switch (attention) {
+    case 'unread':
+      return iconCatalog.chat;
+    case 'stale-unread':
+      return iconCatalog.clock;
+    case 'read':
+    default:
+      return iconCatalog.checkmark;
+  }
+}
+
+export function resolveSessionLifecycleLabel(lifecycle: AgentSessionLifecycleState) {
+  switch (lifecycle) {
+    case 'running':
+      return appI18n.agentWorkbench.status.running;
+    case 'idle':
+    default:
+      return appI18n.agentWorkbench.status.idle;
+  }
+}
+
+export function resolveSessionLifecycleTone(lifecycle: AgentSessionLifecycleState): AppTone {
+  switch (lifecycle) {
+    case 'running':
+      return 'accent';
+    case 'idle':
+    default:
+      return 'neutral';
   }
 }
 

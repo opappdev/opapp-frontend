@@ -530,15 +530,15 @@ export const zhCNApp = {
       writeApprovalGoal: '请求修改 tracked approval smoke fixture 并生成 diff 预览',
     },
     taskDraft: {
-      goalPlaceholder: '例如：检查 agent workbench 当前改动',
-      commandPlaceholder: '例如：git status --short',
+      goalPlaceholder: '描述你的任务，例如：检查工作区状态、查看最近的改动',
+      commandPlaceholder: '高级：直接输入 shell 命令',
       directMode: '直接运行',
       approvalMode: '先请求审批',
       directModeDetail: '仅适用于 git status / git diff / rg 这类只读命令',
       approvalModeDetail: '先落 needs-approval，再由你批准执行',
       activeBadge: '当前模式',
       availableBadge: '可切换',
-      commandMissing: '先输入要执行的命令，再启动当前任务。',
+      commandMissing: '输入任务目标后即可启动。如需指定 shell 命令，点击"▸ command"展开高级输入。',
       directModeBlocked: '当前命令不属于只读直跑范围，请切换到审批模式后再执行。',
       directModeGuardTitle: '当前命令需要审批',
       directModeGuardDetail:
@@ -647,6 +647,11 @@ export const zhCNApp = {
       failed: '失败',
       cancelled: '已取消',
       interrupted: '已中断',
+    },
+    sessionAttention: {
+      read: '已读',
+      unread: '有新更新',
+      staleUnread: '较早的更新',
     },
     events: {
       started: '启动',

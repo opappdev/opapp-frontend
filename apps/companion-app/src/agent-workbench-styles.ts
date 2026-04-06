@@ -494,7 +494,20 @@ export function createScreenStyles(palette: AppPalette) {
     composerActionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: appSpacing.sm2,
+      gap: appSpacing.xs,
+      flexWrap: 'wrap',
+    },
+    composerChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: appSpacing.sm2,
+      paddingVertical: appSpacing.xxs,
+      borderRadius: appRadius.pill,
+    },
+    composerChipLabel: {
+      ...appTypography.caption,
+      letterSpacing: 0.2,
     },
 
     /* ── Transcript inline elements ───────────────────── */

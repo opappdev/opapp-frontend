@@ -18,6 +18,15 @@ export const agentRunStatuses = [
   'cancelled',
   'interrupted',
 ] as const;
+export const agentSessionAttentionStates = [
+  'read',
+  'unread',
+  'stale-unread',
+] as const;
+export const agentSessionLifecycleStates = [
+  'idle',
+  'running',
+] as const;
 export const agentPlanStepStatuses = [
   'pending',
   'in_progress',
@@ -78,6 +87,10 @@ export type AgentTerminalShell = (typeof agentTerminalShells)[number];
 export type AgentPermissionMode = (typeof agentPermissionModes)[number];
 export type AgentApprovalMode = (typeof agentApprovalModes)[number];
 export type AgentRunStatus = (typeof agentRunStatuses)[number];
+export type AgentSessionAttentionState =
+  (typeof agentSessionAttentionStates)[number];
+export type AgentSessionLifecycleState =
+  (typeof agentSessionLifecycleStates)[number];
 export type AgentPlanStepStatus = (typeof agentPlanStepStatuses)[number];
 export type AgentToolCallStatus = (typeof agentToolCallStatuses)[number];
 export type AgentToolResultStatus = (typeof agentToolResultStatuses)[number];
@@ -133,6 +146,12 @@ export type AgentThreadSummary = {
   archivedAt: string | null;
   lastRunId: string | null;
   lastRunStatus: AgentRunStatus | null;
+  /** Session attention state — drives thread list UI, red dots, and sort priority. */
+  attention: AgentSessionAttentionState;
+  /** ISO timestamp of the last user-acknowledged read of this thread. */
+  lastReadAt: string | null;
+  /** ISO timestamp of the last event that warrants user attention. */
+  lastAttentionAt: string | null;
 };
 
 export type AgentRunSummary = {
@@ -486,6 +505,10 @@ function parseAgentThreadSummaryRecord(value: unknown): AgentThreadSummary | nul
     archivedAt: readOptionalTrimmedString(value.archivedAt),
     lastRunId: readRequiredStorageId(value.lastRunId),
     lastRunStatus: readEnumValue(agentRunStatuses, value.lastRunStatus),
+    attention:
+      readEnumValue(agentSessionAttentionStates, value.attention) ?? 'read',
+    lastReadAt: readOptionalTrimmedString(value.lastReadAt),
+    lastAttentionAt: readOptionalTrimmedString(value.lastAttentionAt),
   };
 }
 
@@ -824,4 +847,55 @@ export function parsePersistedAgentRunDocument(
 
 export function serializePersistedAgentRunDocument(document: AgentRunDocument) {
   return JSON.stringify(document);
+}
+
+// ---------------------------------------------------------------------------
+//  Session state derivation
+// ---------------------------------------------------------------------------
+
+/** 24 hours — after this an `unread` thread becomes `stale-unread`. */
+export const agentSessionStaleThresholdMs = 24 * 60 * 60 * 1000;
+
+const activeRunStatuses = new Set<AgentRunStatus>([
+  'queued',
+  'running',
+  'needs-approval',
+]);
+
+export function resolveSessionLifecycle(
+  thread: AgentThreadSummary,
+): AgentSessionLifecycleState {
+  return thread.lastRunStatus !== null &&
+    activeRunStatuses.has(thread.lastRunStatus)
+    ? 'running'
+    : 'idle';
+}
+
+/**
+ * Derive attention state from thread summary fields.
+ *
+ * Use `nowIso` to evaluate stale-unread; pass `null` to skip stale check.
+ */
+export function deriveSessionAttention(
+  thread: AgentThreadSummary,
+  nowIso: string | null,
+): AgentSessionAttentionState {
+  if (thread.attention === 'read') {
+    return 'read';
+  }
+
+  // If attention was persisted as 'unread', check staleness.
+  if (thread.attention === 'unread' && nowIso && thread.lastAttentionAt) {
+    const attentionTime = new Date(thread.lastAttentionAt).getTime();
+    const nowTime = new Date(nowIso).getTime();
+    if (
+      !Number.isNaN(attentionTime) &&
+      !Number.isNaN(nowTime) &&
+      nowTime - attentionTime > agentSessionStaleThresholdMs
+    ) {
+      return 'stale-unread';
+    }
+  }
+
+  return thread.attention === 'stale-unread' ? 'stale-unread' : 'unread';
 }

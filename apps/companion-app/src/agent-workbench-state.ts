@@ -5,6 +5,7 @@ import {
   agentThreadIndexPath,
   buildAgentRunDocumentPath,
   buildAgentThreadDocumentPath,
+  markAgentThreadRead,
   openAgentTerminalSession,
   openPersistedAgentTerminalRun,
   parsePersistedAgentRunDocument,
@@ -123,7 +124,7 @@ export function useAgentWorkbenchState() {
 
   // ── task draft ──
   const [draftGoal, setDraftGoal] = useState('');
-  const [draftCommand, setDraftCommand] = useState('git status');
+  const [draftCommand, setDraftCommand] = useState('');
   const [draftRequiresApproval, setDraftRequiresApproval] = useState(false);
   const [draftPresetId, setDraftPresetId] = useState<
     'workspace-write-approval' | null
@@ -1198,6 +1199,8 @@ export function useAgentWorkbenchState() {
       selectedRunIdRef.current = null;
       setSelectedThreadId(threadId);
       setSelectedRunId(null);
+      // Mark thread as read when the user opens it
+      void markAgentThreadRead(threadId);
       void refreshWorkbench({
         preferredCwd: selectedCwdRef.current,
         preferredThreadId: threadId,

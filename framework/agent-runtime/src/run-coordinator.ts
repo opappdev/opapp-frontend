@@ -312,6 +312,9 @@ function createThreadSummary({
     archivedAt: null,
     lastRunId: runId,
     lastRunStatus,
+    attention: 'unread' as const,
+    lastReadAt: null,
+    lastAttentionAt: createdAt,
   };
 }
 
@@ -697,6 +700,14 @@ function resolveExitStatus({
 
 function mergeRunIds(runIds: ReadonlyArray<string>, runId: string) {
   return [...new Set([...runIds, runId])];
+}
+
+function markThreadAttention(
+  thread: AgentThreadSummary,
+  timestamp: string,
+) {
+  thread.attention = 'unread';
+  thread.lastAttentionAt = timestamp;
 }
 
 function findPendingApprovalEntry(
@@ -1118,6 +1129,7 @@ export function createPersistedAgentTerminalRuntime({
                 runDocument.run.startedAt ?? event.createdAt;
               updateStructuredPlanStatus(runDocument, 'in_progress');
               updateStructuredToolCallStatus(runDocument, 'running');
+              markThreadAttention(thread, event.createdAt);
             } else if (event.event === 'exit') {
               runDocument.run.status = resolveExitStatus({
                 exitCode: event.exitCode,
@@ -1147,6 +1159,7 @@ export function createPersistedAgentTerminalRuntime({
               if (runDocument.run.status === 'completed') {
                 appendRequestedArtifact(event.createdAt);
               }
+              markThreadAttention(thread, event.createdAt);
             }
 
             thread.lastRunStatus = runDocument.run.status;
@@ -1184,6 +1197,7 @@ export function createPersistedAgentTerminalRuntime({
             thread.updatedAt = createdAt;
             thread.lastRunStatus = runDocument.run.status;
             thread.lastRunId = runDocument.run.runId;
+            markThreadAttention(thread, createdAt);
 
             settleWhenReady(persistSnapshot(true));
           },
@@ -1218,6 +1232,7 @@ export function createPersistedAgentTerminalRuntime({
       thread.updatedAt = createdAt;
       thread.lastRunStatus = runDocument.run.status;
       thread.lastRunId = runDocument.run.runId;
+      markThreadAttention(thread, createdAt);
 
       settleWhenReady(persistSnapshot(true));
       throw normalizedError;
@@ -1296,6 +1311,7 @@ export function createPersistedAgentTerminalRuntime({
           createdAt,
           lastRunStatus: initialRunStatus,
         });
+    markThreadAttention(thread, createdAt);
     const runDocument = createInitialRunDocument({
       threadId,
       runId,
@@ -1573,10 +1589,43 @@ export function createPersistedAgentTerminalRuntime({
     };
   }
 
+  async function markThreadRead(threadId: string) {
+    const state = await loadPersistedThreadState(threadId);
+    const readAt = now();
+    state.thread.attention = 'read';
+    state.thread.lastReadAt = readAt;
+
+    await persistUserFile(
+      buildAgentThreadDocumentPath(state.thread.threadId),
+      serializePersistedAgentThreadDocument(
+        buildThreadDocument({
+          thread: state.thread,
+          runIds: state.runIds,
+        }),
+      ),
+    );
+
+    const index = await loadThreadIndex(readUserFile);
+    const threads = index.threads.map(existing =>
+      existing.threadId === state.thread.threadId
+        ? {...state.thread}
+        : existing,
+    );
+
+    await persistUserFile(
+      agentThreadIndexPath,
+      serializePersistedAgentThreadIndex({
+        updatedAt: readAt,
+        threads,
+      }),
+    );
+  }
+
   return {
     openRun,
     approveRun,
     rejectRun,
+    markThreadRead,
     reconcileInterruptedRuns,
     reconcileRequestedRunArtifacts,
   };
@@ -1593,3 +1642,5 @@ export const reconcileInterruptedAgentRuns =
   persistedAgentTerminalRuntime.reconcileInterruptedRuns;
 export const reconcileRequestedAgentRunArtifacts =
   persistedAgentTerminalRuntime.reconcileRequestedRunArtifacts;
+export const markAgentThreadRead =
+  persistedAgentTerminalRuntime.markThreadRead;

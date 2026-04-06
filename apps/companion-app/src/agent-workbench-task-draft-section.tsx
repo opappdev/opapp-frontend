@@ -3,10 +3,9 @@ import {Pressable, Text, TextInput as RNTextInput, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
+  Icon,
   InfoPanel,
   useTheme,
-  appSpacing,
-  appRadius,
   iconCatalog,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget} from '@opapp/framework-filesystem';
@@ -87,7 +86,7 @@ export function WorkbenchTaskDraftSection({
         </InfoPanel>
       ) : null}
 
-      {/* Primary input: goal (task description) — prominent */}
+      {/* ─── Layer 1: Main input ─── */}
       <View style={screenStyles.composerInputRow}>
         {textInputsReady ? (
           <View
@@ -127,7 +126,7 @@ export function WorkbenchTaskDraftSection({
           </View>
         )}
 
-        {/* Submit button inline with input */}
+        {/* Send button inline with input */}
         <ActionButton
           testID='agent-workbench.action.start-draft-task'
           label={
@@ -145,62 +144,74 @@ export function WorkbenchTaskDraftSection({
         />
       </View>
 
-      {/* Secondary controls row — progressive disclosure */}
+      {/* ─── Layer 2: Runtime contract row ─── */}
       <View style={screenStyles.composerActionsRow}>
-        {/* Mode toggle */}
-        <View style={screenStyles.modeToggleRow}>
-          <Pressable
-            testID='agent-workbench.task.mode.direct'
-            onPress={onSelectDirectMode}
-            style={[
-              screenStyles.modeToggleItem,
-              !draftRequiresApproval ? screenStyles.modeToggleItemActive : null,
-            ]}>
-            <Text
-              style={[
-                screenStyles.modeToggleLabel,
-                !draftRequiresApproval ? screenStyles.modeToggleLabelActive : null,
-              ]}>
-              {appI18n.agentWorkbench.taskDraft.directMode}
-            </Text>
-          </Pressable>
-          <Pressable
-            testID='agent-workbench.task.mode.approval'
-            onPress={onSelectApprovalMode}
-            style={[
-              screenStyles.modeToggleItem,
-              draftRequiresApproval ? screenStyles.modeToggleItemActive : null,
-            ]}>
-            <Text
-              style={[
-                screenStyles.modeToggleLabel,
-                draftRequiresApproval ? screenStyles.modeToggleLabelActive : null,
-              ]}>
-              {appI18n.agentWorkbench.taskDraft.approvalMode}
-            </Text>
-          </Pressable>
+        {/* Environment chip — static "Local" for now */}
+        <View style={[screenStyles.composerChip, {backgroundColor: palette.canvasShade}]}>
+          <Icon icon={iconCatalog.code} size={11} color={palette.inkSoft} />
+          <Text style={[screenStyles.composerChipLabel, {color: palette.inkSoft}]}>
+            Local
+          </Text>
         </View>
 
+        {/* Mode toggle chips */}
+        <Pressable
+          testID='agent-workbench.task.mode.direct'
+          onPress={onSelectDirectMode}
+          style={[
+            screenStyles.composerChip,
+            !draftRequiresApproval
+              ? {backgroundColor: palette.panelEmphasis, borderColor: palette.accent, borderWidth: 1}
+              : {backgroundColor: palette.canvasShade},
+          ]}>
+          <Icon icon={iconCatalog.play} size={11} color={!draftRequiresApproval ? palette.accent : palette.inkSoft} />
+          <Text
+            style={[
+              screenStyles.composerChipLabel,
+              !draftRequiresApproval ? {color: palette.accent, fontWeight: '600'} : {color: palette.inkSoft},
+            ]}>
+            {appI18n.agentWorkbench.taskDraft.directMode}
+          </Text>
+        </Pressable>
+        <Pressable
+          testID='agent-workbench.task.mode.approval'
+          onPress={onSelectApprovalMode}
+          style={[
+            screenStyles.composerChip,
+            draftRequiresApproval
+              ? {backgroundColor: palette.panelEmphasis, borderColor: palette.accent, borderWidth: 1}
+              : {backgroundColor: palette.canvasShade},
+          ]}>
+          <Icon icon={iconCatalog.shieldTask} size={11} color={draftRequiresApproval ? palette.accent : palette.inkSoft} />
+          <Text
+            style={[
+              screenStyles.composerChipLabel,
+              draftRequiresApproval ? {color: palette.accent, fontWeight: '600'} : {color: palette.inkSoft},
+            ]}>
+            {appI18n.agentWorkbench.taskDraft.approvalMode}
+          </Text>
+        </Pressable>
+
+        <View style={{flex: 1}} />
+
+        {/* Advanced: command toggle */}
         <Pressable
           testID='agent-workbench.action.toggle-command-input'
           accessibilityRole='button'
           onPress={() => {
             setShowAdvanced(prev => !prev);
           }}
-          style={{
-            paddingHorizontal: appSpacing.sm2,
-            paddingVertical: appSpacing.xxs,
-            borderRadius: appRadius.badge,
-            backgroundColor: palette.canvasShade,
-          }}>
-          <Text style={[screenStyles.listRowMeta, {color: palette.inkSoft}]}>
+          style={[screenStyles.composerChip, {backgroundColor: palette.canvasShade}]}>
+          <Icon icon={iconCatalog.code} size={11} color={palette.inkSoft} />
+          <Text style={[screenStyles.composerChipLabel, {color: palette.inkSoft}]}>
             {showAdvanced ? '▾ command' : '▸ command'}
           </Text>
         </Pressable>
 
-        <ActionButton
+        {/* Quick action: populate approval draft */}
+        <Pressable
           testID='agent-workbench.action.populate-write-approval-draft'
-          label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
+          accessibilityRole='button'
           onPress={onPopulateWriteApprovalDraft}
           disabled={
             !trustedWorkspace ||
@@ -208,13 +219,20 @@ export function WorkbenchTaskDraftSection({
             approvalBusy !== null ||
             taskDraftBusy !== null
           }
-          tone='ghost'
-        />
-
-        <View style={{flex: 1}} />
+          style={[
+            screenStyles.composerChip,
+            {backgroundColor: palette.canvasShade},
+            (!trustedWorkspace || activeRunInfo !== null || approvalBusy !== null || taskDraftBusy !== null)
+              ? {opacity: 0.4} : null,
+          ]}>
+          <Icon icon={iconCatalog.edit} size={11} color={palette.inkSoft} />
+          <Text style={[screenStyles.composerChipLabel, {color: palette.inkSoft}]}>
+            {appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
+          </Text>
+        </Pressable>
       </View>
 
-      {/* Command input — hidden by default, progressive disclosure */}
+      {/* ─── Layer 3: Advanced command input (progressive disclosure) ─── */}
       {showAdvanced ? (
         textInputsReady ? (
           <View

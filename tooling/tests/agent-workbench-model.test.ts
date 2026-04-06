@@ -211,9 +211,30 @@ export function run() {
       approvalDetails: undefined,
     },
   );
-  assert.equal(
+  // Intent-first: goal alone is sufficient to create a draft.
+  // '空命令' as goal becomes the effective command.
+  assert.deepEqual(
     resolveWorkbenchTaskDraft({
       goal: '空命令',
+      command: '   ',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+    }),
+    {
+      title: '空命令',
+      goal: '空命令',
+      command: '空命令',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+      canRunDirect: false,
+      approvalTitle: undefined,
+      approvalDetails: undefined,
+    },
+  );
+  // Both empty → null
+  assert.equal(
+    resolveWorkbenchTaskDraft({
+      goal: '',
       command: '   ',
       cwd: 'opapp-frontend',
       requiresApproval: false,
@@ -270,6 +291,9 @@ export function run() {
           archivedAt: null,
           lastRunId: 'run-1',
           lastRunStatus: 'completed',
+          attention: 'read',
+          lastReadAt: null,
+          lastAttentionAt: '2026-04-03T02:00:00.000Z',
         },
       ],
       'missing-thread',

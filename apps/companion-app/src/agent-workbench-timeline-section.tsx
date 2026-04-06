@@ -334,30 +334,48 @@ function renderToolInvocation(
   palette: ReturnType<typeof useTheme>['palette'],
 ) {
   const toolCardBaseTestID = `agent-workbench.timeline.tool.${item.toolInvocationIndex}`;
-  const isComplete = item.result?.status === 'success' && item.call?.status === 'completed';
+  const isSuccess = item.result?.status === 'success' && item.call?.status === 'completed';
   const hasError = item.result?.status === 'error' || (item.result?.exitCode !== null && item.result?.exitCode !== undefined && item.result.exitCode !== 0);
+  const isRunning = !item.result && item.call?.status === 'running';
   const toolIcon = resolveToolInvocationIcon(item);
+
+  // Build the action summary: "Running git status" / "Ran git status"
+  const humanTitle = resolveToolInvocationHumanTitle(item);
+
+  // Determine result label for the collapsed header
+  const resultTag = isRunning
+    ? appI18n.agentWorkbench.status.running
+    : isSuccess
+      ? appI18n.agentWorkbench.toolResultStatus.success
+      : hasError
+        ? (item.result?.exitCode !== null && item.result?.exitCode !== undefined
+            ? `exit ${item.result.exitCode}`
+            : appI18n.agentWorkbench.toolResultStatus.error)
+        : resolveToolInvocationTrailingLabel(item);
+
+  const resultColor = isRunning
+    ? palette.accent
+    : isSuccess
+      ? palette.support
+      : hasError
+        ? palette.errorRed
+        : palette.inkSoft;
+
+  // Success steps auto-collapse; failures/running/pending stay expanded
+  const defaultExpanded = !isSuccess;
 
   return (
     <Expander
       key={item.key}
-      title={resolveToolInvocationHumanTitle(item)}
+      title={humanTitle}
       icon={toolIcon}
-      defaultExpanded={
-        item.toolInvocationIndex === 0 ||
-        !item.result ||
-        item.result.status !== 'success' ||
-        item.call?.status !== 'completed'
-      }
+      defaultExpanded={defaultExpanded}
       headerTestID={`${toolCardBaseTestID}.toggle`}
       contentTestID={`${toolCardBaseTestID}.content`}
       trailing={
-        <StatusBadge
-          label={resolveToolInvocationTrailingLabel(item)}
-          tone={resolveToolInvocationTone(item)}
-          emphasis='soft'
-          size='sm'
-        />
+        <Text style={[screenStyles.toolCardMetaItem, {color: resultColor, fontWeight: '500'}]}>
+          {resultTag}
+        </Text>
       }>
       <View style={screenStyles.expanderBody}>
         {/* Hidden fields for smoke test locators — all testIDs preserved */}
@@ -386,30 +404,22 @@ function renderToolInvocation(
             {formatIsoTimestamp(resolveToolInvocationUpdatedAt(item))}
           </Text>
         </View>
-        {/* Compact result summary — just exit code when available */}
-        {item.result?.exitCode !== null && item.result?.exitCode !== undefined ? (
-          <View style={screenStyles.toolCardMeta}>
-            <Text
-              testID={`${toolCardBaseTestID}.exit-code`}
-              style={[screenStyles.toolCardMetaItem, {color: item.result.exitCode === 0 ? palette.support : palette.errorRed, fontFamily: terminalFontFamily}]}>
-              exit {item.result.exitCode}
-            </Text>
-          </View>
-        ) : null}
-        {/* Input — inline command preview */}
-        <View style={[screenStyles.transcriptTerminal, {marginVertical: 0}]}>
+        {/* Unified transcript block — command + output + exit as one continuous terminal */}
+        <View style={[screenStyles.transcriptTerminal, {
+          marginVertical: 0,
+          backgroundColor: hasError ? `${palette.errorRed}08` : palette.canvasShade,
+        }]}>
+          {/* Command input */}
           <Text
             testID={`${toolCardBaseTestID}.input`}
             style={[
               screenStyles.terminalText,
-              {color: palette.ink, fontFamily: terminalFontFamily},
+              {color: palette.accent, fontFamily: terminalFontFamily, marginBottom: appSpacing.xxs},
             ]}
-            numberOfLines={8}>
+            numberOfLines={4}>
             {'$ '}{item.call?.inputText ?? appI18n.agentWorkbench.values.noTextContent}
           </Text>
-        </View>
-        {/* Output — result block */}
-        <View style={[screenStyles.transcriptTerminal, {marginVertical: 0, backgroundColor: hasError ? `${palette.errorRed}08` : palette.canvasShade}]}>
+          {/* Output */}
           <Text
             testID={`${toolCardBaseTestID}.output`}
             style={[
@@ -419,8 +429,26 @@ function renderToolInvocation(
             numberOfLines={15}>
             {item.result
               ? item.result.outputText || appI18n.agentWorkbench.values.noTextContent
-              : appI18n.agentWorkbench.values.noToolResultYet}
+              : isRunning
+                ? '...'
+                : appI18n.agentWorkbench.values.noToolResultYet}
           </Text>
+          {/* Exit code at the bottom of the block */}
+          {item.result?.exitCode !== null && item.result?.exitCode !== undefined ? (
+            <Text
+              testID={`${toolCardBaseTestID}.exit-code`}
+              style={[
+                screenStyles.toolCardMetaItem,
+                {
+                  color: item.result.exitCode === 0 ? palette.support : palette.errorRed,
+                  fontFamily: terminalFontFamily,
+                  marginTop: appSpacing.xxs,
+                  textAlign: 'right',
+                },
+              ]}>
+              exit {item.result.exitCode}
+            </Text>
+          ) : null}
         </View>
       </View>
     </Expander>

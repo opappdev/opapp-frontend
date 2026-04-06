@@ -651,34 +651,42 @@ export function resolveWorkbenchTaskDraft({
   env?: Record<string, string>;
   requiresApproval: boolean;
 }): WorkbenchTaskDraft | null {
+  const normalizedGoal = goal.trim();
   const normalizedCommand = command.trim();
-  if (!normalizedCommand) {
+
+  // Intent-first: a goal is enough to create a draft.
+  // If no explicit command, the goal itself is used as the underlying command
+  // for the current terminal-based runtime. Eventually the Agent will decide
+  // the command; for now this keeps the happy path working without forcing
+  // users to fill in raw shell commands.
+  const effectiveCommand = normalizedCommand || normalizedGoal;
+  if (!effectiveCommand) {
     return null;
   }
 
-  const normalizedGoal = goal.trim() || normalizedCommand;
+  const displayGoal = normalizedGoal || normalizedCommand;
   const normalizedCwd = (cwdOverride ?? cwd).trim();
   const cwdLabel =
     normalizedCwd || appI18n.agentWorkbench.workspace.rootLabel;
-  const canRunDirect = canRunWorkbenchTaskDirect(normalizedCommand);
+  const canRunDirect = canRunWorkbenchTaskDirect(effectiveCommand);
   const normalizedEnv =
     env && Object.keys(env).length > 0 ? {...env} : undefined;
 
   return {
-    title: normalizedGoal,
-    goal: normalizedGoal,
-    command: normalizedCommand,
+    title: displayGoal,
+    goal: displayGoal,
+    command: effectiveCommand,
     cwd: normalizedCwd || undefined,
     ...(shell ? {shell} : {}),
     ...(normalizedEnv ? {env: normalizedEnv} : {}),
     requiresApproval,
     canRunDirect,
     approvalTitle: requiresApproval
-      ? appI18n.agentWorkbench.approval.commandRequestTitle(normalizedGoal)
+      ? appI18n.agentWorkbench.approval.commandRequestTitle(displayGoal)
       : undefined,
     approvalDetails: requiresApproval
       ? appI18n.agentWorkbench.approval.commandRequestDetails(
-          normalizedCommand,
+          effectiveCommand,
           cwdLabel,
         )
       : undefined,

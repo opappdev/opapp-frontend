@@ -1,13 +1,17 @@
 import React from 'react';
 import {Pressable, Text, View} from 'react-native';
 import type {AgentThreadSummary} from '@opapp/framework-agent-runtime';
+import {deriveSessionAttention, resolveSessionLifecycle} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   Icon,
   useTheme,
-  appTypography,
 } from '@opapp/ui-native-primitives';
-import {formatIsoTimestamp, resolveRunStatusIcon, resolveRunStatusTone} from './agent-workbench-resolvers';
+import {
+  formatIsoTimestamp,
+  resolveRunStatusIcon,
+  resolveRunStatusTone,
+} from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
 
 type WorkbenchThreadsSectionProps = {
@@ -39,6 +43,9 @@ export function WorkbenchThreadsSection({
         <View style={screenStyles.threadList}>
           {threads.map(thread => {
             const isActive = thread.threadId === selectedThreadId;
+            const attention = deriveSessionAttention(thread, null);
+            const lifecycle = resolveSessionLifecycle(thread);
+            const isUnread = attention !== 'read';
             return (
               <Pressable
                 key={thread.threadId}
@@ -55,16 +62,38 @@ export function WorkbenchThreadsSection({
                 ]}>
                 {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
                 <View style={{flex: 1, minWidth: 0, gap: 2}}>
-                  <Text
-                    numberOfLines={2}
-                    style={[
-                      screenStyles.listRowLabel,
-                      isActive ? {color: palette.ink, fontWeight: '600'} : {color: palette.inkMuted},
-                    ]}>
-                    {thread.title}
-                  </Text>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                    {/* Unread dot */}
+                    {isUnread && !isActive ? (
+                      <View style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: attention === 'stale-unread' ? palette.inkMuted : palette.accent,
+                      }} />
+                    ) : null}
+                    <Text
+                      numberOfLines={2}
+                      style={[
+                        screenStyles.listRowLabel,
+                        isActive
+                          ? {color: palette.ink, fontWeight: '600'}
+                          : isUnread
+                            ? {color: palette.ink, fontWeight: '600'}
+                            : {color: palette.inkMuted},
+                      ]}>
+                      {thread.title}
+                    </Text>
+                  </View>
                   <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
-                    {thread.lastRunStatus ? (
+                    {/* Lifecycle indicator (running vs idle) */}
+                    {lifecycle === 'running' ? (
+                      <Icon
+                        icon={resolveRunStatusIcon(thread.lastRunStatus)}
+                        size={10}
+                        color={palette.accent}
+                      />
+                    ) : thread.lastRunStatus ? (
                       <Icon
                         icon={resolveRunStatusIcon(thread.lastRunStatus)}
                         size={10}

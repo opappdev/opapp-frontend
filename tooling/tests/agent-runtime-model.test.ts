@@ -93,6 +93,9 @@ export function run() {
         archivedAt: null,
         lastRunId: 'run-1',
         lastRunStatus: 'running',
+        attention: 'read',
+        lastReadAt: null,
+        lastAttentionAt: null,
       },
       {
         threadId: 'thread-2',
@@ -102,6 +105,9 @@ export function run() {
         archivedAt: null,
         lastRunId: null,
         lastRunStatus: 'failed',
+        attention: 'read',
+        lastReadAt: null,
+        lastAttentionAt: null,
       },
     ],
   });
@@ -132,6 +138,9 @@ export function run() {
       archivedAt: null,
       lastRunId: null,
       lastRunStatus: null,
+      attention: 'read',
+      lastReadAt: null,
+      lastAttentionAt: null,
     },
     runIds: ['run-2', 'run-1'],
   });

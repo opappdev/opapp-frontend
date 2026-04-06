@@ -163,6 +163,9 @@ export async function run() {
     archivedAt: null,
     lastRunId: 'run-1',
     lastRunStatus: 'completed',
+    attention: 'unread',
+    lastReadAt: null,
+    lastAttentionAt: '2026-04-03T01:00:03.000Z',
   });
 
   const threadDocument = parsePersistedAgentThreadDocument(

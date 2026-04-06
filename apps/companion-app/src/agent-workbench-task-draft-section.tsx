@@ -1,5 +1,11 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Pressable, Text, TextInput as RNTextInput, View} from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TextInput as RNTextInput,
+  View,
+} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
@@ -40,6 +46,7 @@ type WorkbenchTaskDraftSectionProps = {
   onPopulateWriteApprovalDraft: () => void;
   onRunGitStatus: () => void;
   onStartDraftTask: () => void;
+  onCancelRun: () => void;
   onWorkspaceRootDraftChange: (value: string) => void;
   onTrustWorkspaceRoot: () => void;
   onClearTrustedWorkspaceRoot: () => void;
@@ -68,6 +75,7 @@ export function WorkbenchTaskDraftSection({
   onPopulateWriteApprovalDraft,
   onRunGitStatus,
   onStartDraftTask,
+  onCancelRun,
   onWorkspaceRootDraftChange,
   onTrustWorkspaceRoot,
   onClearTrustedWorkspaceRoot,
@@ -119,6 +127,28 @@ export function WorkbenchTaskDraftSection({
     ? appI18n.agentWorkbench.taskDraft.manageWorkspaceAction
     : appI18n.agentWorkbench.taskDraft.chooseWorkspaceAction;
   const showWorkspacePanel = showWorkspaceConfig || !hasTrustedWorkspace;
+  const showStopAction = activeRunInfo !== null;
+  const primaryActionBusy = !showStopAction && taskDraftBusy !== null;
+  const primaryActionDisabled = showStopAction ? false : !canSubmit;
+  const primaryActionIcon = showStopAction ? iconCatalog.stop : iconCatalog.send;
+  const primaryActionLabel = showStopAction
+    ? appI18n.agentWorkbench.actions.cancelRun
+    : taskDraftBusy === null
+      ? appI18n.agentWorkbench.actions.runDraftTask
+      : appI18n.agentWorkbench.actions.runningDraftTask;
+  const primaryActionTone = showStopAction ? palette.errorRed : palette.accent;
+  const primaryActionBackgroundColor = primaryActionBusy
+    ? primaryActionTone
+    : primaryActionDisabled
+      ? palette.canvasShade
+      : primaryActionTone;
+  const primaryActionBorderColor = primaryActionBusy
+    ? primaryActionTone
+    : primaryActionDisabled
+      ? palette.border
+      : primaryActionTone;
+  const primaryActionForegroundColor =
+    primaryActionBusy || !primaryActionDisabled ? palette.canvas : palette.inkSoft;
 
   return (
     <View style={screenStyles.composerBar}>
@@ -273,17 +303,42 @@ export function WorkbenchTaskDraftSection({
         />
 
         <View style={screenStyles.composerShellFooter}>
-          <ActionButton
+          <View style={screenStyles.composerShellFooterMeta}>
+            <Text
+              style={[
+                screenStyles.composerRuntimeMeta,
+                {color: palette.inkSoft},
+              ]}
+              numberOfLines={1}>
+              {primaryActionLabel}
+            </Text>
+          </View>
+          <Pressable
             testID='agent-workbench.action.start-draft-task'
-            label={
-              taskDraftBusy === null
-                ? appI18n.agentWorkbench.actions.runDraftTask
-                : appI18n.agentWorkbench.actions.runningDraftTask
-            }
-            onPress={onStartDraftTask}
-            disabled={!canSubmit}
-            icon={iconCatalog.send}
-          />
+            accessibilityRole='button'
+            accessibilityLabel={primaryActionLabel}
+            onPress={showStopAction ? onCancelRun : onStartDraftTask}
+            disabled={primaryActionDisabled}
+            style={({pressed}) => [
+              screenStyles.composerPrimaryAction,
+              {
+                backgroundColor: primaryActionBackgroundColor,
+                borderColor: primaryActionBorderColor,
+              },
+              pressed && !primaryActionDisabled
+                ? screenStyles.composerPrimaryActionPressed
+                : null,
+            ]}>
+            {primaryActionBusy ? (
+              <ActivityIndicator size='small' color={primaryActionForegroundColor} />
+            ) : (
+              <Icon
+                icon={primaryActionIcon}
+                size={15}
+                color={primaryActionForegroundColor}
+              />
+            )}
+          </Pressable>
         </View>
       </View>
 

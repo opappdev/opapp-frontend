@@ -13,7 +13,6 @@ import {
   Toolbar,
   useTheme,
   appLayout,
-  iconCatalog,
 } from '@opapp/ui-native-primitives';
 import {
   resolveRunStatusLabel,
@@ -60,7 +59,6 @@ export function AgentWorkbenchScreen() {
       <Toolbar
         testID='agent-workbench.toolbar'
         style={screenStyles.toolbar}>
-        {/* Status group — left aligned, minimal */}
         <View style={screenStyles.toolbarGroup}>
           <StatusBadge
             testID='agent-workbench.status.run'
@@ -68,43 +66,6 @@ export function AgentWorkbenchScreen() {
             tone={resolveRunStatusTone(state.selectedRunStatus)}
             emphasis='soft'
             size='sm'
-          />
-          {state.activeRunInfo ? (
-            <View style={screenStyles.toolbarBusy}>
-              <ActivityIndicator size='small' color={palette.accent} />
-            </View>
-          ) : null}
-        </View>
-
-        <View style={{flex: 1}} />
-
-        {/* Contextual actions — only show when relevant */}
-        <View style={screenStyles.toolbarGroup}>
-          {state.activeRunInfo ? (
-            <ActionButton
-              testID='agent-workbench.action.cancel-run'
-              label={appI18n.agentWorkbench.actions.cancelRun}
-              onPress={() => {
-                void state.handleCancelRun();
-              }}
-              icon={iconCatalog.stop}
-              tone='ghost'
-            />
-          ) : null}
-          <View style={screenStyles.toolbarDivider} />
-          <ActionButton
-            testID='agent-workbench.action.refresh'
-            label={
-              state.refreshing
-                ? appI18n.agentWorkbench.actions.refreshing
-                : appI18n.agentWorkbench.actions.refresh
-            }
-            onPress={() => {
-              void state.handleRefresh();
-            }}
-            disabled={state.refreshing}
-            icon={iconCatalog.refresh}
-            tone='ghost'
           />
         </View>
       </Toolbar>
@@ -282,6 +243,9 @@ export function AgentWorkbenchScreen() {
             }}
             onStartDraftTask={() => {
               void state.handleStartDraftTask();
+            }}
+            onCancelRun={() => {
+              void state.handleCancelRun();
             }}
             onWorkspaceRootDraftChange={state.handleWorkspaceRootDraftChange}
             onTrustWorkspaceRoot={() => {

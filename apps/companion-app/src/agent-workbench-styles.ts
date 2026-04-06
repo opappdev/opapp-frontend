@@ -567,7 +567,10 @@ export function createScreenStyles(palette: AppPalette) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: appSpacing.sm,
-      flexWrap: 'wrap',
+    },
+    composerShellFooterMeta: {
+      flex: 1,
+      minWidth: 0,
     },
     composerModeCluster: {
       flexDirection: 'row',
@@ -617,6 +620,18 @@ export function createScreenStyles(palette: AppPalette) {
       ...appTypography.caption,
       textAlign: 'right',
       flexShrink: 1,
+    },
+    composerPrimaryAction: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    composerPrimaryActionPressed: {
+      opacity: 0.9,
+      transform: [{scale: 0.96}],
     },
 
     /* ── Transcript inline elements ───────────────────── */

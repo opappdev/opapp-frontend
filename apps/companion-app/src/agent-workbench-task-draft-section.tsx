@@ -14,6 +14,7 @@ import {
   InfoPanel,
   SegmentedControl,
   Spinner,
+  TextInput,
   Tooltip,
   useTheme,
   iconCatalog,
@@ -640,23 +641,18 @@ export function WorkbenchTaskDraftSection({
               {appI18n.agentWorkbench.workspace.rootInputLabel}
             </Text>
             {textInputsReady ? (
-              <View
-                style={[
-                  screenStyles.textInputShell,
-                  {
-                    borderColor: palette.border,
-                    backgroundColor: palette.canvasShade,
-                  },
-                ]}>
-                <RNTextInput
-                  testID='agent-workbench.workspace.root-input'
-                  value={workspaceRootDraft}
-                  onChangeText={onWorkspaceRootDraftChange}
-                  placeholder={appI18n.agentWorkbench.workspace.rootInputPlaceholder}
-                  placeholderTextColor={palette.inkSoft}
-                  style={[screenStyles.textInputField, {color: palette.ink}]}
-                />
-              </View>
+              <TextInput
+                testID='agent-workbench.workspace.root-input'
+                value={workspaceRootDraft}
+                onChangeText={onWorkspaceRootDraftChange}
+                onClear={
+                  workspaceRootDraft.length > 0
+                    ? () => onWorkspaceRootDraftChange('')
+                    : undefined
+                }
+                placeholder={appI18n.agentWorkbench.workspace.rootInputPlaceholder}
+                style={{width: '100%', backgroundColor: palette.canvasShade}}
+              />
             ) : (
               <View
                 style={[

@@ -1234,44 +1234,738 @@ export function TextInput({
 }
 
 // ---------------------------------------------------------------------------
-//  Tooltip — desktop-only hover card, no-op on non-desktop
+//  Tooltip — desktop-only hover hint, no-op on non-desktop
 // ---------------------------------------------------------------------------
+
+export type TooltipPlacement = 'top' | 'bottom';
+
+/**
+ * Estimate the bubble width needed for the given text.
+ *
+ * On React Native Windows (XAML), absolutely-positioned children are
+ * constrained by their parent's measured width. When the trigger element
+ * is a small icon button (e.g. 28 × 28), the bubble would end up only
+ * 28 px wide and the text would stack vertically — one character per line.
+ *
+ * To work around this, we compute a generous `minWidth` from the text
+ * content so the bubble always has enough room. CJK characters are
+ * estimated at ~14 px each; Latin characters at ~8 px.
+ */
+function estimateTooltipWidth(text: string, maxW: number): number {
+  let w = 0;
+  for (let i = 0; i < text.length; i++) {
+    w += text.charCodeAt(i) > 0x2e7f ? 14 : 8;
+  }
+  // Add horizontal padding (10 + 10) + border (1 + 1) = 22
+  return Math.min(maxW, Math.max(48, w + 22));
+}
 
 export function Tooltip({
   text,
   children,
-}: PropsWithChildren<{ text: string }>) {
+  placement = 'top',
+  maxWidth = 240,
+  delayMs = 320,
+}: PropsWithChildren<{
+  text: string;
+  placement?: TooltipPlacement;
+  maxWidth?: number;
+  delayMs?: number;
+}>) {
   const { palette } = useTheme();
   const [visible, setVisible] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Cleanup timer on unmount to prevent state updates after unmount.
+  React.useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
 
   if (Platform.OS !== 'windows') {
     return <>{children}</>;
   }
 
+  const show = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      setVisible(true);
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }).start();
+    }, delayMs);
+  };
+
+  const hide = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (visible) {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 80,
+        useNativeDriver: true,
+      }).start(() => setVisible(false));
+    }
+  };
+
+  const positionStyles: ViewStyle =
+    placement === 'bottom'
+      ? { top: '100%', marginTop: 6 }
+      : { bottom: '100%', marginBottom: 6 };
+
+  // Explicit width so the bubble is never squeezed by a small trigger.
+  const bubbleWidth = estimateTooltipWidth(text, maxWidth);
+
   return (
     <View
-      onPointerEnter={() => setVisible(true)}
-      onPointerLeave={() => setVisible(false)}
+      onPointerEnter={show}
+      onPointerLeave={hide}
       style={styles.tooltipHost}
     >
       {children}
       {visible ? (
-        <Text
+        <Animated.View
+          pointerEvents='none'
           style={[
             styles.tooltipBubble,
+            positionStyles,
             {
               backgroundColor: palette.panel,
               borderColor: palette.borderStrong,
-              color: palette.ink,
+              opacity: fadeAnim,
+              width: bubbleWidth,
             },
           ]}
         >
-          {text}
-        </Text>
+          <Text
+            style={[styles.tooltipText, { color: palette.ink }]}
+            numberOfLines={4}
+          >
+            {text}
+          </Text>
+        </Animated.View>
       ) : null}
     </View>
   );
 }
+
+// ---------------------------------------------------------------------------
+//  IconButton — compact icon-only pressable with built-in Tooltip
+// ---------------------------------------------------------------------------
+
+export type IconButtonSize = 'sm' | 'md' | 'lg';
+
+export function IconButton({
+  icon,
+  label,
+  onPress,
+  disabled = false,
+  active = false,
+  tone = 'ghost',
+  size = 'md',
+  tooltipPlacement = 'top',
+  style,
+  testID,
+}: {
+  icon: IconDefinition;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  tone?: 'ghost' | 'accent' | 'danger';
+  size?: IconButtonSize;
+  tooltipPlacement?: TooltipPlacement;
+  style?: StyleProp<ViewStyle>;
+  testID?: string;
+}) {
+  const { palette } = useTheme();
+  const [hovered, setHovered] = useState(false);
+  const suppressPressForKeyboardRef = useRef(false);
+
+  const sizeSpec = iconButtonSizes[size];
+
+  const resolveColors = () => {
+    if (disabled) {
+      return {
+        bg: 'transparent',
+        border: 'transparent',
+        fg: palette.inkSoft,
+      };
+    }
+    if (tone === 'accent') {
+      return {
+        bg: active ? palette.accentSoft : 'transparent',
+        border: active ? palette.accent : 'transparent',
+        fg: active ? palette.accent : palette.ink,
+      };
+    }
+    if (tone === 'danger') {
+      return {
+        bg: 'transparent',
+        border: 'transparent',
+        fg: palette.errorRed,
+      };
+    }
+    // ghost
+    return {
+      bg: active ? palette.panelEmphasis : 'transparent',
+      border: active ? palette.borderStrong : 'transparent',
+      fg: active ? palette.ink : palette.inkMuted,
+    };
+  };
+
+  const colors = resolveColors();
+
+  const button = (
+    <Pressable
+      testID={testID}
+      accessibilityRole='button'
+      accessibilityLabel={label}
+      accessibilityState={{ disabled, selected: active }}
+      disabled={disabled}
+      focusable={!disabled}
+      {...windowsFocusProps()}
+      onPress={() => {
+        if (disabled) return;
+        if (suppressPressForKeyboardRef.current) {
+          suppressPressForKeyboardRef.current = false;
+          return;
+        }
+        onPress();
+      }}
+      onKeyUp={(event: any) => {
+        if (disabled) return;
+        const key = event?.nativeEvent?.key;
+        if (key === 'Enter' || key === ' ' || key === 'Space' || key === 'Spacebar') {
+          suppressPressForKeyboardRef.current = true;
+          onPress();
+        }
+      }}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed, focused }: any) => [
+        styles.iconButton,
+        {
+          width: sizeSpec.box,
+          height: sizeSpec.box,
+          borderRadius: sizeSpec.box / 2,
+          backgroundColor: colors.bg,
+          borderColor: colors.border,
+        },
+        !disabled && hovered && !pressed
+          ? { backgroundColor: palette.canvasShade }
+          : null,
+        !disabled && focused
+          ? { borderColor: palette.focusRing, borderWidth: 2 }
+          : null,
+        pressed && !disabled ? { opacity: 0.85, transform: [{ scale: 0.95 }] } : null,
+        disabled ? { opacity: 0.45 } : null,
+        desktopCursor,
+        style,
+      ]}
+    >
+      <Icon icon={icon} size={sizeSpec.icon} color={colors.fg} />
+    </Pressable>
+  );
+
+  if (Platform.OS === 'windows') {
+    return <Tooltip text={label} placement={tooltipPlacement}>{button}</Tooltip>;
+  }
+
+  return button;
+}
+
+// ---------------------------------------------------------------------------
+//  SegmentedControl — tabbed mode switcher
+// ---------------------------------------------------------------------------
+
+export type SegmentedControlItem<T extends string = string> = {
+  key: T;
+  label: string;
+  icon?: IconDefinition;
+};
+
+export function SegmentedControl<T extends string = string>({
+  items,
+  selectedKey,
+  onSelect,
+  size = 'md',
+  style,
+  testID,
+}: {
+  items: readonly SegmentedControlItem<T>[];
+  selectedKey: T;
+  onSelect: (key: T) => void;
+  size?: 'sm' | 'md';
+  style?: StyleProp<ViewStyle>;
+  testID?: string;
+}) {
+  const { palette } = useTheme();
+
+  return (
+    <View
+      testID={testID}
+      style={[
+        styles.segmentedControl,
+        { borderColor: palette.border, backgroundColor: palette.canvasShade },
+        style,
+      ]}
+    >
+      {items.map((item) => {
+        const isSelected = item.key === selectedKey;
+        return (
+          <SegmentedControlSegment
+            key={item.key}
+            item={item}
+            isSelected={isSelected}
+            onPress={() => onSelect(item.key)}
+            size={size}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+function SegmentedControlSegment<T extends string>({
+  item,
+  isSelected,
+  onPress,
+  size,
+}: {
+  item: SegmentedControlItem<T>;
+  isSelected: boolean;
+  onPress: () => void;
+  size: 'sm' | 'md';
+}) {
+  const { palette } = useTheme();
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole='tab'
+      accessibilityState={{ selected: isSelected }}
+      focusable
+      {...windowsFocusProps()}
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed, focused }: any) => [
+        styles.segmentedControlSegment,
+        size === 'sm'
+          ? styles.segmentedControlSegmentSm
+          : styles.segmentedControlSegmentMd,
+        isSelected
+          ? {
+              backgroundColor: palette.panel,
+              borderColor: palette.border,
+            }
+          : { backgroundColor: 'transparent', borderColor: 'transparent' },
+        !isSelected && hovered && !pressed
+          ? { backgroundColor: palette.canvasShade }
+          : null,
+        focused && { borderColor: palette.focusRing },
+        pressed && !isSelected ? { opacity: 0.8 } : null,
+        desktopCursor,
+      ]}
+    >
+      {item.icon ? (
+        <Icon
+          icon={item.icon}
+          size={size === 'sm' ? 11 : 12}
+          color={isSelected ? palette.ink : palette.inkMuted}
+        />
+      ) : null}
+      <Text
+        style={[
+          styles.segmentedControlLabel,
+          size === 'sm'
+            ? styles.segmentedControlLabelSm
+            : styles.segmentedControlLabelMd,
+          { color: isSelected ? palette.ink : palette.inkMuted },
+          isSelected ? { fontWeight: '700' } : null,
+        ]}
+        numberOfLines={1}
+      >
+        {item.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Switch — toggle on/off
+// ---------------------------------------------------------------------------
+
+export function Switch({
+  value,
+  onValueChange,
+  disabled = false,
+  label,
+  testID,
+}: {
+  value: boolean;
+  onValueChange: (next: boolean) => void;
+  disabled?: boolean;
+  label?: string;
+  testID?: string;
+}) {
+  const { palette } = useTheme();
+  const [hovered, setHovered] = useState(false);
+  const thumbAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
+
+  const toggle = useCallback(() => {
+    if (disabled) return;
+    const next = !value;
+    onValueChange(next);
+    Animated.timing(thumbAnim, {
+      toValue: next ? 1 : 0,
+      duration: 160,
+      useNativeDriver: false,
+    }).start();
+  }, [value, disabled, onValueChange, thumbAnim]);
+
+  // Sync animation when value prop changes externally
+  React.useEffect(() => {
+    Animated.timing(thumbAnim, {
+      toValue: value ? 1 : 0,
+      duration: 160,
+      useNativeDriver: false,
+    }).start();
+  }, [value, thumbAnim]);
+
+  const trackBg = value
+    ? disabled ? palette.inkSoft : palette.accent
+    : disabled ? palette.canvasShade : palette.border;
+
+  const thumbLeft = thumbAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, 18],
+  });
+
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole='switch'
+      accessibilityState={{ checked: value, disabled }}
+      accessibilityLabel={label}
+      disabled={disabled}
+      focusable={!disabled}
+      {...windowsFocusProps()}
+      onPress={toggle}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ focused }: any) => [
+        styles.switchRow,
+        disabled ? { opacity: 0.5 } : null,
+        desktopCursor,
+      ]}
+    >
+      <View
+        style={[
+          styles.switchTrack,
+          { backgroundColor: trackBg },
+          hovered && !disabled ? { borderColor: palette.borderStrong } : { borderColor: trackBg },
+        ]}
+      >
+        <Animated.View
+          style={[
+            styles.switchThumb,
+            {
+              backgroundColor: value ? palette.canvas : palette.panel,
+              left: thumbLeft,
+            },
+          ]}
+        />
+      </View>
+      {label ? (
+        <Text
+          style={[
+            styles.switchLabel,
+            { color: disabled ? palette.inkSoft : palette.ink },
+          ]}
+        >
+          {label}
+        </Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Popover — anchored floating panel
+// ---------------------------------------------------------------------------
+
+export function Popover({
+  visible,
+  onDismiss,
+  anchor,
+  placement = 'bottom',
+  children,
+  maxWidth = 280,
+  style,
+  testID,
+}: {
+  visible: boolean;
+  onDismiss: () => void;
+  anchor: React.ReactNode;
+  placement?: 'top' | 'bottom';
+  children: React.ReactNode;
+  maxWidth?: number;
+  style?: StyleProp<ViewStyle>;
+  testID?: string;
+}) {
+  const { palette } = useTheme();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(visible);
+
+  React.useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 140,
+        useNativeDriver: true,
+      }).start();
+    } else if (mounted) {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }).start(() => setMounted(false));
+    }
+  }, [visible, mounted, fadeAnim]);
+
+  const positionStyles: ViewStyle =
+    placement === 'top'
+      ? { bottom: '100%', marginBottom: 4 }
+      : { top: '100%', marginTop: 4 };
+
+  return (
+    <View style={styles.popoverAnchorWrapper}>
+      {anchor}
+      {mounted ? (
+        <Animated.View
+          testID={testID}
+          style={[
+            styles.popoverPanel,
+            positionStyles,
+            {
+              backgroundColor: palette.panel,
+              borderColor: palette.border,
+              opacity: fadeAnim,
+              maxWidth,
+            },
+            style,
+          ]}
+        >
+          {children}
+        </Animated.View>
+      ) : null}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  MenuList + MenuItem — for use inside Popover or standalone
+// ---------------------------------------------------------------------------
+
+export function MenuList({
+  children,
+  style,
+  testID,
+}: PropsWithChildren<{ style?: StyleProp<ViewStyle>; testID?: string }>) {
+  return (
+    <View testID={testID} style={[styles.menuList, style]}>
+      {children}
+    </View>
+  );
+}
+
+export function MenuItem({
+  label,
+  icon,
+  detail,
+  onPress,
+  destructive = false,
+  disabled = false,
+  testID,
+}: {
+  label: string;
+  icon?: IconDefinition;
+  detail?: string;
+  onPress: () => void;
+  destructive?: boolean;
+  disabled?: boolean;
+  testID?: string;
+}) {
+  const { palette } = useTheme();
+  const [hovered, setHovered] = useState(false);
+  const fg = destructive
+    ? palette.errorRed
+    : disabled
+      ? palette.inkSoft
+      : palette.ink;
+
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole='menuitem'
+      disabled={disabled}
+      focusable={!disabled}
+      {...windowsFocusProps()}
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed, focused }: any) => [
+        styles.menuItem,
+        hovered && !pressed
+          ? { backgroundColor: palette.canvasShade }
+          : null,
+        focused && { backgroundColor: palette.canvasShade },
+        pressed ? { backgroundColor: palette.canvasShade, opacity: 0.8 } : null,
+        disabled ? { opacity: 0.45 } : null,
+        desktopCursor,
+      ]}
+    >
+      {icon ? <Icon icon={icon} size={13} color={fg} /> : null}
+      <Text
+        style={[styles.menuItemLabel, { color: fg }]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      {detail ? (
+        <Text
+          style={[styles.menuItemDetail, { color: palette.inkSoft }]}
+          numberOfLines={1}
+        >
+          {detail}
+        </Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Spinner — standardized loading indicator
+// ---------------------------------------------------------------------------
+
+export function Spinner({
+  size = 'md',
+  tone = 'accent',
+  style,
+}: {
+  size?: 'sm' | 'md' | 'lg';
+  tone?: 'accent' | 'neutral';
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { palette } = useTheme();
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [rotateAnim]);
+
+  const spinnerSize = size === 'sm' ? 16 : size === 'lg' ? 32 : 22;
+  const borderW = size === 'sm' ? 2 : size === 'lg' ? 3 : 2.5;
+  const color = tone === 'accent' ? palette.accent : palette.inkMuted;
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width: spinnerSize,
+          height: spinnerSize,
+          borderRadius: spinnerSize / 2,
+          borderWidth: borderW,
+          borderColor: palette.border,
+          borderTopColor: color,
+          transform: [{ rotate }],
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  KeyboardShortcut — displays key combination hints
+// ---------------------------------------------------------------------------
+
+export function KeyboardShortcut({
+  keys,
+  style,
+}: {
+  keys: string[];
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { palette } = useTheme();
+
+  return (
+    <View style={[styles.keyboardShortcut, style]}>
+      {keys.map((key, idx) => (
+        <React.Fragment key={idx}>
+          {idx > 0 ? (
+            <Text style={[styles.keyboardShortcutSep, { color: palette.inkSoft }]}>
+              +
+            </Text>
+          ) : null}
+          <View
+            style={[
+              styles.keyboardShortcutKey,
+              {
+                backgroundColor: palette.canvasShade,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.keyboardShortcutLabel, { color: palette.inkMuted }]}
+            >
+              {key}
+            </Text>
+          </View>
+        </React.Fragment>
+      ))}
+    </View>
+  );
+}
+
+// ==========================================================================
+//  Sizing helpers
+// ==========================================================================
+
+const iconButtonSizes = {
+  sm: { box: 28, icon: 12 },
+  md: { box: 34, icon: 14 },
+  lg: { box: 40, icon: 16 },
+} as const;
 
 // ==========================================================================
 //  StyleSheet
@@ -1797,22 +2491,169 @@ const styles = StyleSheet.create({
   // Tooltip
   tooltipHost: {
     position: 'relative',
-    alignSelf: 'flex-start',
   },
   tooltipBubble: {
     position: 'absolute',
-    bottom: '100%',
     left: 0,
-    marginBottom: 6,
-    alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    maxWidth: 240,
     zIndex: 100,
+  },
+  tooltipText: {
     fontSize: 12,
     lineHeight: 16,
     fontFamily: appFontFamily,
+  },
+  // IconButton
+  iconButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  // SegmentedControl
+  segmentedControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: appRadius.badge,
+    borderWidth: 1,
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+    padding: 2,
+    gap: 2,
+  },
+  segmentedControlSegment: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: appRadius.badge - 2,
+    borderWidth: 1,
+  },
+  segmentedControlSegmentSm: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    minHeight: 26,
+  },
+  segmentedControlSegmentMd: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    minHeight: 30,
+  },
+  segmentedControlLabel: {
+    fontFamily: appFontFamily,
+    fontWeight: '600',
+  },
+  segmentedControlLabelSm: {
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.3,
+  },
+  segmentedControlLabelMd: {
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.3,
+  },
+  // Switch
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  switchTrack: {
+    width: 38,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    justifyContent: 'center',
+  },
+  switchThumb: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  switchLabel: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+    fontFamily: appFontFamily,
+  },
+  // Popover
+  popoverAnchorWrapper: {
+    position: 'relative',
+  },
+  popoverPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderRadius: appRadius.compact,
+    borderWidth: 1,
+    paddingVertical: 4,
+    zIndex: 200,
+    ...Platform.select({
+      windows: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+      },
+      default: {},
+    }),
+  },
+  // MenuList / MenuItem
+  menuList: {
+    gap: 1,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 34,
+  },
+  menuItemLabel: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+    fontFamily: appFontFamily,
+    flex: 1,
+    minWidth: 0,
+  },
+  menuItemDetail: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+    fontFamily: appFontFamily,
+    flexShrink: 0,
+  },
+  // KeyboardShortcut
+  keyboardShortcut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  keyboardShortcutKey: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keyboardShortcutLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '700',
+    fontFamily: appFontFamily,
+  },
+  keyboardShortcutSep: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: appFontFamily,
+    marginHorizontal: 1,
   },
 });

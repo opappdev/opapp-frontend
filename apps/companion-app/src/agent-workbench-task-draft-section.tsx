@@ -11,6 +11,7 @@ import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
   Icon,
+  IconButton,
   InfoPanel,
   Tooltip,
   useTheme,
@@ -74,11 +75,27 @@ function StarterActionButton({
   disabled,
   active = false,
   onPress,
-  screenStyles,
 }: StarterActionButtonProps) {
-  const {palette} = useTheme();
   const compactHoverMode = Platform.OS === 'windows';
-  const button = (
+
+  if (compactHoverMode) {
+    return (
+      <IconButton
+        testID={testID}
+        label={label}
+        icon={icon}
+        disabled={disabled}
+        active={active}
+        onPress={onPress}
+        size='sm'
+        tone={active ? 'accent' : 'ghost'}
+      />
+    );
+  }
+
+  // Non-Windows: show icon + text without Tooltip wrapper
+  const {palette} = useTheme();
+  return (
     <Pressable
       testID={testID}
       accessibilityRole='button'
@@ -86,10 +103,15 @@ function StarterActionButton({
       onPress={onPress}
       disabled={disabled}
       style={[
-        screenStyles.composerChip,
-        screenStyles.composerStarterChip,
-        compactHoverMode ? screenStyles.composerStarterIconChip : null,
         {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          paddingHorizontal: 8,
+          paddingVertical: 6,
+          borderRadius: 999,
+          borderWidth: 1,
+          minHeight: 30,
           backgroundColor: active ? palette.panelEmphasis : palette.canvasShade,
           borderColor: active ? palette.accent : palette.border,
         },
@@ -100,22 +122,17 @@ function StarterActionButton({
         size={12}
         color={active ? palette.accent : palette.inkSoft}
       />
-      {!compactHoverMode ? (
-        <Text
-          style={[
-            screenStyles.composerChipLabel,
-            screenStyles.composerStarterChipLabel,
-            active
-              ? {color: palette.accent, fontWeight: '600'}
-              : {color: palette.inkSoft},
-          ]}>
-          {label}
-        </Text>
-      ) : null}
+      <Text
+        style={{
+          fontSize: 12,
+          lineHeight: 16,
+          fontWeight: '600',
+          color: active ? palette.accent : palette.inkSoft,
+        }}>
+        {label}
+      </Text>
     </Pressable>
   );
-
-  return <Tooltip text={label}>{button}</Tooltip>;
 }
 
 export function WorkbenchTaskDraftSection({

@@ -75,4 +75,18 @@ export {
   ProgressBar,
   TextInput,
   Tooltip,
+  IconButton,
+  SegmentedControl,
+  Switch,
+  Popover,
+  MenuList,
+  MenuItem,
+  Spinner,
+  KeyboardShortcut,
+} from './components';
+
+export type {
+  TooltipPlacement,
+  IconButtonSize,
+  SegmentedControlItem,
 } from './components';

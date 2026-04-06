@@ -1170,7 +1170,11 @@ export function TextInput({
   placeholder,
   onClear,
   invalid = false,
+  multiline = false,
+  numberOfLines,
+  textAlignVertical,
   style,
+  inputStyle,
   testID,
 }: {
   value: string;
@@ -1178,7 +1182,11 @@ export function TextInput({
   placeholder?: string;
   onClear?: () => void;
   invalid?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
+  textAlignVertical?: 'auto' | 'top' | 'center' | 'bottom';
   style?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
   testID?: string;
 }) {
   const { palette, spacing } = useTheme();
@@ -1205,11 +1213,15 @@ export function TextInput({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={palette.inkSoft}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        textAlignVertical={textAlignVertical}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         style={[
           styles.textInputField,
           { color: palette.ink, fontFamily: appFontFamily ?? undefined },
+          inputStyle,
         ]}
       />
       {value.length > 0 && onClear ? (

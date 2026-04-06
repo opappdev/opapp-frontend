@@ -46,6 +46,10 @@ export {
 
 export type { AppColorScheme, AppTheme, DensityPreference } from './theme';
 
+// icons
+export { Icon, iconCatalog } from './icons';
+export type { IconDefinition, IconProps, IconName } from './icons';
+
 // components
 export {
   AppFrame,

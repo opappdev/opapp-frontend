@@ -13,6 +13,7 @@ import type {
   AgentToolResultStatus,
 } from '@opapp/framework-agent-runtime';
 import type {AppTone} from '@opapp/ui-native-primitives';
+import {type IconDefinition, iconCatalog} from '@opapp/ui-native-primitives';
 import type {WorkbenchToolInvocationTimelineItem} from './agent-workbench-model';
 import type {WorkspaceEntry} from '@opapp/framework-filesystem';
 
@@ -330,23 +331,58 @@ export function resolveToolInvocationTitle(item: WorkbenchToolInvocationTimeline
 /**
  * Human-readable title for tool invocation Expander.
  * Shows the actual command/input instead of raw tool name.
- * For shell_command: "$ git status"
+ * For shell_command: "$ git status"  (multi-line: "$ git status  (+N lines)")
+ * For read_file / file_read: "Read path/to/file"
+ * For write_file / file_write / create_file: "Write path/to/file"
+ * For edit_file / str_replace / str_replace_in_file: "Edit path/to/file"
+ * For list_directory / list_dir: "List directory"
+ * For search / search_files / grep: "Search ..."
  * For other tools: "toolName: first line of input"
  * Falls back to resolveToolInvocationTitle.
  */
 export function resolveToolInvocationHumanTitle(item: WorkbenchToolInvocationTimelineItem) {
   const inputText = item.call?.inputText;
   if (inputText) {
-    const firstLine = inputText.split('\n')[0].trim();
+    const lines = inputText.split('\n');
+    const firstLine = lines[0].trim();
+    const extraLines = lines.filter(l => l.trim().length > 0).length - 1;
+    const suffix = extraLines > 0 ? `  (+${extraLines})` : '';
+
     if (item.toolName === 'shell_command') {
-      return firstLine.length <= 60
-        ? `$ ${firstLine}`
-        : `$ ${firstLine.substring(0, 57)}…`;
+      const maxLen = 60 - suffix.length;
+      const cmd = firstLine.length <= maxLen
+        ? firstLine
+        : `${firstLine.substring(0, maxLen - 1)}…`;
+      return `$ ${cmd}${suffix}`;
     }
+
+    // File-oriented tools: extract path from first meaningful token
+    const pathMatch = firstLine.match(/^(?:["'])?([^\s"']+)/);
+    const filePath = pathMatch ? pathMatch[1] : firstLine;
+    const shortPath = filePath.length > 40 ? `…${filePath.slice(-37)}` : filePath;
+
+    if (item.toolName === 'read_file' || item.toolName === 'file_read') {
+      return `Read ${shortPath}`;
+    }
+    if (item.toolName === 'write_file' || item.toolName === 'file_write' || item.toolName === 'create_file') {
+      return `Write ${shortPath}`;
+    }
+    if (item.toolName === 'edit_file' || item.toolName === 'str_replace' || item.toolName === 'str_replace_in_file') {
+      return `Edit ${shortPath}`;
+    }
+    if (item.toolName === 'list_directory' || item.toolName === 'list_dir') {
+      return `List ${shortPath}`;
+    }
+    if (item.toolName === 'search' || item.toolName === 'search_files' || item.toolName === 'grep') {
+      const query = firstLine.length <= 40 ? firstLine : `${firstLine.substring(0, 37)}…`;
+      return `Search "${query}"`;
+    }
+
     if (item.toolName) {
-      return firstLine.length <= 48
-        ? `${item.toolName}: ${firstLine}`
-        : `${item.toolName}: ${firstLine.substring(0, 45)}…`;
+      const maxLen = 48 - suffix.length;
+      return firstLine.length <= maxLen
+        ? `${item.toolName}: ${firstLine}${suffix}`
+        : `${item.toolName}: ${firstLine.substring(0, maxLen - 1)}…${suffix}`;
     }
   }
   return resolveToolInvocationTitle(item);
@@ -514,4 +550,76 @@ export function formatWorkspaceEntryMeta(entry: WorkspaceEntry) {
     return kind;
   }
   return `${kind} · ${formatSizeBytes(entry.sizeBytes)}`;
+}
+
+// ---------------------------------------------------------------------------
+//  Icon resolvers — map semantic context to IconDefinition
+// ---------------------------------------------------------------------------
+
+export function resolveToolInvocationIcon(item: WorkbenchToolInvocationTimelineItem): IconDefinition {
+  switch (item.toolName) {
+    case 'shell_command':
+      return iconCatalog.terminal;
+    case 'read_file':
+    case 'file_read':
+      return iconCatalog.document;
+    case 'write_file':
+    case 'file_write':
+    case 'create_file':
+      return iconCatalog.edit;
+    case 'edit_file':
+    case 'str_replace':
+    case 'str_replace_in_file':
+      return iconCatalog.edit;
+    case 'list_directory':
+    case 'list_dir':
+      return iconCatalog.folderOpen;
+    case 'search':
+    case 'search_files':
+    case 'grep':
+      return iconCatalog.search;
+    default:
+      return iconCatalog.code;
+  }
+}
+
+export function resolveTimelineEntryIcon(entry: AgentTimelineEntry): IconDefinition {
+  switch (entry.kind) {
+    case 'message':
+      return entry.role === 'user' ? iconCatalog.chat : iconCatalog.robot;
+    case 'plan':
+      return iconCatalog.checkmark;
+    case 'terminal-event':
+      return iconCatalog.terminal;
+    case 'approval':
+      return iconCatalog.shieldTask;
+    case 'error':
+      return iconCatalog.errorBadge;
+    case 'artifact':
+      return entry.artifactKind === 'diff' ? iconCatalog.diffView : iconCatalog.document;
+    default:
+      return iconCatalog.info;
+  }
+}
+
+export function resolveApprovalTargetDescription(approval: AgentApprovalTimelineEntry): string | null {
+  if (!approval.details) {
+    return null;
+  }
+  // Extract file path from approval details (common patterns: "write to path", path in first line)
+  const pathMatch = approval.details.match(
+    /(?:^|\s)((?:[\w./-]+\/)+[\w.-]+)/,
+  );
+  if (pathMatch) {
+    const filePath = pathMatch[1];
+    switch (approval.permissionMode) {
+      case 'workspace-write':
+        return `Write → ${filePath}`;
+      case 'danger-full-access':
+        return `Full access → ${filePath}`;
+      default:
+        return filePath;
+    }
+  }
+  return null;
 }

@@ -7,6 +7,7 @@ import type {
 import {appI18n} from '@opapp/framework-i18n';
 import {
   Expander,
+  Icon,
   SignalPill,
   StatusBadge,
   useTheme,
@@ -20,6 +21,7 @@ import {
   countCompletedPlanSteps,
   formatIsoTimestamp,
   resolveApprovalStatusLabel,
+  resolveApprovalTargetDescription,
   resolveArtifactKindLabel,
   resolveMessageRoleLabel,
   resolvePermissionModeLabel,
@@ -27,11 +29,13 @@ import {
   resolvePlanStepStatusTone,
   resolveRetryableLabel,
   resolveTerminalEventLabel,
+  resolveTimelineEntryIcon,
   resolveTimelineEntryTitle,
   resolveTimelineEntryTone,
   resolveTimelineEntryTrailingLabel,
   resolveToolCallStatusLabel,
   resolveToolInvocationHumanTitle,
+  resolveToolInvocationIcon,
   resolveToolInvocationTerminalEventsLabel,
   resolveToolInvocationTitle,
   resolveToolInvocationTone,
@@ -114,6 +118,7 @@ export function WorkbenchTimelineSection({
                     : {backgroundColor: palette.panel},
                 ]}>
                 <View style={screenStyles.messageItemHeader}>
+                  <Icon icon={resolveTimelineEntryIcon(entry)} size={12} color={isUser ? palette.accent : palette.inkMuted} />
                   <Text style={[screenStyles.messageItemRole, isUser ? {color: palette.accent} : null]}>
                     {resolveMessageRoleLabel(entry.role)}
                   </Text>
@@ -179,6 +184,7 @@ export function WorkbenchTimelineSection({
             return (
               <View key={item.key} style={screenStyles.transcriptTerminal}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.xs, marginBottom: entry.text ? appSpacing.xxs : 0}}>
+                  <Icon icon={resolveTimelineEntryIcon(entry)} size={11} color={palette.inkMuted} />
                   <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
                     {resolveTerminalEventLabel(entry.event)}
                   </Text>
@@ -209,6 +215,7 @@ export function WorkbenchTimelineSection({
 
           /* Approval — clean decision interrupt */
           if (entry.kind === 'approval') {
+            const approvalTarget = resolveApprovalTargetDescription(entry);
             return (
               <View
                 key={item.key}
@@ -217,8 +224,18 @@ export function WorkbenchTimelineSection({
                   {backgroundColor: palette.panelEmphasis, paddingVertical: appSpacing.sm2},
                 ]}>
                 {entry.title ? (
-                  <Text style={[screenStyles.infoText, {color: palette.ink, fontWeight: '600', marginBottom: appSpacing.xxs}]}>
-                    {entry.title}
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.xs}}>
+                    <Icon icon={resolveTimelineEntryIcon(entry)} size={13} color={palette.accent} />
+                    <Text style={[screenStyles.infoText, {color: palette.ink, fontWeight: '600'}]}>
+                      {entry.title}
+                    </Text>
+                  </View>
+                ) : null}
+                {approvalTarget ? (
+                  <Text
+                    style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, marginTop: appSpacing.xxs}]}
+                    numberOfLines={1}>
+                    {approvalTarget}
                   </Text>
                 ) : null}
                 {entry.details ? (
@@ -246,9 +263,12 @@ export function WorkbenchTimelineSection({
               <View
                 key={item.key}
                 style={[screenStyles.transcriptTerminal, {backgroundColor: `${palette.errorRed}08`}]}>
-                <Text style={[screenStyles.infoText, {color: palette.ink}]}>
-                  {entry.message}
-                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.xs}}>
+                  <Icon icon={resolveTimelineEntryIcon(entry)} size={12} color={palette.errorRed} />
+                  <Text style={[screenStyles.infoText, {color: palette.ink, flex: 1}]}>
+                    {entry.message}
+                  </Text>
+                </View>
                 {entry.code ? (
                   <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed, marginTop: appSpacing.xxs}]}>
                     {entry.code}
@@ -265,6 +285,7 @@ export function WorkbenchTimelineSection({
                 key={item.key}
                 style={screenStyles.transcriptTerminal}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm}}>
+                  <Icon icon={resolveTimelineEntryIcon(entry)} size={12} color={palette.support} />
                   <Text style={[screenStyles.toolCardMetaItem, {color: palette.support, fontWeight: '600'}]}>
                     {resolveArtifactKindLabel(entry.artifactKind)}
                   </Text>
@@ -315,11 +336,13 @@ function renderToolInvocation(
   const toolCardBaseTestID = `agent-workbench.timeline.tool.${item.toolInvocationIndex}`;
   const isComplete = item.result?.status === 'success' && item.call?.status === 'completed';
   const hasError = item.result?.status === 'error' || (item.result?.exitCode !== null && item.result?.exitCode !== undefined && item.result.exitCode !== 0);
+  const toolIcon = resolveToolInvocationIcon(item);
 
   return (
     <Expander
       key={item.key}
       title={resolveToolInvocationHumanTitle(item)}
+      icon={toolIcon}
       defaultExpanded={
         item.toolInvocationIndex === 0 ||
         !item.result ||

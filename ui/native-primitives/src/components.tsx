@@ -25,6 +25,7 @@ import {
   appTypography,
   appLetterSpacing,
 } from './tokens';
+import { Icon, type IconDefinition } from './icons';
 
 // ---------------------------------------------------------------------------
 //  Shared desktop interaction helpers
@@ -1005,6 +1006,7 @@ export function DataRow({
 
 export function Expander({
   title,
+  icon,
   defaultExpanded = false,
   trailing,
   children,
@@ -1014,6 +1016,7 @@ export function Expander({
   contentTestID,
 }: PropsWithChildren<{
   title: string;
+  icon?: IconDefinition;
   defaultExpanded?: boolean;
   trailing?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -1057,6 +1060,7 @@ export function Expander({
         <Text style={[styles.expanderChevron, { color: palette.inkMuted }]}>
           {expanded ? '▾' : '▸'}
         </Text>
+        {icon ? <Icon icon={icon} size={13} color={palette.inkMuted} /> : null}
         <Text
           style={[styles.expanderTitle, { color: palette.ink }]}
           numberOfLines={1}

@@ -1866,10 +1866,12 @@ export function MenuItem({
 export function Spinner({
   size = 'md',
   tone = 'accent',
+  color: colorOverride,
   style,
 }: {
   size?: 'sm' | 'md' | 'lg';
   tone?: 'accent' | 'neutral';
+  color?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const { palette } = useTheme();
@@ -1889,7 +1891,7 @@ export function Spinner({
 
   const spinnerSize = size === 'sm' ? 16 : size === 'lg' ? 32 : 22;
   const borderW = size === 'sm' ? 2 : size === 'lg' ? 3 : 2.5;
-  const color = tone === 'accent' ? palette.accent : palette.inkMuted;
+  const color = colorOverride ?? (tone === 'accent' ? palette.accent : palette.inkMuted);
 
   const rotate = rotateAnim.interpolate({
     inputRange: [0, 1],

@@ -1,6 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   Text,
@@ -13,10 +12,13 @@ import {
   Icon,
   IconButton,
   InfoPanel,
+  SegmentedControl,
+  Spinner,
   Tooltip,
   useTheme,
   iconCatalog,
   type IconDefinition,
+  type SegmentedControlItem,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget} from '@opapp/framework-filesystem';
 import type {
@@ -134,6 +136,19 @@ function StarterActionButton({
     </Pressable>
   );
 }
+
+const executionModeItems: readonly SegmentedControlItem<'direct' | 'approval'>[] = [
+  {
+    key: 'direct',
+    label: appI18n.agentWorkbench.taskDraft.directMode,
+    icon: iconCatalog.play,
+  },
+  {
+    key: 'approval',
+    label: appI18n.agentWorkbench.taskDraft.approvalMode,
+    icon: iconCatalog.shieldTask,
+  },
+];
 
 export function WorkbenchTaskDraftSection({
   trustedWorkspace,
@@ -362,8 +377,8 @@ export function WorkbenchTaskDraftSection({
                   : null,
               ]}>
               {primaryActionBusy ? (
-                <ActivityIndicator
-                  size='small'
+                <Spinner
+                  size='sm'
                   color={primaryActionForegroundColor}
                 />
               ) : (
@@ -554,81 +569,20 @@ export function WorkbenchTaskDraftSection({
           <Text style={[screenStyles.sectionDescription, {color: palette.inkMuted}]}>
             {appI18n.agentWorkbench.taskDraft.executionModePanelDescription}
           </Text>
-          <View style={screenStyles.choiceGrid}>
-            <Pressable
-              testID='agent-workbench.task.mode.direct'
-              accessibilityRole='button'
-              onPress={() => {
+          <SegmentedControl<'direct' | 'approval'>
+            testID='agent-workbench.task.mode'
+            items={executionModeItems}
+            selectedKey={draftRequiresApproval ? 'approval' : 'direct'}
+            onSelect={(key) => {
+              if (key === 'direct') {
                 onSelectDirectMode();
-                setShowExecutionModePanel(false);
-              }}
-              style={[
-                screenStyles.composerChip,
-                screenStyles.composerModeChip,
-                !draftRequiresApproval
-                  ? {
-                      backgroundColor: palette.panelEmphasis,
-                      borderColor: palette.accent,
-                    }
-                  : {
-                      backgroundColor: palette.canvasShade,
-                      borderColor: palette.border,
-                    },
-              ]}>
-              <Icon
-                icon={iconCatalog.play}
-                size={12}
-                color={!draftRequiresApproval ? palette.accent : palette.inkSoft}
-              />
-              <Text
-                style={[
-                  screenStyles.composerChipLabel,
-                  screenStyles.composerModeChipLabel,
-                  !draftRequiresApproval
-                    ? {color: palette.accent, fontWeight: '600'}
-                    : {color: palette.inkSoft},
-                ]}>
-                {appI18n.agentWorkbench.taskDraft.directMode}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              testID='agent-workbench.task.mode.approval'
-              accessibilityRole='button'
-              onPress={() => {
+              } else {
                 onSelectApprovalMode();
-                setShowExecutionModePanel(false);
-              }}
-              style={[
-                screenStyles.composerChip,
-                screenStyles.composerModeChip,
-                draftRequiresApproval
-                  ? {
-                      backgroundColor: palette.panelEmphasis,
-                      borderColor: palette.accent,
-                    }
-                  : {
-                      backgroundColor: palette.canvasShade,
-                      borderColor: palette.border,
-                    },
-              ]}>
-              <Icon
-                icon={iconCatalog.shieldTask}
-                size={12}
-                color={draftRequiresApproval ? palette.accent : palette.inkSoft}
-              />
-              <Text
-                style={[
-                  screenStyles.composerChipLabel,
-                  screenStyles.composerModeChipLabel,
-                  draftRequiresApproval
-                    ? {color: palette.accent, fontWeight: '600'}
-                    : {color: palette.inkSoft},
-                ]}>
-                {appI18n.agentWorkbench.taskDraft.approvalMode}
-              </Text>
-            </Pressable>
-          </View>
+              }
+              setShowExecutionModePanel(false);
+            }}
+            size='sm'
+          />
         </View>
       ) : null}
 

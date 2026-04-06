@@ -1,10 +1,11 @@
 import React, {useState} from 'react';
-import {ActivityIndicator, Pressable, ScrollView, Text, View} from 'react-native';
+import {Pressable, ScrollView, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
   Icon,
   InfoPanel,
+  Spinner,
   useTheme,
   appSpacing,
 } from '@opapp/ui-native-primitives';
@@ -104,7 +105,7 @@ export function WorkbenchInspectorSection({
 
           {inspectorLoading ? (
             <View style={screenStyles.loadingInline}>
-              <ActivityIndicator size='small' color={palette.accent} />
+              <Spinner size='sm' tone='accent' />
             </View>
           ) : null}
 
@@ -275,9 +276,9 @@ export function WorkbenchInspectorSection({
                     : diffLoading && !selectedDiffOutput
                       ? (
                           <View style={screenStyles.loadingInline}>
-                            <ActivityIndicator
-                              size='small'
-                              color={palette.accent}
+                            <Spinner
+                              size='sm'
+                              tone='accent'
                             />
                           </View>
                         )

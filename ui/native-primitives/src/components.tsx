@@ -1256,16 +1256,18 @@ export function Tooltip({
     >
       {children}
       {visible ? (
-        <View
+        <Text
           style={[
             styles.tooltipBubble,
-            { backgroundColor: palette.ink, borderColor: palette.borderStrong },
+            {
+              backgroundColor: palette.panel,
+              borderColor: palette.borderStrong,
+              color: palette.ink,
+            },
           ]}
         >
-          <Text style={[styles.tooltipText, { color: palette.canvas }]}>
-            {text}
-          </Text>
-        </View>
+          {text}
+        </Text>
       ) : null}
     </View>
   );
@@ -1795,20 +1797,20 @@ const styles = StyleSheet.create({
   // Tooltip
   tooltipHost: {
     position: 'relative',
+    alignSelf: 'flex-start',
   },
   tooltipBubble: {
     position: 'absolute',
     bottom: '100%',
     left: 0,
     marginBottom: 6,
+    alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    maxWidth: 280,
+    maxWidth: 240,
     zIndex: 100,
-  },
-  tooltipText: {
     fontSize: 12,
     lineHeight: 16,
     fontFamily: appFontFamily,

@@ -1,11 +1,13 @@
 import { Platform, TextStyle, ViewStyle } from 'react-native';
 
 // ---------------------------------------------------------------------------
-//  Font Stack
+//  Native Font Family
 // ---------------------------------------------------------------------------
 
-const windowsFontFamily = 'Segoe UI Variable Text, Segoe UI, sans-serif';
-const macosFontFamily = 'SF Pro Text, SF Pro, -apple-system, sans-serif';
+// Native controls expect a single family name here. CSS-style comma-separated
+// font stacks belong in web-only layers, not React Native / RNW style props.
+const windowsFontFamily = 'Segoe UI Variable Text';
+const macosFontFamily = 'SF Pro Text';
 
 export const appFontFamily =
   Platform.OS === 'windows'

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleProp, Text, TextInput as RNTextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
+import { appFontFamily } from '../tokens';
 import { desktopCursor } from './shared';
 import { styles } from './TextInput.styles';
 
@@ -58,10 +59,11 @@ export function TextInput({
         textAlignVertical={textAlignVertical}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        // RNW TextInput can crash on Windows when given the shared font stack.
+        // Use the native-safe single-family token here; CSS font stacks are not
+        // valid RNW TextInput values.
         style={[
           styles.textInputField,
-          { color: palette.ink },
+          { color: palette.ink, fontFamily: appFontFamily ?? undefined },
           inputStyle,
         ]}
       />

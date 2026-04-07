@@ -380,8 +380,54 @@ const directGitReadonlySubcommands = new Set([
   'status',
 ]);
 
+type WorkbenchTaskIntentResolver = {
+  command: string;
+  patterns: RegExp[];
+};
+
+const workbenchTaskIntentResolvers: readonly WorkbenchTaskIntentResolver[] = [
+  {
+    command: 'git status',
+    patterns: [
+      /^(请\s*)?(检查|查看|看看)\s*(当前)?\s*工作区状态$/u,
+      /^(请\s*)?(检查|查看|看看)\s*(当前)?\s*git\s*状态$/iu,
+      /^git status$/iu,
+    ],
+  },
+  {
+    command: 'git diff --stat',
+    patterns: [
+      /^(请\s*)?(查看|看看)\s*(最近的?|最新的?|当前)?\s*改动$/u,
+      /^git diff(?: --stat)?$/iu,
+    ],
+  },
+];
+
 function tokenizeWorkbenchCommand(command: string) {
   return command.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+}
+
+function normalizeWorkbenchTaskIntentGoal(goal: string) {
+  return goal
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[。！？!?,，；;：:]+$/gu, '')
+    .trim();
+}
+
+export function resolveWorkbenchTaskIntentCommand(goal: string) {
+  const normalizedGoal = normalizeWorkbenchTaskIntentGoal(goal);
+  if (!normalizedGoal) {
+    return null;
+  }
+
+  for (const resolver of workbenchTaskIntentResolvers) {
+    if (resolver.patterns.some(pattern => pattern.test(normalizedGoal))) {
+      return resolver.command;
+    }
+  }
+
+  return null;
 }
 
 export function canRunWorkbenchTaskDirect(command: string) {
@@ -702,12 +748,11 @@ export function resolveWorkbenchTaskDraft({
   const normalizedGoal = goal.trim();
   const normalizedCommand = command.trim();
 
-  // Intent-first: a goal is enough to create a draft.
-  // If no explicit command, the goal itself is used as the underlying command
-  // for the current terminal-based runtime. Eventually the Agent will decide
-  // the command; for now this keeps the happy path working without forcing
-  // users to fill in raw shell commands.
-  const effectiveCommand = normalizedCommand || normalizedGoal;
+  // Intent-first: the main task box produces a draft only when we can map the
+  // task text to a predictable command. Raw shell remains an explicit advanced
+  // override instead of the default happy path.
+  const effectiveCommand =
+    normalizedCommand || resolveWorkbenchTaskIntentCommand(normalizedGoal);
   if (!effectiveCommand) {
     return null;
   }

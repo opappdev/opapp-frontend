@@ -548,12 +548,13 @@ export const zhCNApp = {
     run: {
       gitStatusTitle: 'Git Status',
       gitStatusGoal: '检查工作区状态',
+      recentChangesGoal: '查看最近的改动',
       writeApprovalTitle: 'Tracked Approval Fixture Update',
       writeApprovalGoal: '请求修改 tracked approval smoke fixture 并生成 diff 预览',
     },
     taskDraft: {
       goalPlaceholder: '描述你的任务，例如：检查工作区状态、查看最近的改动',
-      commandPlaceholder: '高级：补充底层 shell 命令',
+      commandPlaceholder: '高级：覆盖底层 shell 命令',
       directMode: '直接运行',
       approvalMode: '先请求审批',
       chooseWorkspaceAction: '选择工作区',
@@ -573,7 +574,10 @@ export const zhCNApp = {
       contextUsagePending: '上下文占用：暂未接入',
       localRuntimeLabel: 'Local',
       commandMissing:
-        '输入任务目标后即可启动；如需补充底层命令，可展开“高级命令”。',
+        '当前任务还没有映射到底层命令。请使用已支持的任务描述，或展开“高级命令”填写底层 shell 命令。',
+      intentResolverHintTitle: '当前任务还未映射到底层命令',
+      intentResolverHintDetail:
+        '主输入现在默认识别少量可预测任务，例如“检查工作区状态”和“查看最近的改动”。如需运行其他命令，请展开“高级命令”。',
       directModeBlocked: '当前命令不属于只读直跑范围，请切换到审批模式后再执行。',
       directModeGuardTitle: '当前命令需要审批',
       directModeGuardDetail:

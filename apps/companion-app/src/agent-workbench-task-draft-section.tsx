@@ -253,9 +253,27 @@ export function WorkbenchTaskDraftSection({
   const primaryActionForegroundColor =
     primaryActionBusy || !primaryActionDisabled ? palette.canvas : palette.inkSoft;
   const compactHoverMode = Platform.OS === 'windows';
+  const showIntentResolverHint =
+    draftGoal.trim().length > 0 &&
+    draftCommand.trim().length === 0 &&
+    draftTask === null;
 
   return (
     <View style={screenStyles.composerBar}>
+      {showIntentResolverHint ? (
+        <InfoPanel
+          title={appI18n.agentWorkbench.taskDraft.intentResolverHintTitle}
+          tone='accent'>
+          <Text
+            style={[
+              screenStyles.sectionDescription,
+              {color: palette.inkMuted},
+            ]}>
+            {appI18n.agentWorkbench.taskDraft.intentResolverHintDetail}
+          </Text>
+        </InfoPanel>
+      ) : null}
+
       {!draftRequiresApproval && draftTask && !draftTask.canRunDirect ? (
         <InfoPanel
           title={appI18n.agentWorkbench.taskDraft.directModeGuardTitle}

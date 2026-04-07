@@ -330,6 +330,42 @@ export function run() {
   );
   assert.deepEqual(
     resolveWorkbenchTaskDraft({
+      goal: '检查工作区状态',
+      command: '   ',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+    }),
+    {
+      title: '检查工作区状态',
+      goal: '检查工作区状态',
+      command: 'git status',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+      canRunDirect: true,
+      approvalTitle: undefined,
+      approvalDetails: undefined,
+    },
+  );
+  assert.deepEqual(
+    resolveWorkbenchTaskDraft({
+      goal: '查看最近的改动',
+      command: '',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+    }),
+    {
+      title: '查看最近的改动',
+      goal: '查看最近的改动',
+      command: 'git diff --stat',
+      cwd: 'opapp-frontend',
+      requiresApproval: false,
+      canRunDirect: true,
+      approvalTitle: undefined,
+      approvalDetails: undefined,
+    },
+  );
+  assert.deepEqual(
+    resolveWorkbenchTaskDraft({
       goal: '',
       command: 'Set-Content note.txt ready',
       cwd: '',
@@ -391,25 +427,15 @@ export function run() {
       approvalDetails: undefined,
     },
   );
-  // Intent-first: goal alone is sufficient to create a draft.
-  // '空命令' as goal becomes the effective command.
-  assert.deepEqual(
+  // Goal-only drafts now require a predictable task-to-command mapping.
+  assert.equal(
     resolveWorkbenchTaskDraft({
       goal: '空命令',
       command: '   ',
       cwd: 'opapp-frontend',
       requiresApproval: false,
     }),
-    {
-      title: '空命令',
-      goal: '空命令',
-      command: '空命令',
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-      canRunDirect: false,
-      approvalTitle: undefined,
-      approvalDetails: undefined,
-    },
+    null,
   );
   // Both empty → null
   assert.equal(

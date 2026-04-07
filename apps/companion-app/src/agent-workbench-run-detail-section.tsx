@@ -288,53 +288,110 @@ export function WorkbenchRunDetailSection({
         title={appI18n.agentWorkbench.labels.runDetailExpanderTitle ?? 'Details'}
         defaultExpanded={false}>
         <View style={screenStyles.expanderBody}>
-          {/* IDs on a single line */}
-          <Text
-            style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
-            numberOfLines={1}>
-            {selectedRunDocument.run.threadId} · {selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
-          </Text>
-          {selectedRunDocument.run.resumedFromRunId ? (
-            <Text
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
-              numberOfLines={1}>
-              ↳ {selectedRunDocument.run.resumedFromRunId}
+          <View style={screenStyles.runDetailGrid}>
+            <View style={screenStyles.runDetailField}>
+              <Text style={screenStyles.runDetailFieldLabel}>
+                {appI18n.agentWorkbench.labels.threadId}
+              </Text>
+              <Text
+                style={screenStyles.runDetailFieldValue}
+                numberOfLines={1}>
+                {selectedRunDocument.run.threadId}
+              </Text>
+            </View>
+            <View style={screenStyles.runDetailField}>
+              <Text style={screenStyles.runDetailFieldLabel}>
+                {appI18n.agentWorkbench.labels.sessionId}
+              </Text>
+              <Text
+                style={screenStyles.runDetailFieldValue}
+                numberOfLines={1}>
+                {selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
+              </Text>
+            </View>
+            {selectedRunDocument.run.resumedFromRunId ? (
+              <View style={screenStyles.runDetailField}>
+                <Text style={screenStyles.runDetailFieldLabel}>
+                  {appI18n.agentWorkbench.labels.resumedFromRunId}
+                </Text>
+                <Text
+                  style={screenStyles.runDetailFieldValue}
+                  numberOfLines={1}>
+                  {selectedRunDocument.run.resumedFromRunId}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={screenStyles.runDetailCommandShell}>
+            <Text style={screenStyles.runDetailFieldLabel}>
+              {appI18n.agentWorkbench.labels.command}
             </Text>
-          ) : null}
-          {/* Command + cwd */}
-          <View style={[screenStyles.transcriptTerminal, {marginVertical: 0}]}>
             <Text
-              style={[screenStyles.terminalText, {color: palette.ink, fontFamily: 'Consolas'}]}
+              style={[
+                screenStyles.terminalText,
+                screenStyles.runDetailCommandText,
+              ]}
               numberOfLines={2}>
               $ {selectedRunRequest?.command ?? appI18n.common.unknown}
             </Text>
             <Text
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft, marginTop: appSpacing.xxs}]}
+              style={screenStyles.runDetailCommandMeta}
               numberOfLines={1}>
-              {selectedRunRequest?.cwd ?? appI18n.agentWorkbench.workspace.rootLabel}
+              {appI18n.agentWorkbench.labels.cwd} ·{' '}
+              {selectedRunRequest?.cwd ??
+                appI18n.agentWorkbench.workspace.rootLabel}
             </Text>
           </View>
-          {selectedRunArtifactKind ? (
-            <Text
-              testID='agent-workbench.run.artifact-kind'
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
-              {resolveArtifactKindLabel(selectedRunArtifactKind)}
-            </Text>
-          ) : null}
-          {selectedRunArtifactHasStandaloneLabel ? (
-            <Text
-              testID='agent-workbench.run.artifact-label'
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
-              {selectedRunArtifactLabel ?? appI18n.common.unknown}
-            </Text>
-          ) : null}
-          {selectedRunArtifactPath ? (
-            <Text
-              testID='agent-workbench.run.artifact-path'
-              style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}
-              numberOfLines={1}>
-              {selectedRunArtifactPath}
-            </Text>
+
+          {selectedRunArtifactKind ||
+          selectedRunArtifactHasStandaloneLabel ||
+          selectedRunArtifactPath ? (
+            <View style={screenStyles.runDetailGrid}>
+              {selectedRunArtifactKind ? (
+                <View style={screenStyles.runDetailField}>
+                  <Text style={screenStyles.runDetailFieldLabel}>
+                    {appI18n.agentWorkbench.labels.runArtifactKind}
+                  </Text>
+                  <Text
+                    testID='agent-workbench.run.artifact-kind'
+                    style={screenStyles.runDetailFieldValue}
+                    numberOfLines={1}>
+                    {resolveArtifactKindLabel(selectedRunArtifactKind)}
+                  </Text>
+                </View>
+              ) : null}
+              {selectedRunArtifactHasStandaloneLabel ? (
+                <View style={screenStyles.runDetailField}>
+                  <Text style={screenStyles.runDetailFieldLabel}>
+                    {appI18n.agentWorkbench.labels.runArtifactLabel}
+                  </Text>
+                  <Text
+                    testID='agent-workbench.run.artifact-label'
+                    style={screenStyles.runDetailFieldValue}
+                    numberOfLines={1}>
+                    {selectedRunArtifactLabel ?? appI18n.common.unknown}
+                  </Text>
+                </View>
+              ) : null}
+              {selectedRunArtifactPath ? (
+                <View
+                  style={[
+                    screenStyles.runDetailField,
+                    screenStyles.runDetailFieldWide,
+                  ]}>
+                  <Text style={screenStyles.runDetailFieldLabel}>
+                    {appI18n.agentWorkbench.labels.runArtifactPath}
+                  </Text>
+                  <Text
+                    testID='agent-workbench.run.artifact-path'
+                    style={screenStyles.runDetailFieldValue}
+                    numberOfLines={2}>
+                    {selectedRunArtifactPath}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           ) : null}
         </View>
       </Expander>

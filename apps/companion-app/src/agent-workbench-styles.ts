@@ -466,6 +466,52 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.sm2,
       paddingTop: appSpacing.xxs,
     },
+    runDetailGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: appSpacing.sm2,
+    },
+    runDetailField: {
+      minWidth: 150,
+      flexGrow: 1,
+      gap: 4,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.border,
+      borderRadius: workbenchRadius.row,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.sm,
+    },
+    runDetailFieldWide: {
+      minWidth: 220,
+    },
+    runDetailFieldLabel: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    runDetailFieldValue: {
+      ...appTypography.caption,
+      color: palette.ink,
+      lineHeight: 18,
+    },
+    runDetailCommandShell: {
+      gap: appSpacing.xxs,
+      borderRadius: workbenchRadius.row,
+      backgroundColor: palette.canvasShade,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.sm,
+    },
+    runDetailCommandText: {
+      color: palette.ink,
+      fontFamily: terminalFontFamily,
+    },
+    runDetailCommandMeta: {
+      ...appTypography.caption,
+      color: palette.inkSoft,
+      lineHeight: 18,
+    },
 
     /* ── Terminal / code output ────────────────────────── */
     terminalBox: {

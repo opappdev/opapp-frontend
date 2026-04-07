@@ -26,6 +26,14 @@ const sidebarWidth = 240;
 const detailPaneWidth = 320;
 
 export function createScreenStyles(palette: AppPalette) {
+  const workbenchRadius = {
+    surface: 12,
+    control: 10,
+    row: 8,
+    pill: appRadius.pill,
+    primaryAction: 20,
+  } as const;
+
   return StyleSheet.create({
     /* ── Screen chrome ────────────────────────────────── */
     screen: {
@@ -168,7 +176,7 @@ export function createScreenStyles(palette: AppPalette) {
     },
     sectionCardPrimary: {
       gap: appSpacing.md,
-      borderRadius: appRadius.compact,
+      borderRadius: workbenchRadius.surface,
       backgroundColor: palette.panel,
       paddingHorizontal: appSpacing.lg2,
       paddingVertical: appSpacing.lg,
@@ -204,7 +212,7 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.sm,
       paddingHorizontal: appSpacing.sm,
       paddingVertical: 6,
-      borderRadius: appRadius.badge,
+      borderRadius: workbenchRadius.row,
     },
     listRowActive: {
       backgroundColor: palette.panelEmphasis,
@@ -254,7 +262,7 @@ export function createScreenStyles(palette: AppPalette) {
       minWidth: 220,
       maxWidth: 280,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: appRadius.compact,
+      borderRadius: workbenchRadius.control,
       paddingVertical: 4,
       paddingHorizontal: 4,
       overflow: 'hidden',
@@ -283,7 +291,7 @@ export function createScreenStyles(palette: AppPalette) {
       width: '100%',
       minHeight: 40,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: appRadius.control,
+      borderRadius: workbenchRadius.control,
       justifyContent: 'center',
       paddingHorizontal: appSpacing.lg2,
     },
@@ -297,14 +305,14 @@ export function createScreenStyles(palette: AppPalette) {
       width: '100%',
       minHeight: 40,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: appRadius.control,
+      borderRadius: workbenchRadius.control,
       justifyContent: 'center',
       paddingHorizontal: appSpacing.lg2,
       paddingVertical: appSpacing.sm,
     },
     textInputMultilineShell: {
       minHeight: 56,
-      borderRadius: appRadius.control,
+      borderRadius: workbenchRadius.control,
       alignItems: 'stretch',
       justifyContent: 'flex-start',
       paddingVertical: appSpacing.sm,
@@ -327,7 +335,7 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: appSpacing.sm,
-      borderRadius: appRadius.badge,
+      borderRadius: workbenchRadius.row,
       paddingHorizontal: appSpacing.sm2,
       paddingVertical: appSpacing.xs,
     },
@@ -341,7 +349,7 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.sm,
       paddingVertical: appSpacing.sm2,
       paddingHorizontal: appSpacing.lg2,
-      borderRadius: appRadius.compact,
+      borderRadius: workbenchRadius.surface,
     },
     messageItemHeader: {
       flexDirection: 'row',
@@ -368,7 +376,7 @@ export function createScreenStyles(palette: AppPalette) {
     /* ── Tool invocation card ─────────────────────────── */
     toolCard: {
       gap: appSpacing.sm,
-      borderRadius: appRadius.compact,
+      borderRadius: workbenchRadius.surface,
       backgroundColor: palette.panel,
       paddingHorizontal: appSpacing.lg,
       paddingVertical: appSpacing.sm2,
@@ -402,7 +410,7 @@ export function createScreenStyles(palette: AppPalette) {
 
     /* ── Terminal / code output ────────────────────────── */
     terminalBox: {
-      borderRadius: appRadius.badge,
+      borderRadius: workbenchRadius.row,
       backgroundColor: palette.canvasShade,
       paddingHorizontal: appSpacing.lg,
       paddingVertical: appSpacing.sm2,
@@ -446,7 +454,7 @@ export function createScreenStyles(palette: AppPalette) {
     conversationEmptyTitle: {
       ...appTypography.title,
       color: palette.inkMuted,
-      opacity: 0.25,
+      opacity: 0.48,
       letterSpacing: -0.3,
     },
     conversationEmptyHint: {
@@ -455,7 +463,7 @@ export function createScreenStyles(palette: AppPalette) {
       textAlign: 'center',
       maxWidth: 340,
       lineHeight: 22,
-      opacity: 0.4,
+      opacity: 0.68,
     },
 
     /* ── Run actions inline row ───────────────────────── */
@@ -471,7 +479,7 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 0,
-      borderRadius: appRadius.pill,
+      borderRadius: workbenchRadius.pill,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: palette.border,
       overflow: 'hidden',
@@ -517,6 +525,23 @@ export function createScreenStyles(palette: AppPalette) {
       flexWrap: 'wrap',
       flexShrink: 1,
     },
+    composerPresetButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      minHeight: 30,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: workbenchRadius.pill,
+    },
+    composerPresetButtonPressed: {
+      opacity: 0.92,
+      transform: [{scale: 0.98}],
+    },
+    composerPresetButtonLabel: {
+      ...appTypography.captionStrong,
+    },
     composerInputRow: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -534,7 +559,7 @@ export function createScreenStyles(palette: AppPalette) {
       gap: 4,
       paddingHorizontal: appSpacing.sm2,
       paddingVertical: appSpacing.xs,
-      borderRadius: appRadius.pill,
+      borderRadius: workbenchRadius.pill,
       borderWidth: StyleSheet.hairlineWidth,
       minHeight: 30,
       maxWidth: '100%',
@@ -568,7 +593,7 @@ export function createScreenStyles(palette: AppPalette) {
     },
     composerShell: {
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: appRadius.panel,
+      borderRadius: workbenchRadius.surface,
       paddingHorizontal: appSpacing.lg2,
       paddingTop: appSpacing.sm2,
       paddingBottom: appSpacing.sm,
@@ -615,7 +640,7 @@ export function createScreenStyles(palette: AppPalette) {
     composerAdvancedPanel: {
       minHeight: 56,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: appRadius.control,
+      borderRadius: workbenchRadius.control,
       paddingHorizontal: appSpacing.lg2,
       paddingVertical: appSpacing.sm,
     },
@@ -648,11 +673,18 @@ export function createScreenStyles(palette: AppPalette) {
       ...appTypography.caption,
       textAlign: 'right',
       flexShrink: 1,
+      lineHeight: 18,
+    },
+    composerRuntimeMetaChip: {
+      maxWidth: 240,
+    },
+    composerRuntimeMetaChipLabel: {
+      flexShrink: 1,
     },
     composerPrimaryAction: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 40,
+      height: 40,
+      borderRadius: workbenchRadius.primaryAction,
       borderWidth: StyleSheet.hairlineWidth,
       alignItems: 'center',
       justifyContent: 'center',
@@ -671,7 +703,7 @@ export function createScreenStyles(palette: AppPalette) {
     },
     /** Inline terminal block within transcript */
     transcriptTerminal: {
-      borderRadius: appRadius.badge,
+      borderRadius: workbenchRadius.row,
       backgroundColor: palette.canvasShade,
       paddingHorizontal: appSpacing.lg,
       paddingVertical: appSpacing.sm,
@@ -685,7 +717,7 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.sm,
       paddingHorizontal: appSpacing.sm,
       paddingVertical: 6,
-      borderRadius: appRadius.badge,
+      borderRadius: workbenchRadius.row,
       backgroundColor: palette.panelEmphasis,
     },
     workspaceSelectorLabel: {
@@ -697,7 +729,7 @@ export function createScreenStyles(palette: AppPalette) {
     workspaceSetupCard: {
       gap: appSpacing.xs,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: appRadius.control,
+      borderRadius: workbenchRadius.control,
       paddingHorizontal: appSpacing.sm2,
       paddingVertical: appSpacing.sm,
     },
@@ -709,7 +741,7 @@ export const baseStyles = StyleSheet.create({
     flexGrow: 1,
     minWidth: 120,
     gap: 2,
-    borderRadius: appRadius.badge,
+    borderRadius: 8,
     paddingHorizontal: appSpacing.sm,
     paddingVertical: appSpacing.xs,
   },

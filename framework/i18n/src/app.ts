@@ -555,7 +555,7 @@ export const zhCNApp = {
     taskDraft: {
       goalPlaceholder:
         '描述你的任务、约束和期望结果；如需直接执行，请展开“高级命令”或使用快捷操作',
-      commandPlaceholder: '高级：覆盖底层 shell 命令',
+      commandPlaceholder: '高级：明确这次要执行的底层 shell 命令',
       directMode: '直接运行',
       approvalMode: '先请求审批',
       chooseWorkspaceAction: '选择工作区',
@@ -575,6 +575,11 @@ export const zhCNApp = {
       selectedWorkspacePrefix: '上下文 · ',
       contextUsagePending: '上下文占用：暂未接入',
       localRuntimeLabel: 'Local',
+      footerIdleHint: '先描述目标；需要确定性执行时，用快捷预设或展开高级命令。',
+      footerDirectReadyHint: '当前命令会按只读策略直接执行。',
+      footerApprovalReadyHint: '当前命令会先进入审批，批准后再执行。',
+      footerDirectBlockedHint: '当前命令超出只读范围；切到审批后才能启动。',
+      footerRunningHint: '当前 run 正在执行，可随时停止。',
       commandMissing:
         '当前还没有可执行命令。请展开“高级命令”填写底层 shell 命令，或使用上方快捷操作。',
       directModeBlocked: '当前命令不属于只读直跑范围，请切换到审批模式后再执行。',

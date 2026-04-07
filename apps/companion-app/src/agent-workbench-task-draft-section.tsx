@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {
-  Platform,
   Pressable,
+  type PressableStateCallbackType,
   Text,
   TextInput as RNTextInput,
   View,
@@ -10,7 +10,6 @@ import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
   Icon,
-  IconButton,
   InfoPanel,
   SegmentedControl,
   Spinner,
@@ -78,60 +77,56 @@ function StarterActionButton({
   disabled,
   active = false,
   onPress,
+  screenStyles,
 }: StarterActionButtonProps) {
-  const compactHoverMode = Platform.OS === 'windows';
-
-  if (compactHoverMode) {
-    return (
-      <IconButton
-        testID={testID}
-        label={label}
-        icon={icon}
-        disabled={disabled}
-        active={active}
-        onPress={onPress}
-        size='sm'
-        tone={active ? 'accent' : 'ghost'}
-      />
-    );
-  }
-
-  // Non-Windows: show icon + text without Tooltip wrapper
   const {palette} = useTheme();
+
   return (
     <Pressable
       testID={testID}
       accessibilityRole='button'
       accessibilityLabel={label}
+      accessibilityState={{disabled, selected: active}}
       onPress={onPress}
       disabled={disabled}
-      style={[
-        {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 4,
-          paddingHorizontal: 8,
-          paddingVertical: 6,
-          borderRadius: 999,
-          borderWidth: 1,
-          minHeight: 30,
-          backgroundColor: active ? palette.panelEmphasis : palette.canvasShade,
-          borderColor: active ? palette.accent : palette.border,
-        },
-        disabled ? {opacity: 0.45} : null,
-      ]}>
+      style={(state: PressableStateCallbackType & {
+        hovered?: boolean;
+        focused?: boolean;
+      }) => {
+        const hovered = state.hovered ?? false;
+        const focused = state.focused ?? false;
+        return [
+          screenStyles.composerPresetButton,
+          {
+            backgroundColor: active
+              ? palette.panelEmphasis
+              : hovered || focused
+                ? palette.panel
+                : palette.canvasShade,
+            borderColor: active
+              ? palette.accent
+              : hovered || focused
+                ? palette.borderStrong
+                : palette.border,
+          },
+          disabled ? {opacity: 0.45} : null,
+          state.pressed && !disabled
+            ? screenStyles.composerPresetButtonPressed
+            : null,
+        ];
+      }}>
       <Icon
         icon={icon}
         size={12}
-        color={active ? palette.accent : palette.inkSoft}
+        color={active ? palette.accent : palette.inkMuted}
       />
       <Text
-        style={{
-          fontSize: 12,
-          lineHeight: 16,
-          fontWeight: '600',
-          color: active ? palette.accent : palette.inkSoft,
-        }}>
+        style={[
+          screenStyles.composerPresetButtonLabel,
+          {
+            color: active ? palette.accent : palette.ink,
+          },
+        ]}>
         {label}
       </Text>
     </Pressable>
@@ -252,7 +247,15 @@ export function WorkbenchTaskDraftSection({
       : primaryActionTone;
   const primaryActionForegroundColor =
     primaryActionBusy || !primaryActionDisabled ? palette.canvas : palette.inkSoft;
-  const compactHoverMode = Platform.OS === 'windows';
+  const primaryActionHint = showStopAction
+    ? appI18n.agentWorkbench.taskDraft.footerRunningHint
+    : draftTask && !draftRequiresApproval && !draftTask.canRunDirect
+      ? appI18n.agentWorkbench.taskDraft.footerDirectBlockedHint
+      : canSubmit
+        ? draftRequiresApproval
+          ? appI18n.agentWorkbench.taskDraft.footerApprovalReadyHint
+          : appI18n.agentWorkbench.taskDraft.footerDirectReadyHint
+        : appI18n.agentWorkbench.taskDraft.footerIdleHint;
 
   return (
     <View style={screenStyles.composerBar}>
@@ -306,11 +309,11 @@ export function WorkbenchTaskDraftSection({
         </View>
       </View>
 
-      <View
-        style={[
-          screenStyles.composerShell,
-          {
-            borderColor: palette.border,
+        <View
+          style={[
+            screenStyles.composerShell,
+            {
+              borderColor: palette.border,
             backgroundColor: palette.panel,
           },
         ]}>
@@ -354,18 +357,16 @@ export function WorkbenchTaskDraftSection({
         />
 
         <View style={screenStyles.composerShellFooter}>
-          {!compactHoverMode ? (
-            <View style={screenStyles.composerShellFooterMeta}>
-              <Text
-                style={[
-                  screenStyles.composerRuntimeMeta,
-                  {color: palette.inkSoft},
-                ]}
-                numberOfLines={1}>
-                {primaryActionLabel}
-              </Text>
-            </View>
-          ) : null}
+          <View style={screenStyles.composerShellFooterMeta}>
+            <Text
+              style={[
+                screenStyles.composerRuntimeMeta,
+                {color: palette.inkSoft},
+              ]}
+              numberOfLines={2}>
+              {primaryActionHint}
+            </Text>
+          </View>
           <Tooltip text={primaryActionLabel}>
             <Pressable
               testID='agent-workbench.action.start-draft-task'
@@ -454,7 +455,7 @@ export function WorkbenchTaskDraftSection({
                 borderColor: palette.border,
               },
             ]}>
-            <Icon icon={iconCatalog.code} size={12} color={palette.inkSoft} />
+            <Icon icon={iconCatalog.terminal} size={12} color={palette.inkSoft} />
             <Text style={[screenStyles.composerChipLabel, {color: palette.inkSoft}]}>
               {appI18n.agentWorkbench.taskDraft.localRuntimeLabel}
             </Text>
@@ -551,14 +552,26 @@ export function WorkbenchTaskDraftSection({
           </Pressable>
         </View>
 
-        <Text
+        <View
           style={[
-            screenStyles.composerRuntimeMeta,
-            {color: palette.inkSoft},
-          ]}
-          numberOfLines={1}>
-          {appI18n.agentWorkbench.taskDraft.contextUsagePending}
-        </Text>
+            screenStyles.composerChip,
+            screenStyles.composerRuntimeMetaChip,
+            {
+              backgroundColor: palette.canvasShade,
+              borderColor: palette.border,
+            },
+          ]}>
+          <Icon icon={iconCatalog.info} size={12} color={palette.inkSoft} />
+          <Text
+            style={[
+              screenStyles.composerChipLabel,
+              screenStyles.composerRuntimeMetaChipLabel,
+              {color: palette.inkSoft},
+            ]}
+            numberOfLines={1}>
+            {appI18n.agentWorkbench.taskDraft.contextUsagePending}
+          </Text>
+        </View>
       </View>
 
       {showExecutionModePanel ? (

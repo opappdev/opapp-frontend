@@ -10,8 +10,6 @@ import {
 import {appI18n} from '@opapp/framework-i18n';
 import {useOpenSurface} from '@opapp/framework-windowing';
 import {
-  InfoPanel,
-  ActionButton,
   Toolbar,
   useTheme,
   appLayout,
@@ -127,23 +125,6 @@ export function AgentWorkbenchScreen() {
         </View>
       </Toolbar>
 
-      {/* ── Historical run banner ── */}
-      {state.viewingHistoricalRun && state.latestThreadRunDocument ? (
-        <View style={screenStyles.historicalBanner}>
-          <Text style={[screenStyles.infoText, {color: palette.inkMuted, flex: 1}]} numberOfLines={1}>
-            {appI18n.agentWorkbench.runHistory.viewingHistoricalDescription(
-              state.latestThreadRunDocument.run.runId,
-            )}
-          </Text>
-          <ActionButton
-            testID='agent-workbench.action.focus-latest-run'
-            label={appI18n.agentWorkbench.actions.focusLatestRun}
-            onPress={state.handleFocusLatestRun}
-            tone='ghost'
-          />
-        </View>
-      ) : null}
-
       {/* ── Layout: sidebar (threads-first) | conversation | contextual detail ── */}
       <View
         style={[
@@ -201,30 +182,45 @@ export function AgentWorkbenchScreen() {
           ]}>
           <ScrollView contentContainerStyle={screenStyles.mainPaneInner}>
             {inlineStatusMessage ? (
-              <InfoPanel
-                title={appI18n.agentWorkbench.feedback.title}
-                tone={
+              <View
+                style={[
+                  screenStyles.inlineStatusNotice,
                   inlineStatusTone === 'danger'
-                    ? 'danger'
+                    ? screenStyles.inlineStatusNoticeDanger
                     : inlineStatusTone === 'support'
-                      ? 'accent'
-                      : 'neutral'
-                }
-                style={screenStyles.inlineStatusPanel}>
+                      ? screenStyles.inlineStatusNoticeSupport
+                      : screenStyles.inlineStatusNoticeNeutral,
+                ]}>
                 <Text
-                  testID='agent-workbench.status.message'
                   style={[
-                    screenStyles.infoText,
+                    screenStyles.inlineStatusNoticeLabel,
                     {
                       color:
                         inlineStatusTone === 'danger'
                           ? palette.errorRed
-                          : palette.inkMuted,
+                          : inlineStatusTone === 'support'
+                            ? palette.support
+                            : palette.inkSoft,
+                    },
+                  ]}>
+                  {appI18n.agentWorkbench.feedback.title}
+                </Text>
+                <Text
+                  testID='agent-workbench.status.message'
+                  style={[
+                    screenStyles.inlineStatusNoticeMessage,
+                    {
+                      color:
+                        inlineStatusTone === 'danger'
+                          ? palette.errorRed
+                          : inlineStatusTone === 'support'
+                            ? palette.ink
+                            : palette.inkMuted,
                     },
                   ]}>
                   {inlineStatusMessage}
                 </Text>
-              </InfoPanel>
+              </View>
             ) : null}
 
             {/* Run header + inline actions */}
@@ -248,6 +244,7 @@ export function AgentWorkbenchScreen() {
               retryBusy={state.retryBusy}
               approvalBusy={state.approvalBusy}
               viewingHistoricalRun={state.viewingHistoricalRun}
+              latestThreadRunDocument={state.latestThreadRunDocument}
               previousThreadRunDocument={state.previousThreadRunDocument}
               selectedCwd={state.selectedCwd}
               onRetry={() => {
@@ -266,6 +263,7 @@ export function AgentWorkbenchScreen() {
                 void state.handleRejectSelectedRun();
               }}
               onViewPreviousRun={state.handleViewPreviousRun}
+              onFocusLatestRun={state.handleFocusLatestRun}
               onBrowseWorkspaceRoot={() => {
                 void state.handleBrowseDirectory('');
               }}

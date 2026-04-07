@@ -122,8 +122,34 @@ export function createScreenStyles(palette: AppPalette) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: palette.border,
     },
-    inlineStatusPanel: {
+    inlineStatusNotice: {
+      gap: appSpacing.xxs,
       marginBottom: appSpacing.xs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: workbenchRadius.control,
+      paddingHorizontal: appSpacing.sm2,
+      paddingVertical: appSpacing.sm,
+    },
+    inlineStatusNoticeNeutral: {
+      borderColor: palette.border,
+      backgroundColor: palette.panel,
+    },
+    inlineStatusNoticeSupport: {
+      borderColor: palette.support,
+      backgroundColor: palette.supportSoft,
+    },
+    inlineStatusNoticeDanger: {
+      borderColor: palette.errorRed,
+      backgroundColor: palette.panel,
+    },
+    inlineStatusNoticeLabel: {
+      ...appTypography.label,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+    },
+    inlineStatusNoticeMessage: {
+      ...appTypography.body,
+      lineHeight: 20,
     },
 
     /* ── 2+1 zone layout ──────────────────────────────── */
@@ -167,7 +193,7 @@ export function createScreenStyles(palette: AppPalette) {
       flex: 1,
       gap: appSpacing.sm,
       paddingHorizontal: 56,
-      paddingTop: appSpacing.lg,
+      paddingTop: appSpacing.md,
       paddingBottom: 32,
     },
 
@@ -463,18 +489,6 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.xs,
     },
 
-    /* ── Historical run banner ────────────────────────── */
-    historicalBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: appSpacing.md,
-      paddingHorizontal: 32,
-      paddingVertical: appSpacing.xs,
-      backgroundColor: palette.panel,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: palette.border,
-    },
-
     /* ── Conversation empty state ─────────────────────── */
     conversationEmpty: {
       alignSelf: 'stretch',
@@ -561,6 +575,35 @@ export function createScreenStyles(palette: AppPalette) {
       minWidth: 220,
       gap: appSpacing.xs,
     },
+    runHeaderContextRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.border,
+      borderRadius: workbenchRadius.row,
+      backgroundColor: palette.canvasShade,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
+    },
+    runHeaderContextCopy: {
+      flex: 1,
+      minWidth: 180,
+      gap: 2,
+    },
+    runHeaderContextLabel: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+    },
+    runHeaderContextMeta: {
+      ...appTypography.caption,
+      color: palette.inkMuted,
+      lineHeight: 18,
+    },
     runHeaderEyebrowRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -574,11 +617,29 @@ export function createScreenStyles(palette: AppPalette) {
     },
     runHeaderActionCluster: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'flex-end',
       gap: appSpacing.xs,
       flexWrap: 'wrap',
       maxWidth: '100%',
+    },
+    runHeaderContextActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+      paddingTop: 2,
+    },
+    runHeaderContextLink: {
+      alignSelf: 'flex-start',
+      paddingVertical: 2,
+    },
+    runHeaderContextLinkPressed: {
+      opacity: 0.72,
+    },
+    runHeaderContextLinkLabel: {
+      ...appTypography.captionStrong,
+      color: palette.accent,
     },
     runHeaderMetaRow: {
       flexDirection: 'row',

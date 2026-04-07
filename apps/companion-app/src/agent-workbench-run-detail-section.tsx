@@ -1,5 +1,5 @@
 import React from 'react';
-import {Text, View} from 'react-native';
+import {Pressable, Text, View} from 'react-native';
 import type {
   AgentApprovalTimelineEntry,
   AgentArtifactKind,
@@ -39,6 +39,7 @@ type WorkbenchRunDetailSectionProps = {
   retryBusy: boolean;
   approvalBusy: 'requesting' | 'approving' | 'rejecting' | null;
   viewingHistoricalRun: boolean;
+  latestThreadRunDocument: AgentRunDocument | null;
   previousThreadRunDocument: AgentRunDocument | null;
   selectedCwd: string;
   onRetry: () => void;
@@ -47,6 +48,7 @@ type WorkbenchRunDetailSectionProps = {
   onApprove: () => void;
   onReject: () => void;
   onViewPreviousRun: () => void;
+  onFocusLatestRun: () => void;
   onBrowseWorkspaceRoot: () => void;
   screenStyles: ReturnType<typeof createScreenStyles>;
 };
@@ -65,6 +67,7 @@ export function WorkbenchRunDetailSection({
   retryBusy,
   approvalBusy,
   viewingHistoricalRun,
+  latestThreadRunDocument,
   previousThreadRunDocument,
   selectedCwd,
   onRetry,
@@ -73,6 +76,7 @@ export function WorkbenchRunDetailSection({
   onApprove,
   onReject,
   onViewPreviousRun,
+  onFocusLatestRun,
   onBrowseWorkspaceRoot,
   screenStyles,
 }: WorkbenchRunDetailSectionProps) {
@@ -84,6 +88,15 @@ export function WorkbenchRunDetailSection({
     appI18n.common.unknown;
   const workspacePath =
     selectedRunRequest?.cwd?.trim() || selectedCwd.trim() || null;
+  const showHistoricalContext =
+    viewingHistoricalRun && latestThreadRunDocument !== null;
+  const showContextActions =
+    (!viewingHistoricalRun && previousThreadRunDocument !== null) ||
+    selectedCwd.length > 0;
+  const showPrimaryActions =
+    canInspectSelectedRunArtifact ||
+    canRetrySelectedRun ||
+    canRestoreSelectedRunWorkspace;
 
   if (!selectedRunDocument) {
     return null;
@@ -118,84 +131,132 @@ export function WorkbenchRunDetailSection({
               numberOfLines={3}>
               {runHeadline}
             </Text>
+
+            {showHistoricalContext ? (
+              <View style={screenStyles.runHeaderContextRow}>
+                <View style={screenStyles.runHeaderContextCopy}>
+                  <Text style={screenStyles.runHeaderContextLabel}>
+                    {appI18n.agentWorkbench.runHistory.viewingHistoricalTitle}
+                  </Text>
+                  <Text
+                    style={screenStyles.runHeaderContextMeta}
+                    numberOfLines={1}>
+                    {appI18n.agentWorkbench.runHistory.latest(
+                      latestThreadRunDocument.run.runId,
+                    )}
+                  </Text>
+                </View>
+                <Pressable
+                  testID='agent-workbench.action.focus-latest-run'
+                  accessibilityRole='button'
+                  onPress={onFocusLatestRun}
+                  style={({pressed}) => [
+                    screenStyles.runHeaderContextLink,
+                    pressed ? screenStyles.runHeaderContextLinkPressed : null,
+                  ]}>
+                  <Text style={screenStyles.runHeaderContextLinkLabel}>
+                    {appI18n.agentWorkbench.actions.focusLatestRun}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            <View style={screenStyles.runHeaderMetaRow}>
+              <View style={screenStyles.runMetaChip}>
+                <Text
+                  testID='agent-workbench.run.run-id'
+                  style={screenStyles.runMetaChipLabel}
+                  numberOfLines={1}>
+                  {selectedRunDocument.run.runId}
+                </Text>
+              </View>
+              <View style={screenStyles.runMetaChip}>
+                <Icon icon={iconCatalog.clock} size={11} color={palette.inkSoft} />
+                <Text style={screenStyles.runMetaChipLabel}>
+                  {formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
+                </Text>
+              </View>
+              {workspacePath ? (
+                <View style={screenStyles.runMetaChip}>
+                  <Icon
+                    icon={iconCatalog.folder}
+                    size={11}
+                    color={palette.inkSoft}
+                  />
+                  <Text style={screenStyles.runMetaChipLabel} numberOfLines={1}>
+                    {workspacePath}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {showContextActions ? (
+              <View style={screenStyles.runHeaderContextActions}>
+                {!viewingHistoricalRun && previousThreadRunDocument ? (
+                  <Pressable
+                    testID='agent-workbench.action.view-previous-run'
+                    accessibilityRole='button'
+                    onPress={onViewPreviousRun}
+                    style={({pressed}) => [
+                      screenStyles.runHeaderContextLink,
+                      pressed ? screenStyles.runHeaderContextLinkPressed : null,
+                    ]}>
+                    <Text style={screenStyles.runHeaderContextLinkLabel}>
+                      {appI18n.agentWorkbench.actions.viewPreviousRun}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {selectedCwd ? (
+                  <Pressable
+                    testID='agent-workbench.action.browse-workspace-root'
+                    accessibilityRole='button'
+                    onPress={onBrowseWorkspaceRoot}
+                    style={({pressed}) => [
+                      screenStyles.runHeaderContextLink,
+                      pressed ? screenStyles.runHeaderContextLinkPressed : null,
+                    ]}>
+                    <Text style={screenStyles.runHeaderContextLinkLabel}>
+                      {appI18n.agentWorkbench.actions.browseWorkspaceRoot}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
           </View>
 
-          <View style={screenStyles.runHeaderActionCluster}>
-            {previousThreadRunDocument && !viewingHistoricalRun ? (
-              <ActionButton
-                testID='agent-workbench.action.view-previous-run'
-                label={appI18n.agentWorkbench.actions.viewPreviousRun}
-                onPress={onViewPreviousRun}
-                tone='ghost'
-              />
-            ) : null}
-            {selectedCwd ? (
-              <ActionButton
-                testID='agent-workbench.action.browse-workspace-root'
-                label={appI18n.agentWorkbench.actions.browseWorkspaceRoot}
-                onPress={onBrowseWorkspaceRoot}
-                tone='ghost'
-              />
-            ) : null}
-            {selectedRunRequest ? (
-              <>
-                {canInspectSelectedRunArtifact ? (
-                  <ActionButton
-                    testID='agent-workbench.action.inspect-run-artifact'
-                    label={appI18n.agentWorkbench.actions.inspectRunArtifact}
-                    onPress={onInspectArtifact}
-                    disabled={!canInspectSelectedRunArtifact}
-                    tone='ghost'
-                  />
-                ) : null}
-                {canRetrySelectedRun ? (
-                  <ActionButton
-                    testID='agent-workbench.action.retry-selected-run'
-                    label={
-                      retryBusy
-                        ? appI18n.agentWorkbench.actions.retryingRun
-                        : appI18n.agentWorkbench.actions.retryRun
-                    }
-                    onPress={onRetry}
-                    disabled={!canRetrySelectedRun}
-                    tone='ghost'
-                  />
-                ) : null}
-                {canRestoreSelectedRunWorkspace ? (
-                  <ActionButton
-                    testID='agent-workbench.action.restore-run-workspace'
-                    label={appI18n.agentWorkbench.actions.restoreRunWorkspace}
-                    onPress={onRestore}
-                    disabled={!canRestoreSelectedRunWorkspace}
-                    tone='ghost'
-                  />
-                ) : null}
-              </>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={screenStyles.runHeaderMetaRow}>
-          <View style={screenStyles.runMetaChip}>
-            <Text
-              testID='agent-workbench.run.run-id'
-              style={screenStyles.runMetaChipLabel}
-              numberOfLines={1}>
-              {selectedRunDocument.run.runId}
-            </Text>
-          </View>
-          <View style={screenStyles.runMetaChip}>
-            <Icon icon={iconCatalog.clock} size={11} color={palette.inkSoft} />
-            <Text style={screenStyles.runMetaChipLabel}>
-              {formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
-            </Text>
-          </View>
-          {workspacePath ? (
-            <View style={screenStyles.runMetaChip}>
-              <Icon icon={iconCatalog.folder} size={11} color={palette.inkSoft} />
-              <Text style={screenStyles.runMetaChipLabel} numberOfLines={1}>
-                {workspacePath}
-              </Text>
+          {selectedRunRequest && showPrimaryActions ? (
+            <View style={screenStyles.runHeaderActionCluster}>
+              {canInspectSelectedRunArtifact ? (
+                <ActionButton
+                  testID='agent-workbench.action.inspect-run-artifact'
+                  label={appI18n.agentWorkbench.actions.inspectRunArtifact}
+                  onPress={onInspectArtifact}
+                  disabled={!canInspectSelectedRunArtifact}
+                  tone='ghost'
+                />
+              ) : null}
+              {canRetrySelectedRun ? (
+                <ActionButton
+                  testID='agent-workbench.action.retry-selected-run'
+                  label={
+                    retryBusy
+                      ? appI18n.agentWorkbench.actions.retryingRun
+                      : appI18n.agentWorkbench.actions.retryRun
+                  }
+                  onPress={onRetry}
+                  disabled={!canRetrySelectedRun}
+                  tone='ghost'
+                />
+              ) : null}
+              {canRestoreSelectedRunWorkspace ? (
+                <ActionButton
+                  testID='agent-workbench.action.restore-run-workspace'
+                  label={appI18n.agentWorkbench.actions.restoreRunWorkspace}
+                  onPress={onRestore}
+                  disabled={!canRestoreSelectedRunWorkspace}
+                  tone='ghost'
+                />
+              ) : null}
             </View>
           ) : null}
         </View>

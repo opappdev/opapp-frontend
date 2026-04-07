@@ -699,7 +699,7 @@ export function useAgentWorkbenchState() {
 
     setDraftPresetId(null);
     setDraftGoal(appI18n.agentWorkbench.run.gitStatusGoal);
-    setDraftCommand('');
+    setDraftCommand('git status');
     setDraftRequiresApproval(false);
     setStatusTone('neutral');
     setStatusMessage(null);

@@ -335,92 +335,11 @@ export function run() {
       cwd: 'opapp-frontend',
       requiresApproval: false,
     }),
-    {
-      title: '检查工作区状态',
-      goal: '检查工作区状态',
-      command: 'git status',
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-      canRunDirect: true,
-      approvalTitle: undefined,
-      approvalDetails: undefined,
-    },
+    null,
   );
   assert.deepEqual(
     resolveWorkbenchTaskDraft({
       goal: '查看最近的改动',
-      command: '',
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-    }),
-    {
-      title: '查看最近的改动',
-      goal: '查看最近的改动',
-      command: 'git diff --stat',
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-      canRunDirect: true,
-      approvalTitle: undefined,
-      approvalDetails: undefined,
-    },
-  );
-  assert.deepEqual(
-    resolveWorkbenchTaskDraft({
-      goal: '请查看最近的改动',
-      command: '',
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-    }),
-    {
-      title: '请查看最近的改动',
-      goal: '请查看最近的改动',
-      command: 'git diff --stat',
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-      canRunDirect: true,
-      approvalTitle: undefined,
-      approvalDetails: undefined,
-    },
-  );
-  assert.deepEqual(
-    resolveWorkbenchTaskDraft({
-      goal: '搜索 agent-workbench',
-      command: '',
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-    }),
-    {
-      title: '搜索 agent-workbench',
-      goal: '搜索 agent-workbench',
-      command: "rg --line-number --hidden --smart-case -- 'agent-workbench'",
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-      canRunDirect: true,
-      approvalTitle: undefined,
-      approvalDetails: undefined,
-    },
-  );
-  assert.deepEqual(
-    resolveWorkbenchTaskDraft({
-      goal: '查看文件 package.json',
-      command: '',
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-    }),
-    {
-      title: '查看文件 package.json',
-      goal: '查看文件 package.json',
-      command: "Get-Content -LiteralPath 'package.json'",
-      cwd: 'opapp-frontend',
-      requiresApproval: false,
-      canRunDirect: true,
-      approvalTitle: undefined,
-      approvalDetails: undefined,
-    },
-  );
-  assert.equal(
-    resolveWorkbenchTaskDraft({
-      goal: '搜索 agent-workbench; Remove-Item tmp.txt',
       command: '',
       cwd: 'opapp-frontend',
       requiresApproval: false,

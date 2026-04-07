@@ -33,8 +33,8 @@ import {
   InlineMetric,
   MutedText,
   SectionCard,
-  SignalPill,
   Stack,
+  StatusBadge,
   useTheme,
   appRadius,
   appSpacing,
@@ -893,7 +893,7 @@ export function WindowCaptureLabScreen() {
                             </Text>
                             <View style={styles.matchBadgeRow}>
                               {isPinned ? (
-                                <SignalPill
+                                <StatusBadge
                                   label={
                                     appI18n.windowCaptureLab.status.candidatePinned
                                   }
@@ -902,7 +902,7 @@ export function WindowCaptureLabScreen() {
                                 />
                               ) : null}
                               {!isPinned && index === 0 ? (
-                                <SignalPill
+                                <StatusBadge
                                   label={
                                     appI18n.windowCaptureLab.status.candidateDefault
                                   }
@@ -911,7 +911,7 @@ export function WindowCaptureLabScreen() {
                                 />
                               ) : null}
                               {isCaptured ? (
-                                <SignalPill
+                                <StatusBadge
                                   label={
                                     appI18n.windowCaptureLab.status.candidateCaptured
                                   }
@@ -920,7 +920,7 @@ export function WindowCaptureLabScreen() {
                                 />
                               ) : null}
                               {match.isForeground ? (
-                                <SignalPill
+                                <StatusBadge
                                   label={
                                     appI18n.windowCaptureLab.status.candidateForeground
                                   }
@@ -929,7 +929,7 @@ export function WindowCaptureLabScreen() {
                                 />
                               ) : null}
                               {match.isMinimized ? (
-                                <SignalPill
+                                <StatusBadge
                                   label={
                                     appI18n.windowCaptureLab.status.candidateMinimized
                                   }
@@ -1032,7 +1032,7 @@ export function WindowCaptureLabScreen() {
               description={appI18n.windowCaptureLab.sections.resultDescription}>
               <Stack>
                 <View style={styles.metricRow}>
-                  <SignalPill
+                  <StatusBadge
                     testID='window-capture.status.host'
                     label={hostStatusLabel}
                     tone={hostStatusTone}

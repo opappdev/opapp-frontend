@@ -2,6 +2,8 @@
 
 `Design Spec v1` 是 capability UI 的统一视觉基线，当前由 `@opapp/ui-native-primitives` 提供并对外导出。
 
+根规范源以 [D:/code/opappdev/DESIGN.md](D:/code/opappdev/DESIGN.md) 为准；本文件描述 primitives 如何把该规范落成 token 与组件约束。
+
 ## 1. Token Baseline
 
 - Color:
@@ -17,6 +19,13 @@
   - 预构建主题对象：`lightTheme` / `darkTheme`
   - 所有组件已迁移到 `useTheme()` 消费 palette/spacing，不再硬编码 token
 - Radius: `appRadius`
+  - 默认桌面几何预算：
+    - `hero=8`
+    - `panel=8`
+    - `control=6`
+    - `compact=8`
+    - `badge=10`
+    - `pill=999` 仅保留给显式批准的 metadata capsule 例外，不作为默认控件语言
 - Spacing:
   - Standard 密度：`appSpacing`（`xxs`=4 / `xs`=6 / `sm`=8 / `md`=10 / `sm2`=12 / `lg`=14 / `lg2`=16 / `xl`=18 / `xl2`=20 / `xxl`=22）
   - Compact 密度：`appSpacingCompact`（所有值 -2px）
@@ -45,6 +54,7 @@
   - `compact`: `appLayout.breakpoints.compact`
   - `wide`: `appLayout.breakpoints.wide`
 - capability 页面必须通过 token 与 primitives 组件消费视觉规则，不在 capability 层新增未归档的视觉语义。
+- 顶部导航、toolbar action、context toggle 等桌面控件默认收敛到 `control` 几何家族，不再默认使用软圆 badge/pill 语言。
 
 ## 4. Capability Usage Contract
 

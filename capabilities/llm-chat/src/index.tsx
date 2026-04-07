@@ -17,8 +17,8 @@ import {
   InfoPanel,
   ProgressBar,
   SectionCard,
-  SignalPill,
   StatusBadge,
+  appRadius,
   useTheme,
 } from '@opapp/ui-native-primitives';
 import {
@@ -327,12 +327,9 @@ export function LlmChatScreen() {
           },
         ]}>
         <View style={[styles.heroTopline, {gap: spacing.sm}]}>
-          <SignalPill
-            label={appI18n.llmChat.eyebrow}
-            tone='accent'
-            emphasis='soft'
-            size='sm'
-          />
+          <Text style={[styles.heroEyebrow, {color: palette.accent}]}>
+            {appI18n.llmChat.eyebrow}
+          </Text>
           <StatusBadge
             label={
               isStreaming
@@ -517,13 +514,19 @@ const styles = StyleSheet.create({
   },
   hero: {
     borderWidth: 1,
-    borderRadius: 24,
+    borderRadius: appRadius.panel,
   },
   heroTopline: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
+  },
+  heroEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   heroTitle: {
     fontSize: 28,
@@ -558,7 +561,7 @@ const styles = StyleSheet.create({
   },
   fieldShell: {
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: appRadius.control,
   },
   fieldInput: {
     paddingHorizontal: 14,
@@ -579,7 +582,7 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: appRadius.panel,
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 10,
@@ -594,7 +597,7 @@ const styles = StyleSheet.create({
   },
   composerShell: {
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: appRadius.panel,
     minHeight: 132,
   },
   composerInput: {

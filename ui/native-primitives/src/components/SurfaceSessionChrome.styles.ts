@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { appFontFamily, appLayout } from '../tokens';
+import { appFontFamily, appLayout, appRadius } from '../tokens';
 
 const styles = StyleSheet.create({
   surfaceHostChrome: {
@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       alignItems: 'stretch',
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: appRadius.panel,
       overflow: 'hidden',
     },
   surfaceTabBody: {

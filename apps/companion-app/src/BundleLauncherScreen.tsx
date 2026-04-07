@@ -29,8 +29,8 @@ import {
   AppFrame,
   ChoiceChip,
   MutedText,
-  SignalPill,
   Stack,
+  StatusBadge,
   useTheme,
   appRadius,
   appSpacing,
@@ -415,15 +415,17 @@ function DisclosureSection({
           <Text style={{color: palette.ink, ...appTypography.bodyStrong}}>{title}</Text>
           <Text style={{color: palette.inkMuted, ...appTypography.caption}}>{description}</Text>
         </View>
-        <SignalPill
-          label={
-            expanded
-              ? appI18n.bundleLauncher.details.actions.collapse
-              : appI18n.bundleLauncher.details.actions.expand
-          }
-          tone={expanded ? 'accent' : 'neutral'}
-          size="sm"
-        />
+        <Text
+          style={[
+            {
+              color: expanded ? palette.accent : palette.inkSoft,
+              ...appTypography.captionStrong,
+            },
+          ]}>
+          {expanded
+            ? appI18n.bundleLauncher.details.actions.collapse
+            : appI18n.bundleLauncher.details.actions.expand}
+        </Text>
       </Pressable>
       {expanded ? <View style={{gap: appSpacing.md}}>{children}</View> : null}
     </View>
@@ -889,7 +891,7 @@ export function BundleLauncherScreen() {
                 </Text>
               </View>
               <View style={styles.serviceActions}>
-                <SignalPill
+                <StatusBadge
                   testID='bundle-launcher.service.status'
                   label={servicePresentation.label}
                   tone={servicePresentation.tone}
@@ -994,7 +996,7 @@ export function BundleLauncherScreen() {
                                   <View style={styles.appMetaHeader}>
                                     <Text style={styles.appName}>{entry.displayName}</Text>
                                     {entry.isDefaultStartupApp ? (
-                                      <SignalPill
+                                      <StatusBadge
                                         label={appI18n.bundleLauncher.library.defaultStartup}
                                         tone="accent"
                                         size="sm"
@@ -1007,7 +1009,7 @@ export function BundleLauncherScreen() {
 
                               <View style={styles.appRowTrailing}>
                                 <View style={styles.appRowSummary}>
-                                  <SignalPill
+                                  <StatusBadge
                                     label={entry.stateLabel}
                                     tone={entry.stateTone}
                                     size="sm"
@@ -1072,7 +1074,7 @@ export function BundleLauncherScreen() {
                           {selectedEntry.subtitle}
                         </Text>
                       </View>
-                      <SignalPill
+                      <StatusBadge
                         label={selectedEntry.stateLabel}
                         tone={selectedEntry.stateTone}
                         size="sm"
@@ -1391,7 +1393,7 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
   appIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: appRadius.panel,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -32,7 +32,6 @@ import {
   InlineMetric,
   MutedText,
   SectionCard,
-  SignalPill,
   Stack,
   StatusBadge,
   useTheme,
@@ -499,17 +498,7 @@ export function ViewShotLabScreen() {
                     </View>
                   </View>
                   <View style={styles.captureSignalRow}>
-                    <SignalPill
-                      label={`${appI18n.viewShotLab.status.sampleSeed} ${String(sampleSeed).padStart(2, '0')}`}
-                      tone="accent"
-                      size="sm"
-                    />
-                    <SignalPill
-                      label={`${appI18n.viewShotLab.status.captureCount} ${captureCount}`}
-                      tone="support"
-                      size="sm"
-                    />
-                    <SignalPill
+                    <StatusBadge
                       label={
                         hostBridgeReady
                           ? appI18n.viewShotLab.sampleCard.hostBridgeReady
@@ -626,8 +615,8 @@ export function ViewShotLabScreen() {
               title={appI18n.viewShotLab.sections.resultTitle}
               description={appI18n.viewShotLab.sections.resultDescription}>
               <View style={styles.resultStatusRow}>
-                <SignalPill testID='view-shot.status.host' label={hostStatusLabel} tone={hostStatusTone} size="sm" />
-                <SignalPill
+                <StatusBadge testID='view-shot.status.host' label={hostStatusLabel} tone={hostStatusTone} size="sm" />
+                <StatusBadge
                   testID='view-shot.status.tmpfile'
                   label={
                     managedTmpfile

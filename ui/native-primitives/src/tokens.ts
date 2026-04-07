@@ -128,13 +128,17 @@ export const appPalette = lightPalette;
 
 // ---------------------------------------------------------------------------
 //  Radius
+//  Desktop-first geometry budget:
+//  - controls stay tight
+//  - panels stay structured
+//  - fully pill-shaped geometry is reserved for explicit metadata exceptions
 // ---------------------------------------------------------------------------
 
 export const appRadius = {
-  hero: 20,
-  panel: 18,
-  control: 14,
-  compact: 12,
+  hero: 8,
+  panel: 8,
+  control: 6,
+  compact: 8,
   badge: 10,
   pill: 999,
 } as const;
@@ -485,36 +489,44 @@ export const appTonePalette = lightTonePalette;
 export const appComponentContractsV1 = {
   AppFrame: {
     usage: 'Capability page root shell with shared hero/eyebrow/title layout.',
+    geometry: 'Window-anchored shell with tight structural corners, not a floating hero card.',
     avoid: 'Nested card containers and list item wrappers.',
   },
   SectionCard: {
     usage: 'Chunked content sections inside capability surfaces.',
+    geometry: 'Secondary panel surface that follows the panel-radius family.',
     avoid: 'Per-row cells and clickable list item wrappers.',
   },
   ChoiceChip: {
     usage: 'Mutually exclusive or toggle-style option selection.',
+    geometry: 'Interactive control-family geometry, not a badge or pill.',
     avoid: 'Primary CTA actions and free-text status rendering.',
   },
   ActionButton: {
     usage: 'Command actions (submit/open/switch/apply/reset).',
+    geometry: 'Tight desktop command button; never use pill geometry for primary commands.',
     avoid: 'Passive status display and filter toggles.',
   },
   StatusBadge: {
     usage: 'Compact, non-interactive status/tone labels.',
+    geometry: 'Compact label geometry only; short metadata, not controls.',
     avoid: 'Long-form copy and actionable buttons.',
   },
   SignalPill: {
     usage:
       'Contextual summary signals inside rails, wrap rows, and tactical metadata clusters.',
-    avoid: 'Primary status headlines and actionable buttons.',
+    geometry: 'Reserved metadata capsule; exception surface, not the default control language.',
+    avoid: 'Primary status headlines, navigation, and actionable buttons.',
   },
   TimelineStep: {
     usage:
       'Sequential plan or walkthrough steps with a marker, title, description, and optional supporting body.',
+    geometry: 'Structured step surface that follows the standard control/panel radius budget.',
     avoid: 'Dense table rows and primary action button groups.',
   },
   FilterChip: {
     usage: 'Lightweight filter/scope toggles inside filter rails.',
+    geometry: 'Context-control family geometry aligned with other desktop toggles.',
     avoid: 'Primary actions and multi-line descriptive cards.',
   },
   Divider: {
@@ -534,10 +546,12 @@ export const appComponentContractsV1 = {
   },
   Expander: {
     usage: 'Collapsible group header with keyboard-accessible toggle.',
+    geometry: 'Control-family header shell, not a decorative card wrapper.',
     avoid: 'Non-collapsible section titles and deeply nested accordions.',
   },
   Toolbar: {
     usage: 'Horizontal page-level or section-level command bar.',
+    geometry: 'Structured command rail with tight control-family corners.',
     avoid: 'Navigation tabs and inline content actions.',
   },
   ProgressBar: {
@@ -546,6 +560,7 @@ export const appComponentContractsV1 = {
   },
   TextInput: {
     usage: 'Search/filter text entry with focus ring and clear action.',
+    geometry: 'Desktop text-entry field aligned to the control family.',
     avoid: 'Multi-line rich text editing.',
   },
 } as const;

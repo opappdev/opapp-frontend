@@ -8,7 +8,6 @@ import {appI18n} from '@opapp/framework-i18n';
 import {
   Expander,
   Icon,
-  SignalPill,
   StatusBadge,
   useTheme,
   appSpacing,
@@ -347,7 +346,7 @@ export function WorkbenchTimelineSection({
               title={resolveTimelineEntryTitle(entry)}
               defaultExpanded={false}
               trailing={
-                <SignalPill
+                <StatusBadge
                   label={resolveTimelineEntryTrailingLabel(entry)}
                   tone={resolveTimelineEntryTone(entry)}
                   size='sm'

@@ -27,11 +27,10 @@ const detailPaneWidth = 320;
 
 export function createScreenStyles(palette: AppPalette) {
   const workbenchRadius = {
-    surface: 12,
-    control: 10,
-    row: 8,
-    pill: appRadius.pill,
-    primaryAction: 20,
+    surface: appRadius.panel,
+    control: appRadius.control,
+    row: appRadius.compact,
+    primaryAction: appRadius.compact,
   } as const;
 
   return StyleSheet.create({
@@ -521,7 +520,7 @@ export function createScreenStyles(palette: AppPalette) {
       width: 22,
       minWidth: 22,
       height: 22,
-      borderRadius: 11,
+      borderRadius: workbenchRadius.control,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: palette.borderStrong,
       alignItems: 'center',
@@ -596,7 +595,7 @@ export function createScreenStyles(palette: AppPalette) {
       paddingHorizontal: appSpacing.sm,
       paddingVertical: 4,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: workbenchRadius.pill,
+      borderRadius: workbenchRadius.row,
       borderColor: palette.border,
       backgroundColor: palette.canvasShade,
     },
@@ -611,7 +610,7 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 0,
-      borderRadius: workbenchRadius.pill,
+      borderRadius: workbenchRadius.control,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: palette.border,
       overflow: 'hidden',
@@ -665,7 +664,7 @@ export function createScreenStyles(palette: AppPalette) {
       paddingHorizontal: appSpacing.sm,
       paddingVertical: appSpacing.xs,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: workbenchRadius.pill,
+      borderRadius: workbenchRadius.control,
     },
     composerPresetButtonPressed: {
       opacity: 0.92,
@@ -691,7 +690,7 @@ export function createScreenStyles(palette: AppPalette) {
       gap: 4,
       paddingHorizontal: appSpacing.sm2,
       paddingVertical: appSpacing.xs,
-      borderRadius: workbenchRadius.pill,
+      borderRadius: workbenchRadius.control,
       borderWidth: StyleSheet.hairlineWidth,
       minHeight: 30,
       maxWidth: '100%',
@@ -873,7 +872,7 @@ export const baseStyles = StyleSheet.create({
     flexGrow: 1,
     minWidth: 120,
     gap: 2,
-    borderRadius: 8,
+    borderRadius: appRadius.panel,
     paddingHorizontal: appSpacing.sm,
     paddingVertical: appSpacing.xs,
   },

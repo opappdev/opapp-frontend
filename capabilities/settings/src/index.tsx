@@ -25,8 +25,8 @@ import {
   ChoiceChip,
   MutedText,
   SectionCard,
-  SignalPill,
   Stack,
+  StatusBadge,
   useTheme,
   useDensityPreference,
   appRadius,
@@ -676,7 +676,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
         <View style={styles.footerHeader}>
           <Text style={styles.footerEyebrow}>{appI18n.settings.sections.footerEyebrow}</Text>
           <View style={styles.footerStatusRow}>
-            <SignalPill
+            <StatusBadge
               testID='settings.footer.signal'
               label={footerSignal.label}
               tone={footerSignal.tone}

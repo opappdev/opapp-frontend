@@ -5,7 +5,7 @@ const styles = StyleSheet.create({
   segmentedControl: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: appRadius.badge,
+      borderRadius: appRadius.control,
       borderWidth: 1,
       overflow: 'hidden',
       alignSelf: 'flex-start',
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
       gap: 4,
-      borderRadius: appRadius.badge - 2,
+      borderRadius: appRadius.control - 2,
       borderWidth: 1,
     },
   segmentedControlSegmentMd: {

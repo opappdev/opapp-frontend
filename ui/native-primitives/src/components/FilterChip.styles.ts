@@ -6,7 +6,7 @@ const styles = StyleSheet.create({
       minWidth: 64,
       height: 34,
       paddingHorizontal: 14,
-      borderRadius: appRadius.badge,
+      borderRadius: appRadius.control,
       borderWidth: 1,
       alignItems: 'center',
       justifyContent: 'center',

@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-04-08",
+  "defaultReplayCaseId": "terminal-bench.fix-permissions",
+  "notes": [
+    "Curated starter cases for OPApp agent-loop replay generation.",
+    "Task prompts are benchmark-derived paraphrases rather than copied full instructions.",
+    "The first batch stays close to terminal-first coding loops before heavier repo-level benchmarks."
+  ],
+  "suites": [
+    {
+      "id": "terminal-bench-core",
+      "name": "Terminal-Bench",
+      "dataset": "terminal-bench-core==0.1.1",
+      "sourceUrl": "https://www.tbench.ai/docs",
+      "selectionRationale": "Closest public benchmark match to OPApp's current local terminal-first coding loop."
+    },
+    {
+      "id": "swe-bench",
+      "name": "SWE-bench",
+      "dataset": "verified-or-lite",
+      "sourceUrl": "https://github.com/SWE-bench/SWE-bench",
+      "selectionRationale": "Useful for later repo-level issue resolution once the local coding loop is stable.",
+      "status": "deferred"
+    }
+  ],
+  "cases": [
+    {
+      "id": "terminal-bench.hello-world",
+      "suiteId": "terminal-bench-core",
+      "priority": "canary",
+      "taskId": "hello-world",
+      "difficulty": "easy",
+      "category": "file-operations",
+      "sourceUrl": "https://www.tbench.ai/benchmarks/terminal-bench-1/hello-world",
+      "sourceVerifiedOn": "2026-04-08",
+      "taskSummary": "Create one file with exact required contents and no extra side effects.",
+      "promptSeed": "当前目录需要新建一个 hello.txt 文件，写入精确内容并以换行结尾，不能额外创建其他文件或目录。",
+      "selectionRationale": "Suitable as a canary to verify the replay path and the most basic file-edit intent.",
+      "expectedSignals": [
+        "notice exact output constraints",
+        "avoid extra side effects",
+        "treat the task as a minimal edit loop"
+      ]
+    },
+    {
+      "id": "terminal-bench.fix-permissions",
+      "suiteId": "terminal-bench-core",
+      "priority": "core",
+      "taskId": "fix-permissions",
+      "difficulty": "easy",
+      "category": "system-administration",
+      "sourceUrl": "https://www.tbench.ai/tasks/fix-permissions",
+      "sourceVerifiedOn": "2026-04-08",
+      "taskSummary": "Diagnose why a shell script cannot run and repair it so the script executes successfully.",
+      "promptSeed": "当前目录里的 process_data.sh 无法运行。需要先找出阻塞原因，再修复它，让脚本能够成功执行。",
+      "selectionRationale": "A compact diagnose-fix-rerun loop that matches the workbench's terminal-first path well.",
+      "expectedSignals": [
+        "inspect script or file permissions",
+        "identify a concrete execution blocker",
+        "rerun the script after the fix"
+      ]
+    },
+    {
+      "id": "terminal-bench.processing-pipeline",
+      "suiteId": "terminal-bench-core",
+      "priority": "core",
+      "taskId": "processing-pipeline",
+      "difficulty": "easy",
+      "category": "system-administration",
+      "sourceUrl": "https://www.tbench.ai/benchmarks/terminal-bench-1/processing-pipeline",
+      "sourceVerifiedOn": "2026-04-08",
+      "taskSummary": "Repair a multi-step processing pipeline whose scripts and dependencies currently fail.",
+      "promptSeed": "当前目录有一条由多个脚本组成的数据处理流水线，但主入口 run_pipeline.sh 无法正常执行。需要查出相关脚本或依赖的问题并修好整条流水线。",
+      "selectionRationale": "Still simple, but more representative than a single-file task because it forces ordered troubleshooting.",
+      "expectedSignals": [
+        "inspect the entry script and dependent scripts",
+        "trace failures across multiple steps",
+        "run the full pipeline again after repairs"
+      ]
+    },
+    {
+      "id": "terminal-bench.modernize-fortran-build",
+      "suiteId": "terminal-bench-core",
+      "priority": "stretch",
+      "taskId": "modernize-fortran-build",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "sourceUrl": "https://www.tbench.ai/registry/terminal-bench-core/head/modernize-fortran-build",
+      "sourceVerifiedOn": "2026-04-08",
+      "taskSummary": "Update an older Fortran build flow to use gfortran, then compile and run the target program.",
+      "promptSeed": "需要把一个 Fortran 项目的构建流程改成使用 gfortran，修正 Makefile 后完成编译并执行 test_program，同时不能改动生成的 output.txt。",
+      "selectionRationale": "Starts to exercise edit-build-run reasoning without jumping all the way to a large repository issue.",
+      "expectedSignals": [
+        "inspect and modify the build file",
+        "compile with the new toolchain",
+        "run the built program without corrupting outputs"
+      ]
+    },
+    {
+      "id": "terminal-bench.fix-git",
+      "suiteId": "terminal-bench-core",
+      "priority": "stretch",
+      "taskId": "fix-git",
+      "difficulty": "easy",
+      "category": "version-control",
+      "sourceUrl": "https://www.tbench.ai/tasks/fix-git",
+      "sourceVerifiedOn": "2026-04-08",
+      "taskSummary": "Recover lost local changes after a branch switch and merge them back into the main branch.",
+      "promptSeed": "用户在个人站点仓库里做过修改，但切回主分支后找不到这些改动了。需要先定位丢失改动，再把它们合并回主分支。",
+      "selectionRationale": "Useful once we want baseline examples that involve git inspection and recovery rather than only file editing.",
+      "expectedSignals": [
+        "inspect branch and reflog or stash state",
+        "recover the missing changes safely",
+        "merge them into the target branch"
+      ]
+    },
+    {
+      "id": "terminal-bench.grid-pattern-transform",
+      "suiteId": "terminal-bench-core",
+      "priority": "stretch",
+      "taskId": "grid-pattern-transform",
+      "difficulty": "easy",
+      "category": "software-engineering",
+      "sourceUrl": "https://www.tbench.ai/benchmarks/terminal-bench-1/grid-pattern-transform",
+      "sourceVerifiedOn": "2026-04-08",
+      "taskSummary": "Implement a small Python solver function to transform a grid pattern and satisfy the test script.",
+      "promptSeed": "需要创建一个 Python 模块并实现 solve 函数，把 2x2 输入网格按给定规律变换成 6x6 输出网格，并通过测试脚本验证。",
+      "selectionRationale": "Keeps one pure coding example in the starter pack without requiring a large repository context.",
+      "expectedSignals": [
+        "inspect the provided examples",
+        "implement the solver function",
+        "run the test harness"
+      ]
+    }
+  ]
+}

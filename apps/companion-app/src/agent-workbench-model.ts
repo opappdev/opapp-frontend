@@ -380,26 +380,136 @@ const directGitReadonlySubcommands = new Set([
   'status',
 ]);
 
-type WorkbenchTaskIntentResolver = {
-  command: string;
-  patterns: RegExp[];
+type WorkbenchStarterTaskCatalogEntry = {
+  id: string;
+  resolve: (normalizedGoal: string) => string | null;
 };
 
-const workbenchTaskIntentResolvers: readonly WorkbenchTaskIntentResolver[] = [
-  {
+function createStaticWorkbenchStarterTaskCatalogEntry({
+  id,
+  command,
+  phrases,
+  patterns = [],
+}: {
+  id: string;
+  command: string;
+  phrases: readonly string[];
+  patterns?: readonly RegExp[];
+}): WorkbenchStarterTaskCatalogEntry {
+  const normalizedPhrases = new Set(
+    phrases.map(phrase => normalizeWorkbenchTaskIntentGoal(phrase)),
+  );
+
+  return {
+    id,
+    resolve(normalizedGoal) {
+      if (normalizedPhrases.has(normalizedGoal)) {
+        return command;
+      }
+
+      return patterns.some(pattern => pattern.test(normalizedGoal))
+        ? command
+        : null;
+    },
+  };
+}
+
+function normalizeWorkbenchStarterTaskArgument(value: string) {
+  const normalizedValue = value.trim();
+  if (
+    (normalizedValue.startsWith('"') && normalizedValue.endsWith('"')) ||
+    (normalizedValue.startsWith("'") && normalizedValue.endsWith("'"))
+  ) {
+    return normalizedValue.slice(1, -1).trim();
+  }
+
+  return normalizedValue;
+}
+
+function hasUnsupportedWorkbenchStarterTaskArgument(value: string) {
+  return /[\r\n;&|><]/.test(value);
+}
+
+function extractWorkbenchStarterTaskArgument(
+  normalizedGoal: string,
+  patterns: readonly RegExp[],
+) {
+  for (const pattern of patterns) {
+    const match = normalizedGoal.match(pattern);
+    const rawArgument = match?.[1];
+    if (!rawArgument) {
+      continue;
+    }
+
+    const normalizedArgument =
+      normalizeWorkbenchStarterTaskArgument(rawArgument);
+    if (
+      normalizedArgument &&
+      !hasUnsupportedWorkbenchStarterTaskArgument(normalizedArgument)
+    ) {
+      return normalizedArgument;
+    }
+  }
+
+  return null;
+}
+
+function buildWorkbenchSearchCommand(query: string) {
+  return `rg --line-number --hidden --smart-case -- ${quotePowerShellLiteral(query)}`;
+}
+
+function buildWorkbenchReadFileCommand(targetPath: string) {
+  return `Get-Content -LiteralPath ${quotePowerShellLiteral(targetPath)}`;
+}
+
+const workbenchStarterTaskCatalog: readonly WorkbenchStarterTaskCatalogEntry[] = [
+  createStaticWorkbenchStarterTaskCatalogEntry({
+    id: 'git-status',
     command: 'git status',
+    phrases: [
+      appI18n.agentWorkbench.run.gitStatusGoal,
+      '查看 git 状态',
+      '检查 git 状态',
+      '查看工作区状态',
+    ],
     patterns: [
-      /^(请\s*)?(检查|查看|看看)\s*(当前)?\s*工作区状态$/u,
-      /^(请\s*)?(检查|查看|看看)\s*(当前)?\s*git\s*状态$/iu,
+      /^(?:请\s*)?(?:检查|查看|看看)\s*(?:当前)?\s*工作区状态$/u,
+      /^(?:请\s*)?(?:检查|查看|看看)\s*(?:当前)?\s*git\s*状态$/iu,
       /^git status$/iu,
     ],
-  },
-  {
+  }),
+  createStaticWorkbenchStarterTaskCatalogEntry({
+    id: 'git-diff-stat',
     command: 'git diff --stat',
+    phrases: [
+      appI18n.agentWorkbench.run.recentChangesGoal,
+      '查看当前改动',
+      '查看最新改动',
+    ],
     patterns: [
-      /^(请\s*)?(查看|看看)\s*(最近的?|最新的?|当前)?\s*改动$/u,
+      /^(?:请\s*)?(?:查看|看看)\s*(?:最近的?|最新的?|当前)?\s*改动$/u,
       /^git diff(?: --stat)?$/iu,
     ],
+  }),
+  {
+    id: 'workspace-search',
+    resolve(normalizedGoal) {
+      const query = extractWorkbenchStarterTaskArgument(normalizedGoal, [
+        /^(?:请\s*)?(?:在(?:当前)?工作区(?:里)?|在仓库(?:里)?)?(?:搜索|查找|搜一下|找一下)\s*(.+)$/u,
+        /^(?:search|find)\s+(.+)$/iu,
+      ]);
+      return query ? buildWorkbenchSearchCommand(query) : null;
+    },
+  },
+  {
+    id: 'inspect-file',
+    resolve(normalizedGoal) {
+      const targetPath = extractWorkbenchStarterTaskArgument(normalizedGoal, [
+        /^(?:请\s*)?(?:查看|打开|读取)\s*(?:文件|file)?\s*(.+)$/iu,
+        /^(?:cat|type|get-content)\s+(.+)$/iu,
+      ]);
+      return targetPath ? buildWorkbenchReadFileCommand(targetPath) : null;
+    },
   },
 ];
 
@@ -421,9 +531,10 @@ export function resolveWorkbenchTaskIntentCommand(goal: string) {
     return null;
   }
 
-  for (const resolver of workbenchTaskIntentResolvers) {
-    if (resolver.patterns.some(pattern => pattern.test(normalizedGoal))) {
-      return resolver.command;
+  for (const starterTask of workbenchStarterTaskCatalog) {
+    const command = starterTask.resolve(normalizedGoal);
+    if (command) {
+      return command;
     }
   }
 

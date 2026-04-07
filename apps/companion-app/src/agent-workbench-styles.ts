@@ -624,6 +624,26 @@ export function createScreenStyles(palette: AppPalette) {
       paddingVertical: 0,
       paddingHorizontal: 0,
     },
+    composerResolvedTaskCard: {
+      gap: appSpacing.sm2,
+    },
+    composerResolvedTaskHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    composerResolvedTaskSourceChip: {
+      alignSelf: 'flex-start',
+    },
+    composerResolvedTaskCommandBox: {
+      paddingHorizontal: appSpacing.md,
+      paddingVertical: appSpacing.sm,
+    },
+    composerResolvedTaskCommandText: {
+      fontFamily: terminalFontFamily,
+    },
     composerRuntimeRow: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -67,6 +67,26 @@ export function createScreenStyles(palette: AppPalette) {
       backgroundColor: palette.canvas,
       minHeight: 34,
     },
+    toolbarButtonRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+    },
+    toolbarBackButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 0,
+      paddingVertical: appSpacing.xs,
+    },
+    toolbarBackButtonPressed: {
+      opacity: 0.72,
+    },
+    toolbarBackLabel: {
+      ...appTypography.captionStrong,
+      color: palette.ink,
+    },
     toolbarBusy: {
       minWidth: 14,
       alignItems: 'center',
@@ -102,6 +122,9 @@ export function createScreenStyles(palette: AppPalette) {
       backgroundColor: palette.panel,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: palette.border,
+    },
+    inlineStatusPanel: {
+      marginBottom: appSpacing.xs,
     },
 
     /* ── 2+1 zone layout ──────────────────────────────── */

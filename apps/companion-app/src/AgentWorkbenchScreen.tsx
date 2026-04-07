@@ -1,23 +1,21 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
+import {useOpenSurface} from '@opapp/framework-windowing';
 import {
+  InfoPanel,
   ActionButton,
-  StatusBadge,
   Toolbar,
   useTheme,
   appLayout,
 } from '@opapp/ui-native-primitives';
-import {
-  resolveRunStatusLabel,
-  resolveRunStatusTone,
-} from './agent-workbench-resolvers';
 import {createScreenStyles} from './agent-workbench-styles';
 import {useAgentWorkbenchState} from './agent-workbench-state';
 import {WorkbenchWorkspaceSection} from './agent-workbench-workspace-section';
@@ -37,6 +35,11 @@ export function AgentWorkbenchScreen() {
   const screenStyles = useMemo(() => createScreenStyles(palette), [palette]);
   const isCompactLayout = width < appLayout.breakpoints.compact;
   const state = useAgentWorkbenchState();
+  const openSurface = useOpenSurface();
+  const [returnMainBusy, setReturnMainBusy] = useState(false);
+  const [navigationErrorMessage, setNavigationErrorMessage] = useState<
+    string | null
+  >(null);
 
   // Detail pane is contextual — only show when user has actively opened a file,
   // is browsing a specific directory entry, or has search results to review.
@@ -53,33 +56,76 @@ export function AgentWorkbenchScreen() {
     );
   }
 
+  const inlineStatusMessage = navigationErrorMessage ?? state.statusMessage;
+  const inlineStatusTone = navigationErrorMessage
+    ? 'danger'
+    : state.statusTone;
+
+  async function handleReturnMain() {
+    if (returnMainBusy) {
+      return;
+    }
+
+    setReturnMainBusy(true);
+    setNavigationErrorMessage(null);
+
+    try {
+      await openSurface({
+        surfaceId: 'companion.main',
+        presentation: 'current-window',
+        initialProps: {
+          skipStartupAutoOpen: true,
+        },
+      });
+    } catch (error) {
+      setNavigationErrorMessage(
+        error instanceof Error
+          ? error.message
+          : appI18n.agentWorkbench.feedback.returnMainFailed,
+      );
+    } finally {
+      setReturnMainBusy(false);
+    }
+  }
+
   return (
     <View testID='agent-workbench.screen' style={screenStyles.screen}>
-      {/* ── Toolbar — minimal status bar ── */}
+      {/* ── Toolbar — global escape only ── */}
       <Toolbar
         testID='agent-workbench.toolbar'
         style={screenStyles.toolbar}>
-        <View style={screenStyles.toolbarGroup}>
-          <StatusBadge
-            testID='agent-workbench.status.run'
-            label={resolveRunStatusLabel(state.selectedRunStatus)}
-            tone={resolveRunStatusTone(state.selectedRunStatus)}
-            emphasis='soft'
-            size='sm'
-          />
+        <View style={screenStyles.toolbarButtonRow}>
+          <Pressable
+            testID='agent-workbench.action.return-main'
+            accessibilityRole='button'
+            accessibilityLabel={
+              returnMainBusy
+                ? appI18n.agentWorkbench.actions.returnMainBusy
+                : appI18n.agentWorkbench.actions.returnMain
+            }
+            onPress={() => {
+              void handleReturnMain();
+            }}
+            disabled={returnMainBusy}
+            style={({pressed}) => [
+              screenStyles.toolbarBackButton,
+              pressed && !returnMainBusy
+                ? screenStyles.toolbarBackButtonPressed
+                : null,
+            ]}>
+            <Text
+              style={[
+                screenStyles.toolbarBackLabel,
+                returnMainBusy ? {color: palette.inkSoft} : null,
+              ]}>
+              ←{' '}
+              {returnMainBusy
+                ? appI18n.agentWorkbench.actions.returnMainBusy
+                : appI18n.agentWorkbench.actions.returnMain}
+            </Text>
+          </Pressable>
         </View>
       </Toolbar>
-
-      {/* ── Feedback bar ── */}
-      {state.statusMessage ? (
-        <View style={screenStyles.feedbackBar}>
-          <Text
-            testID='agent-workbench.status.message'
-            style={[screenStyles.infoText, {color: state.statusTone === 'danger' ? palette.errorRed : palette.inkMuted}]}>
-            {state.statusMessage}
-          </Text>
-        </View>
-      ) : null}
 
       {/* ── Historical run banner ── */}
       {state.viewingHistoricalRun && state.latestThreadRunDocument ? (
@@ -154,6 +200,33 @@ export function AgentWorkbenchScreen() {
             isCompactLayout ? screenStyles.mainPaneCompact : null,
           ]}>
           <ScrollView contentContainerStyle={screenStyles.mainPaneInner}>
+            {inlineStatusMessage ? (
+              <InfoPanel
+                title={appI18n.agentWorkbench.feedback.title}
+                tone={
+                  inlineStatusTone === 'danger'
+                    ? 'danger'
+                    : inlineStatusTone === 'support'
+                      ? 'accent'
+                      : 'neutral'
+                }
+                style={screenStyles.inlineStatusPanel}>
+                <Text
+                  testID='agent-workbench.status.message'
+                  style={[
+                    screenStyles.infoText,
+                    {
+                      color:
+                        inlineStatusTone === 'danger'
+                          ? palette.errorRed
+                          : palette.inkMuted,
+                    },
+                  ]}>
+                  {inlineStatusMessage}
+                </Text>
+              </InfoPanel>
+            ) : null}
+
             {/* Run header + inline actions */}
             <WorkbenchRunDetailSection
               selectedRunDocument={state.selectedRunDocument}

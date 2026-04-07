@@ -432,6 +432,8 @@ export const zhCNApp = {
       cancelRun: '停止当前运行',
       openDirectory: '切换到此目录',
       focusLatestRun: '回到最新 run',
+      returnMain: '返回首页',
+      returnMainBusy: '正在返回首页...',
     },
     feedback: {
       title: '工作台状态',
@@ -464,6 +466,7 @@ export const zhCNApp = {
         '打开本次变更文件失败，请检查路径是否仍存在，或查看宿主日志。',
       cancelRequested: '已请求停止当前运行，等待宿主回传 exit 事件。',
       cancelFailed: '停止当前运行失败，请稍后重试。',
+      returnMainFailed: '返回首页失败，请稍后重试。',
       refreshFailed: '刷新工作台失败，请稍后重试。',
       interruptedRecovered: (count: number) =>
         count === 1

@@ -46,9 +46,14 @@ export function WorkbenchRunHistorySection({
 
   return (
     <View style={screenStyles.sectionCardCompact}>
-      <Text style={screenStyles.sectionTitle}>
-        {appI18n.agentWorkbench.sections.runHistoryTitle}
-      </Text>
+      <View style={screenStyles.sidebarSectionHeader}>
+        <Text style={screenStyles.sectionTitle}>
+          {appI18n.agentWorkbench.sections.runHistoryTitle}
+        </Text>
+        <Text style={screenStyles.sidebarSectionMeta}>
+          {threadRunDocuments.length}
+        </Text>
+      </View>
 
       <View style={screenStyles.threadList}>
         {threadRunDocuments.map((document, index) => {

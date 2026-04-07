@@ -31,9 +31,14 @@ export function WorkbenchThreadsSection({
 
   return (
     <View style={screenStyles.sectionCardCompact}>
-      <Text style={screenStyles.sectionTitle}>
-        {appI18n.agentWorkbench.sections.threadsTitle}
-      </Text>
+      <View style={screenStyles.sidebarSectionHeader}>
+        <Text style={screenStyles.sectionTitle}>
+          {appI18n.agentWorkbench.sections.threadsTitle}
+        </Text>
+        {threads.length > 0 ? (
+          <Text style={screenStyles.sidebarSectionMeta}>{threads.length}</Text>
+        ) : null}
+      </View>
 
       {threads.length === 0 ? (
         <Text style={screenStyles.sectionDescription} numberOfLines={2}>

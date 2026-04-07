@@ -175,7 +175,6 @@ export function AgentWorkbenchScreen() {
               retryBusy={state.retryBusy}
               approvalBusy={state.approvalBusy}
               viewingHistoricalRun={state.viewingHistoricalRun}
-              latestThreadRunDocument={state.latestThreadRunDocument}
               previousThreadRunDocument={state.previousThreadRunDocument}
               selectedCwd={state.selectedCwd}
               onRetry={() => {
@@ -193,7 +192,6 @@ export function AgentWorkbenchScreen() {
               onReject={() => {
                 void state.handleRejectSelectedRun();
               }}
-              onFocusLatestRun={state.handleFocusLatestRun}
               onViewPreviousRun={state.handleViewPreviousRun}
               onBrowseWorkspaceRoot={() => {
                 void state.handleBrowseDirectory('');

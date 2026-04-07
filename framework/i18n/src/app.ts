@@ -772,6 +772,18 @@ export const zhCNApp = {
       timelineTitle: '当前没有 timeline',
       timelineDescription:
         'run 落下后，started/stdout/stderr/stdin/exit 会按顺序出现在这里。',
+      timelineIdleTitle: '从下面发起第一条任务',
+      timelineIdleDescription:
+        '这里会顺序展示用户消息、计划、命令、审批和结果，让一次真实 run 的上下文留在同一条工作流里。',
+      timelineIdleStepDescribe:
+        '先描述目标；需要确定性执行时，再展开高级命令或使用快捷预设。',
+      timelineIdleStepWorkspace:
+        '确认 trusted workspace 和执行策略，再从右下角启动这次 run。',
+      timelineIdleStepFollow:
+        'run 开始后，消息、命令、approval 和 terminal 输出都会继续补到这里。',
+      timelinePendingTitle: '这个 run 还没写出时间线',
+      timelinePendingDescription:
+        '一旦开始产生日志和结构化事件，这里会从上到下继续补全，不需要单独切去看宿主输出。',
       fileContent: '当前文件为空。',
       contentUnavailable: '当前路径内容不可读，或者宿主没有返回文本内容。',
       terminalDescription: 'stdout / stderr 聚合输出会显示在这里。',

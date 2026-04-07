@@ -27,7 +27,6 @@ import {
   resolvePermissionModeLabel,
   resolvePlanStepStatusLabel,
   resolvePlanStepStatusTone,
-  resolveRetryableLabel,
   resolveTerminalEventLabel,
   resolveTimelineEntryIcon,
   resolveTimelineEntryTitle,
@@ -61,15 +60,54 @@ export function WorkbenchTimelineSection({
 }: WorkbenchTimelineSectionProps) {
   const {palette} = useTheme();
 
-  if (!selectedRunDocument || selectedRunDocument.timeline.length === 0) {
+  if (!selectedRunDocument) {
     return (
       <View style={screenStyles.conversationEmpty}>
-        <Text style={screenStyles.conversationEmptyTitle}>
-          {appI18n.agentWorkbench.empty.timelineTitle}
-        </Text>
-        <Text style={screenStyles.conversationEmptyHint}>
-          {appI18n.agentWorkbench.empty.timelineDescription}
-        </Text>
+        <View style={screenStyles.conversationEmptyCard}>
+          <Text style={screenStyles.conversationEmptyEyebrow}>
+            {appI18n.agentWorkbench.sections.timelineTitle}
+          </Text>
+          <Text style={screenStyles.conversationEmptyTitle}>
+            {appI18n.agentWorkbench.empty.timelineIdleTitle}
+          </Text>
+          <Text style={screenStyles.conversationEmptyHint}>
+            {appI18n.agentWorkbench.empty.timelineIdleDescription}
+          </Text>
+          <View style={screenStyles.conversationEmptyList}>
+            {[
+              appI18n.agentWorkbench.empty.timelineIdleStepDescribe,
+              appI18n.agentWorkbench.empty.timelineIdleStepWorkspace,
+              appI18n.agentWorkbench.empty.timelineIdleStepFollow,
+            ].map((step, index) => (
+              <View key={step} style={screenStyles.conversationEmptyItem}>
+                <View style={screenStyles.conversationEmptyItemMarker}>
+                  <Text style={screenStyles.conversationEmptyItemMarkerLabel}>
+                    {index + 1}
+                  </Text>
+                </View>
+                <Text style={screenStyles.conversationEmptyItemText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  if (selectedRunDocument.timeline.length === 0) {
+    return (
+      <View style={screenStyles.conversationEmpty}>
+        <View style={screenStyles.conversationEmptyCard}>
+          <Text style={screenStyles.conversationEmptyEyebrow}>
+            {appI18n.agentWorkbench.sections.timelineTitle}
+          </Text>
+          <Text style={screenStyles.conversationEmptyTitle}>
+            {appI18n.agentWorkbench.empty.timelinePendingTitle}
+          </Text>
+          <Text style={screenStyles.conversationEmptyHint}>
+            {appI18n.agentWorkbench.empty.timelinePendingDescription}
+          </Text>
+        </View>
       </View>
     );
   }

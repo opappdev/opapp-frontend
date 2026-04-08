@@ -9,6 +9,7 @@ import {
 } from '@opapp/ui-native-primitives';
 import {
   formatIsoTimestamp,
+  resolveRunStatusLabel,
   resolveRunStatusIcon,
   resolveRunStatusTone,
 } from './agent-workbench-resolvers';
@@ -50,9 +51,11 @@ export function WorkbenchRunHistorySection({
         <Text style={screenStyles.sectionTitle}>
           {appI18n.agentWorkbench.sections.runHistoryTitle}
         </Text>
-        <Text style={screenStyles.sidebarSectionMeta}>
-          {threadRunDocuments.length}
-        </Text>
+        {threadRunDocuments.length > 1 ? (
+          <Text style={screenStyles.sidebarSectionMeta}>
+            {threadRunDocuments.length}
+          </Text>
+        ) : null}
       </View>
 
       <View accessibilityRole='list' style={screenStyles.threadList}>
@@ -91,8 +94,31 @@ export function WorkbenchRunHistorySection({
               titleStyle={isActive ? undefined : {color: palette.inkMuted}}
               subtitle={
                 <Text numberOfLines={1} style={screenStyles.listRowDetail}>
-                  {formatIsoTimestamp(document.run.updatedAt)}
+                  {`${resolveRunStatusLabel(document.run.status)} · ${formatIsoTimestamp(
+                    document.run.updatedAt,
+                  )}`}
                 </Text>
+              }
+              trailing={
+                isLatest ? (
+                  <View
+                    style={[
+                      screenStyles.sidebarStatusChip,
+                      {
+                        borderColor: palette.border,
+                        backgroundColor: palette.canvasShade,
+                      },
+                    ]}>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        screenStyles.sidebarStatusChipLabel,
+                        {color: palette.inkSoft},
+                      ]}>
+                      {appI18n.agentWorkbench.runHistory.latestBadge}
+                    </Text>
+                  </View>
+                ) : null
               }
             />
           );

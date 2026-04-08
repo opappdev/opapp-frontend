@@ -4,14 +4,13 @@ import type {AgentThreadSummary} from '@opapp/framework-agent-runtime';
 import {deriveSessionAttention, resolveSessionLifecycle} from '@opapp/framework-agent-runtime';
 import {appI18n} from '@opapp/framework-i18n';
 import {
-  Icon,
   SelectableRow,
   useTheme,
 } from '@opapp/ui-native-primitives';
 import {
   formatIsoTimestamp,
-  resolveRunStatusIcon,
-  resolveRunStatusTone,
+  resolveSessionAttentionLabel,
+  resolveSessionLifecycleLabel,
 } from './agent-workbench-resolvers';
 import type {createScreenStyles} from './agent-workbench-styles';
 
@@ -29,6 +28,7 @@ export function WorkbenchThreadsSection({
   screenStyles,
 }: WorkbenchThreadsSectionProps) {
   const {palette} = useTheme();
+  const nowIso = new Date().toISOString();
 
   return (
     <View style={screenStyles.sectionCardCompact}>
@@ -36,7 +36,7 @@ export function WorkbenchThreadsSection({
         <Text style={screenStyles.sectionTitle}>
           {appI18n.agentWorkbench.sections.threadsTitle}
         </Text>
-        {threads.length > 0 ? (
+        {threads.length > 1 ? (
           <Text style={screenStyles.sidebarSectionMeta}>{threads.length}</Text>
         ) : null}
       </View>
@@ -49,9 +49,33 @@ export function WorkbenchThreadsSection({
         <View accessibilityRole='list' style={screenStyles.threadList}>
           {threads.map(thread => {
             const isActive = thread.threadId === selectedThreadId;
-            const attention = deriveSessionAttention(thread, null);
+            const attention = deriveSessionAttention(thread, nowIso);
             const lifecycle = resolveSessionLifecycle(thread);
             const isUnread = attention !== 'read';
+            const trailingLabel =
+              lifecycle === 'running'
+                ? resolveSessionLifecycleLabel(lifecycle)
+                : isUnread
+                  ? resolveSessionAttentionLabel(attention)
+                  : null;
+            const trailingColors =
+              lifecycle === 'running'
+                ? {
+                    borderColor: palette.accent,
+                    backgroundColor: palette.accentSoft,
+                    color: palette.accent,
+                  }
+                : attention === 'stale-unread'
+                  ? {
+                      borderColor: palette.border,
+                      backgroundColor: palette.canvasShade,
+                      color: palette.inkSoft,
+                    }
+                  : {
+                      borderColor: palette.accent,
+                      backgroundColor: palette.accentSoft,
+                      color: palette.accent,
+                    };
             return (
               <SelectableRow
                 key={thread.threadId}
@@ -91,26 +115,30 @@ export function WorkbenchThreadsSection({
                       : undefined
                 }
                 subtitle={
-                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
-                    {lifecycle === 'running' ? (
-                      <Icon
-                        icon={resolveRunStatusIcon(thread.lastRunStatus)}
-                        size={10}
-                        color={palette.accent}
-                      />
-                    ) : thread.lastRunStatus ? (
-                      <Icon
-                        icon={resolveRunStatusIcon(thread.lastRunStatus)}
-                        size={10}
-                        color={resolveRunStatusTone(thread.lastRunStatus) === 'danger' ? palette.errorRed : resolveRunStatusTone(thread.lastRunStatus) === 'support' ? palette.support : palette.inkSoft}
-                      />
-                    ) : null}
-                    <Text
-                      numberOfLines={1}
-                      style={screenStyles.listRowDetail}>
-                      {formatIsoTimestamp(thread.updatedAt)}
-                    </Text>
-                  </View>
+                  <Text numberOfLines={1} style={screenStyles.listRowDetail}>
+                    {formatIsoTimestamp(thread.updatedAt)}
+                  </Text>
+                }
+                trailing={
+                  trailingLabel ? (
+                    <View
+                      style={[
+                        screenStyles.sidebarStatusChip,
+                        {
+                          borderColor: trailingColors.borderColor,
+                          backgroundColor: trailingColors.backgroundColor,
+                        },
+                      ]}>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          screenStyles.sidebarStatusChipLabel,
+                          {color: trailingColors.color},
+                        ]}>
+                        {trailingLabel}
+                      </Text>
+                    </View>
+                  ) : null
                 }
               />
             );

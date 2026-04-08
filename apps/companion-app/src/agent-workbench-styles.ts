@@ -254,6 +254,20 @@ export function createScreenStyles(palette: AppPalette) {
       color: palette.inkSoft,
       opacity: 0.5,
     },
+    sidebarStatusChip: {
+      minHeight: 24,
+      maxWidth: 96,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: 3,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: workbenchRadius.row,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sidebarStatusChipLabel: {
+      ...appTypography.label,
+      letterSpacing: 0.2,
+    },
     sectionBody: {
       gap: appSpacing.sm2,
     },
@@ -885,29 +899,13 @@ export function createScreenStyles(palette: AppPalette) {
       ...appTypography.captionStrong,
       color: palette.accent,
     },
-    runHeaderMetaRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: appSpacing.xs,
-      flexWrap: 'wrap',
+    runHeaderSummaryRow: {
+      paddingTop: 2,
     },
-    runMetaChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: appSpacing.xs,
-      minHeight: 26,
-      maxWidth: '100%',
-      paddingHorizontal: appSpacing.sm,
-      paddingVertical: 4,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: workbenchRadius.row,
-      borderColor: palette.border,
-      backgroundColor: palette.canvasShade,
-    },
-    runMetaChipLabel: {
-      ...appTypography.label,
+    runHeaderSummaryText: {
+      ...appTypography.caption,
       color: palette.inkSoft,
-      flexShrink: 1,
+      lineHeight: 18,
     },
 
     /* ── Mode toggle ──────────────────────────────────── */

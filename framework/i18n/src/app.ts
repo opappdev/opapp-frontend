@@ -428,10 +428,10 @@ export const zhCNApp = {
       restoreRunWorkspace: '恢复此 run 目录',
       inspectRunArtifact: '打开本次产物',
       browseWorkspaceRoot: '回到工作区根目录',
-      viewPreviousRun: '查看上一条 run',
+      viewPreviousRun: '查看上一条结果',
       cancelRun: '停止当前运行',
       openDirectory: '切换到此目录',
-      focusLatestRun: '回到最新 run',
+      focusLatestRun: '回到最新结果',
       returnMain: '返回首页',
       returnMainBusy: '正在返回首页...',
     },
@@ -459,7 +459,7 @@ export const zhCNApp = {
       retryRunFailed: '重试选中 run 失败，请查看最新 run 文档或宿主日志。',
       runWorkspaceRestored: '已恢复到选中 run 的工作目录。',
       writeApprovalDraftReady:
-        '已填入一个可控的审批改动示例，可直接为当前任务请求审批。',
+        '已填入一个可控的诊断写入预设，可直接为当前任务请求审批。',
       runArtifactInspected: (relativePath: string) =>
         `已定位到 ${relativePath}，并加载它的 diff 预览。`,
       runArtifactInspectFailed:
@@ -492,12 +492,12 @@ export const zhCNApp = {
       diffTitle: 'Git Diff',
       diffDescription:
         '在对应子仓库根目录执行 `git diff HEAD -- <path>`，把当前文件相对 HEAD 的差异直接显示在 workbench。',
-      threadsTitle: '线程与运行',
+      threadsTitle: '会话',
       threadsDescription:
-        '这里显示 `agent-runtime/thread-index.json` 里的最新 thread 摘要，方便在线程之间切换。',
-      runHistoryTitle: '线程历史 Runs',
+        '这里显示当前需要关注的任务会话，方便在线程之间切换。',
+      runHistoryTitle: '本会话历史',
       runHistoryDescription:
-        '按当前 thread 文档里的 `runIds` 逆序展示同线程执行链，便于回看同一任务的连续 run。',
+        '展示当前会话之前的执行结果，便于对照重试、恢复和最近一次输出。',
       runTitle: '运行详情',
       runDescription:
         '展示当前选中历史 run 的核心元数据，包括 goal、sessionId、artifact 和最近更新时间。',
@@ -542,9 +542,10 @@ export const zhCNApp = {
     runHistory: {
       selectedBadge: '当前 run',
       availableBadge: '可查看',
-      latest: (runId: string) => `最新 · ${runId}`,
+      latestBadge: '最新',
+      latest: (updatedAt: string) => `最新更新 · ${updatedAt}`,
       resumedFrom: (runId: string) => `承接自 ${runId}`,
-      viewingHistoricalTitle: '当前正在查看历史 run',
+      viewingHistoricalTitle: '当前正在查看较早的结果',
       viewingHistoricalDescription: (runId: string) =>
         `当前线程的最新 run 是 ${runId}。顶部动作仍会继续写入这个线程；如需跟随最新输出，可先切回最新 run。`,
     },
@@ -552,8 +553,8 @@ export const zhCNApp = {
       gitStatusTitle: 'Git Status',
       gitStatusGoal: '检查工作区状态',
       recentChangesGoal: '查看最近的改动',
-      writeApprovalTitle: 'Tracked Approval Fixture Update',
-      writeApprovalGoal: '请求修改 tracked approval smoke fixture 并生成 diff 预览',
+      writeApprovalTitle: '演示一次写入审批',
+      writeApprovalGoal: '演示一次写入审批，并生成 diff 预览',
     },
     taskDraft: {
       goalPlaceholder: '描述要完成的任务、关键约束和期望结果。',
@@ -595,9 +596,9 @@ export const zhCNApp = {
     },
     approval: {
       pendingTitle: '待处理审批',
-      requestTitle: '允许修改 tracked approval smoke fixture',
+      requestTitle: '允许执行诊断写入预设',
       requestDetails: (relativePath: string, requestedCwd: string) =>
-        `批准后会在 ${requestedCwd} 下修改 ${relativePath}，并输出可复现的 diff 预览，用于验证 repo-write 审批链路。`,
+        `批准后会在 ${requestedCwd} 下更新诊断预设文件 ${relativePath}，并输出可复现的 diff 预览，用于验证写入审批链路。`,
       commandRequestTitle: (goal: string) => `允许执行任务：${goal}`,
       commandRequestDetails: (command: string, requestedCwd: string) =>
         `批准后会在 ${requestedCwd} 下执行以下命令：${command}`,
@@ -768,10 +769,10 @@ export const zhCNApp = {
       diffNoChangesTitle: '当前文件没有 git diff 输出',
       diffNoChangesDescription:
         '可能当前文件相对 HEAD 没有变更，或者它还没有被 git 跟踪。',
-      threadsTitle: '还没有任何 run',
+      threadsTitle: '还没有任何会话',
       threadsDescription:
         '点击“检查工作区状态”或直接输入任务后，这里会生成新的 thread / run 记录。',
-      runHistoryTitle: '当前线程还没有历史 run',
+      runHistoryTitle: '当前会话还没有历史记录',
       runHistoryDescription:
         '先在左侧选中一个已有执行记录的线程，或者启动一次新的 terminal run。',
       runTitle: '当前没有可展示的 run',

@@ -95,6 +95,14 @@ export function WorkbenchRunDetailSection({
     canInspectSelectedRunArtifact ||
     canRetrySelectedRun ||
     canRestoreSelectedRunWorkspace;
+  const runSummaryParts = [
+    `${appI18n.agentWorkbench.labels.updatedAt} ${formatIsoTimestamp(
+      selectedRunDocument?.run.updatedAt ?? null,
+    )}`,
+    workspacePath
+      ? `${appI18n.agentWorkbench.labels.cwd} ${workspacePath}`
+      : null,
+  ].filter((value): value is string => Boolean(value));
 
   if (!selectedRunDocument) {
     return null;
@@ -140,7 +148,7 @@ export function WorkbenchRunDetailSection({
                     style={screenStyles.runHeaderContextMeta}
                     numberOfLines={1}>
                     {appI18n.agentWorkbench.runHistory.latest(
-                      latestThreadRunDocument.run.runId,
+                      formatIsoTimestamp(latestThreadRunDocument.run.updatedAt),
                     )}
                   </Text>
                 </View>
@@ -159,33 +167,12 @@ export function WorkbenchRunDetailSection({
               </View>
             ) : null}
 
-            <View style={screenStyles.runHeaderMetaRow}>
-              <View style={screenStyles.runMetaChip}>
-                <Text
-                  testID='agent-workbench.run.run-id'
-                  style={screenStyles.runMetaChipLabel}
-                  numberOfLines={1}>
-                  {selectedRunDocument.run.runId}
-                </Text>
-              </View>
-              <View style={screenStyles.runMetaChip}>
-                <Icon icon={iconCatalog.clock} size={11} color={palette.inkSoft} />
-                <Text style={screenStyles.runMetaChipLabel}>
-                  {formatIsoTimestamp(selectedRunDocument.run.updatedAt)}
-                </Text>
-              </View>
-              {workspacePath ? (
-                <View style={screenStyles.runMetaChip}>
-                  <Icon
-                    icon={iconCatalog.folder}
-                    size={11}
-                    color={palette.inkSoft}
-                  />
-                  <Text style={screenStyles.runMetaChipLabel} numberOfLines={1}>
-                    {workspacePath}
-                  </Text>
-                </View>
-              ) : null}
+            <View style={screenStyles.runHeaderSummaryRow}>
+              <Text
+                numberOfLines={2}
+                style={screenStyles.runHeaderSummaryText}>
+                {runSummaryParts.join('  ·  ')}
+              </Text>
             </View>
 
             {showContextActions ? (
@@ -262,6 +249,9 @@ export function WorkbenchRunDetailSection({
 
       {/* Hidden locators for smoke test accessibility */}
       <View style={{height: 0, overflow: 'hidden'}}>
+        <Text testID='agent-workbench.run.run-id'>
+          {selectedRunDocument.run.runId}
+        </Text>
         <Text testID='agent-workbench.run.command'>
           {selectedRunRequest?.command ?? appI18n.common.unknown}
         </Text>

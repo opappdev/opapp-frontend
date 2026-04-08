@@ -274,7 +274,6 @@ export function AgentWorkbenchScreen() {
             <WorkbenchTimelineSection
               selectedRunDocument={state.selectedRunDocument}
               selectedTimelineItems={state.selectedTimelineItems}
-              selectedTimelineSummary={state.selectedTimelineSummary}
               screenStyles={screenStyles}
             />
 

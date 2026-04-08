@@ -545,6 +545,54 @@ export function createScreenStyles(palette: AppPalette) {
       flex: 1,
       minWidth: 0,
     },
+    planCard: {
+      gap: appSpacing.sm,
+      borderRadius: workbenchRadius.surface,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.md,
+    },
+    planCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    planCardIntro: {
+      flex: 1,
+      minWidth: 180,
+      gap: appSpacing.xxs,
+    },
+    planCardEyebrowRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      flexWrap: 'wrap',
+    },
+    planCardEyebrow: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+    },
+    planCardMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    planProgressChip: {
+      minHeight: 24,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: 3,
+      borderRadius: workbenchRadius.row,
+      backgroundColor: palette.canvasShade,
+    },
+    planProgressChipLabel: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+    },
 
     /* ── Conversation transcript items ────────────────── */
     messageItem: {
@@ -897,7 +945,7 @@ export function createScreenStyles(palette: AppPalette) {
       backgroundColor: palette.canvas,
       paddingHorizontal: 56,
       paddingVertical: appSpacing.lg2,
-      gap: appSpacing.sm,
+      gap: appSpacing.xs,
     },
     composerAssistRow: {
       flexDirection: 'row',
@@ -983,7 +1031,7 @@ export function createScreenStyles(palette: AppPalette) {
       borderWidth: StyleSheet.hairlineWidth,
       borderRadius: workbenchRadius.surface,
       paddingHorizontal: appSpacing.lg2,
-      paddingTop: appSpacing.sm2,
+      paddingTop: appSpacing.sm,
       paddingBottom: appSpacing.sm,
       gap: appSpacing.sm,
     },
@@ -1026,11 +1074,39 @@ export function createScreenStyles(palette: AppPalette) {
       fontWeight: '600',
     },
     composerAdvancedPanel: {
-      minHeight: 56,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: workbenchRadius.control,
-      paddingHorizontal: appSpacing.lg2,
+      gap: appSpacing.sm,
+      borderRadius: workbenchRadius.row,
+      paddingHorizontal: appSpacing.sm2,
       paddingVertical: appSpacing.sm,
+    },
+    composerAdvancedHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    composerAdvancedHeadingCluster: {
+      flex: 1,
+      minWidth: 180,
+      gap: 2,
+    },
+    composerAdvancedEyebrow: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+    },
+    composerAdvancedHint: {
+      ...appTypography.caption,
+      color: palette.inkMuted,
+      lineHeight: 18,
+    },
+    composerAdvancedPresetRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      flexWrap: 'wrap',
     },
     composerAdvancedInput: {
       minHeight: 56,
@@ -1040,7 +1116,7 @@ export function createScreenStyles(palette: AppPalette) {
     composerRuntimeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-start',
       gap: appSpacing.sm,
       flexWrap: 'wrap',
     },

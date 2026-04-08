@@ -12,10 +12,7 @@ import {
   useTheme,
   appSpacing,
 } from '@opapp/ui-native-primitives';
-import type {
-  WorkbenchTimelineDisplayItem,
-  WorkbenchTimelineSummary,
-} from './agent-workbench-model';
+import type {WorkbenchTimelineDisplayItem} from './agent-workbench-model';
 import {
   countCompletedPlanSteps,
   formatIsoTimestamp,
@@ -36,8 +33,6 @@ import {
   resolveToolInvocationHumanTitle,
   resolveToolInvocationIcon,
   resolveToolInvocationTerminalEventsLabel,
-  resolveToolInvocationTitle,
-  resolveToolInvocationTone,
   resolveToolInvocationTrailingLabel,
   resolveToolInvocationUpdatedAt,
   resolveToolInvocationSessionId,
@@ -48,14 +43,12 @@ import {type createScreenStyles, terminalFontFamily} from './agent-workbench-sty
 type WorkbenchTimelineSectionProps = {
   selectedRunDocument: AgentRunDocument | null;
   selectedTimelineItems: ReadonlyArray<WorkbenchTimelineDisplayItem>;
-  selectedTimelineSummary: WorkbenchTimelineSummary;
   screenStyles: ReturnType<typeof createScreenStyles>;
 };
 
 export function WorkbenchTimelineSection({
   selectedRunDocument,
   selectedTimelineItems,
-  selectedTimelineSummary,
   screenStyles,
 }: WorkbenchTimelineSectionProps) {
   const {palette} = useTheme();
@@ -114,26 +107,6 @@ export function WorkbenchTimelineSection({
 
   return (
     <View style={screenStyles.sectionCard}>
-      {/* Compact summary — single muted line */}
-      {(selectedTimelineSummary.toolCallCount > 0 || selectedTimelineSummary.errorCount > 0) ? (
-        <View style={screenStyles.summaryPillRow}>
-          {selectedTimelineSummary.toolCallCount > 0 ? (
-            <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, opacity: 0.6}]}>
-              {appI18n.agentWorkbench.timelineSummary.toolCalls(
-                selectedTimelineSummary.toolCallCount,
-              )}
-            </Text>
-          ) : null}
-          {selectedTimelineSummary.errorCount > 0 ? (
-            <Text style={[screenStyles.toolCardMetaItem, {color: palette.errorRed, opacity: 0.8}]}>
-              {appI18n.agentWorkbench.timelineSummary.errors(
-                selectedTimelineSummary.errorCount,
-              )}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
-
       {/* Timeline items as a unified conversation stream */}
       <View style={screenStyles.timelineList}>
         {selectedTimelineItems.map(item => {
@@ -173,18 +146,46 @@ export function WorkbenchTimelineSection({
 
           /* Plan entries — clean step list */
           if (entry.kind === 'plan') {
+            const completedStepCount = countCompletedPlanSteps(entry.steps);
+            const planProgressLabel = appI18n.agentWorkbench.values.planProgress(
+              completedStepCount,
+              entry.steps.length,
+            );
             return (
-              <View key={item.key} style={screenStyles.transcriptTerminal}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginBottom: appSpacing.sm}}>
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted}]}>
-                    {appI18n.agentWorkbench.values.planProgress(
-                      countCompletedPlanSteps(entry.steps),
-                      entry.steps.length,
-                    )}
-                  </Text>
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
-                    {resolveTimelineEntryTrailingLabel(entry)}
-                  </Text>
+              <View key={item.key} style={screenStyles.planCard}>
+                <View style={screenStyles.planCardHeader}>
+                  <View style={screenStyles.planCardIntro}>
+                    <View style={screenStyles.planCardEyebrowRow}>
+                      <Icon
+                        icon={resolveTimelineEntryIcon(entry)}
+                        size={12}
+                        color={palette.inkMuted}
+                      />
+                      <Text style={screenStyles.planCardEyebrow}>
+                        {appI18n.agentWorkbench.events.plan}
+                      </Text>
+                    </View>
+                    <View style={screenStyles.planCardMetaRow}>
+                      <View style={screenStyles.planProgressChip}>
+                        <Text
+                          style={[
+                            screenStyles.planProgressChipLabel,
+                            {
+                              color:
+                                completedStepCount === entry.steps.length &&
+                                entry.steps.length > 0
+                                  ? palette.support
+                                  : palette.inkSoft,
+                            },
+                          ]}>
+                          {planProgressLabel}
+                        </Text>
+                      </View>
+                      <Text style={screenStyles.messageItemTime}>
+                        {formatIsoTimestamp(entry.createdAt)}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
                 <View style={screenStyles.timelineStepList}>
                   {entry.steps.map(step => (
@@ -193,7 +194,10 @@ export function WorkbenchTimelineSection({
                       style={[
                         screenStyles.timelineStepRow,
                         {
-                          backgroundColor: step.status === 'completed' ? palette.panelEmphasis : palette.panel,
+                          backgroundColor:
+                            step.status === 'completed'
+                              ? palette.panelEmphasis
+                              : palette.canvasShade,
                         },
                       ]}>
                       <StatusBadge
@@ -527,29 +531,6 @@ function renderToolInvocation(
           marginVertical: 0,
           backgroundColor: hasError ? `${palette.errorRed}08` : palette.canvasShade,
         }]}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: appSpacing.sm,
-              marginBottom: appSpacing.xxs,
-            }}>
-            <Text
-              style={[
-                screenStyles.toolCardMetaItem,
-                {color: palette.inkMuted},
-              ]}>
-              {resolveToolInvocationTitle(item)}
-            </Text>
-            <Text
-              style={[
-                screenStyles.toolCardMetaItem,
-                {color: resultColor, fontWeight: '600'},
-              ]}>
-              {resultTag}
-            </Text>
-          </View>
           {/* Command input */}
           <Text
             style={[

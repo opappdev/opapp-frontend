@@ -414,7 +414,7 @@ export const zhCNApp = {
       runningGitStatus: '正在运行 git status...',
       requestWriteApproval: '请求写入审批',
       requestingWriteApproval: '正在请求写入审批...',
-      populateWriteApprovalDraft: '填入写入审批示例',
+      populateWriteApprovalDraft: '写入审批预设',
       runDraftTask: '开始任务',
       runningDraftTask: '正在开始...',
       requestDraftApproval: '请求审批',
@@ -556,9 +556,8 @@ export const zhCNApp = {
       writeApprovalGoal: '请求修改 tracked approval smoke fixture 并生成 diff 预览',
     },
     taskDraft: {
-      goalPlaceholder:
-        '描述你的任务、约束和期望结果；如需直接执行，请展开“高级命令”或使用快捷操作',
-      commandPlaceholder: '高级：明确这次要执行的底层 shell 命令',
+      goalPlaceholder: '描述要完成的任务、关键约束和期望结果。',
+      commandPlaceholder: '可选：指定这次要执行的底层 shell 命令',
       directMode: '直接运行',
       approvalMode: '先请求审批',
       chooseWorkspaceAction: '选择工作区',
@@ -575,16 +574,20 @@ export const zhCNApp = {
       availableBadge: '可切换',
       expandAdvancedCommand: '高级命令',
       collapseAdvancedCommand: '收起高级命令',
+      advancedPanelTitle: '底层命令与诊断',
+      advancedPanelDescription:
+        '只有在需要精确控制 shell，或触发诊断预设时，才展开这里。',
+      diagnosticPresetLabel: '诊断预设',
       selectedWorkspacePrefix: '上下文 · ',
       contextUsagePending: '上下文占用：暂未接入',
       localRuntimeLabel: 'Local',
-      footerIdleHint: '先描述目标；需要确定性执行时，用快捷预设或展开高级命令。',
+      footerIdleHint: '先说明要做什么；需要精确控制 shell 时，再展开高级命令。',
       footerDirectReadyHint: '当前命令会按只读策略直接执行。',
       footerApprovalReadyHint: '当前命令会先进入审批，批准后再执行。',
       footerDirectBlockedHint: '当前命令超出只读范围；切到审批后才能启动。',
       footerRunningHint: '当前 run 正在执行，可随时停止。',
       commandMissing:
-        '当前还没有可执行命令。请展开“高级命令”填写底层 shell 命令，或使用上方快捷操作。',
+        '当前还没有可执行命令。请展开“高级命令”填写底层 shell 命令，或使用诊断预设。',
       directModeBlocked: '当前命令不属于只读直跑范围，请切换到审批模式后再执行。',
       directModeGuardTitle: '当前命令需要审批',
       directModeGuardDetail:

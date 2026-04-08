@@ -526,50 +526,50 @@ export function WorkbenchTaskDraftSection({
         </InfoPanel>
       ) : null}
 
-      <View style={screenStyles.composerAssistRow}>
-        <View style={screenStyles.composerAssistCluster}>
-          <StarterActionButton
-            testID='agent-workbench.action.run-git-status'
-            label={appI18n.agentWorkbench.actions.runGitStatus}
-            icon={iconCatalog.terminal}
-            disabled={!canUseStarter}
-            onPress={onRunGitStatus}
-            screenStyles={screenStyles}
-          />
-
-          <StarterActionButton
-            testID='agent-workbench.action.populate-write-approval-draft'
-            label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
-            icon={iconCatalog.shieldTask}
-            disabled={!canUseStarter}
-            onPress={onPopulateWriteApprovalDraft}
-            screenStyles={screenStyles}
-          />
-        </View>
-
-        <View style={screenStyles.composerAssistCluster}>
-          <StarterActionButton
-            testID='agent-workbench.action.toggle-command-input'
-            label={advancedCommandLabel}
-            icon={iconCatalog.code}
-            disabled={false}
-            active={showAdvanced}
-            onPress={() => {
-              setShowAdvanced(prev => !prev);
-            }}
-            screenStyles={screenStyles}
-          />
-        </View>
-      </View>
-
-        <View
-          style={[
-            screenStyles.composerShell,
-            {
-              borderColor: palette.border,
+      <View
+        style={[
+          screenStyles.composerShell,
+          {
+            borderColor: palette.border,
             backgroundColor: palette.panel,
           },
         ]}>
+        <View style={screenStyles.composerAssistRow}>
+          <View style={screenStyles.composerAssistCluster}>
+            <StarterActionButton
+              testID='agent-workbench.action.run-git-status'
+              label={appI18n.agentWorkbench.actions.runGitStatus}
+              icon={iconCatalog.terminal}
+              disabled={!canUseStarter}
+              onPress={onRunGitStatus}
+              screenStyles={screenStyles}
+            />
+          </View>
+
+          <View style={screenStyles.composerAssistCluster}>
+            <StarterActionButton
+              testID='agent-workbench.action.toggle-command-input'
+              label={advancedCommandLabel}
+              icon={iconCatalog.code}
+              disabled={false}
+              active={showAdvanced}
+              onPress={() => {
+                setShowAdvanced(prev => !prev);
+                setShowExecutionModePanel(false);
+                setShowWorkspaceActionMenu(false);
+              }}
+              screenStyles={screenStyles}
+            />
+          </View>
+        </View>
+
+        <View
+          style={[
+            screenStyles.composerShellDivider,
+            {backgroundColor: palette.border},
+          ]}
+        />
+
         {textInputsReady ? (
           <RNTextInput
             testID='agent-workbench.task.goal-input'
@@ -601,6 +601,85 @@ export function WorkbenchTaskDraftSection({
             </Text>
           </View>
         )}
+
+        {showAdvanced ? (
+          <>
+            <View
+              style={[
+                screenStyles.composerShellDivider,
+                {backgroundColor: palette.border},
+              ]}
+            />
+
+            <View
+              style={[
+                screenStyles.composerAdvancedPanel,
+                {
+                  backgroundColor: palette.canvasShade,
+                },
+              ]}>
+              <View style={screenStyles.composerAdvancedHeader}>
+                <View style={screenStyles.composerAdvancedHeadingCluster}>
+                  <Text style={screenStyles.composerAdvancedEyebrow}>
+                    {appI18n.agentWorkbench.taskDraft.advancedPanelTitle}
+                  </Text>
+                  <Text style={screenStyles.composerAdvancedHint}>
+                    {appI18n.agentWorkbench.taskDraft.advancedPanelDescription}
+                  </Text>
+                </View>
+
+                <View style={screenStyles.composerAdvancedPresetRow}>
+                  <Text style={screenStyles.composerAdvancedEyebrow}>
+                    {appI18n.agentWorkbench.taskDraft.diagnosticPresetLabel}
+                  </Text>
+                  <StarterActionButton
+                    testID='agent-workbench.action.populate-write-approval-draft'
+                    label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft}
+                    icon={iconCatalog.shieldTask}
+                    disabled={!canUseStarter}
+                    onPress={onPopulateWriteApprovalDraft}
+                    screenStyles={screenStyles}
+                  />
+                </View>
+              </View>
+
+              <Text style={screenStyles.composerAdvancedEyebrow}>
+                {appI18n.agentWorkbench.labels.command}
+              </Text>
+
+              {textInputsReady ? (
+                <RNTextInput
+                  testID='agent-workbench.task.command-input'
+                  value={draftCommand}
+                  onChangeText={onDraftCommandChange}
+                  placeholder={appI18n.agentWorkbench.taskDraft.commandPlaceholder}
+                  placeholderTextColor={palette.inkSoft}
+                  multiline
+                  textAlignVertical='top'
+                  style={[
+                    screenStyles.textInputField,
+                    screenStyles.textInputMultiline,
+                    screenStyles.composerAdvancedInput,
+                    {color: palette.ink},
+                  ]}
+                />
+              ) : (
+                <View
+                  style={[
+                    screenStyles.textInputPlaceholder,
+                    {
+                      borderColor: 'transparent',
+                      backgroundColor: 'transparent',
+                    },
+                  ]}>
+                  <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
+                    {appI18n.agentWorkbench.taskDraft.commandPlaceholder}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
+        ) : null}
 
         <View
           style={[
@@ -653,49 +732,6 @@ export function WorkbenchTaskDraftSection({
           </Tooltip>
         </View>
       </View>
-
-      {showAdvanced ? (
-        textInputsReady ? (
-          <View
-            style={[
-              screenStyles.composerAdvancedPanel,
-              {
-                borderColor: palette.border,
-                backgroundColor: palette.canvasShade,
-              },
-            ]}>
-            <RNTextInput
-              testID='agent-workbench.task.command-input'
-              value={draftCommand}
-              onChangeText={onDraftCommandChange}
-              placeholder={appI18n.agentWorkbench.taskDraft.commandPlaceholder}
-              placeholderTextColor={palette.inkSoft}
-              multiline
-              textAlignVertical='top'
-              style={[
-                screenStyles.textInputField,
-                screenStyles.textInputMultiline,
-                screenStyles.composerAdvancedInput,
-                {color: palette.ink},
-              ]}
-            />
-          </View>
-        ) : (
-          <View
-            style={[
-              screenStyles.textInputPlaceholder,
-              screenStyles.composerAdvancedPanel,
-              {
-                borderColor: palette.border,
-                backgroundColor: palette.canvasShade,
-              },
-            ]}>
-            <Text style={[screenStyles.infoText, {color: palette.inkMuted}]}>
-              {appI18n.agentWorkbench.taskDraft.commandPlaceholder}
-            </Text>
-          </View>
-        )
-      ) : null}
 
       <View style={screenStyles.composerRuntimeRow}>
         <View style={screenStyles.composerRuntimeCluster}>
@@ -868,26 +904,6 @@ export function WorkbenchTaskDraftSection({
           </Pressable>
         </View>
 
-        <View
-          style={[
-            screenStyles.composerChip,
-            screenStyles.composerRuntimeMetaChip,
-            {
-              backgroundColor: palette.canvasShade,
-              borderColor: palette.border,
-            },
-          ]}>
-          <Icon icon={iconCatalog.info} size={12} color={palette.inkSoft} />
-          <Text
-            style={[
-              screenStyles.composerChipLabel,
-              screenStyles.composerRuntimeMetaChipLabel,
-              {color: palette.inkSoft},
-            ]}
-            numberOfLines={1}>
-            {appI18n.agentWorkbench.taskDraft.contextUsagePending}
-          </Text>
-        </View>
       </View>
 
       {showWorkspacePanel ? (

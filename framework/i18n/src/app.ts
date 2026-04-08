@@ -690,6 +690,7 @@ export const zhCNApp = {
       errorCode: '错误码',
       retryable: '可重试',
       runDetailExpanderTitle: '详细信息',
+      terminalSummaryTitle: '终端汇总',
     },
     status: {
       idle: '空闲',
@@ -717,6 +718,7 @@ export const zhCNApp = {
       toolCall: '工具调用',
       toolResult: '工具结果',
       toolResultFor: (toolName: string) => `${toolName} 结果`,
+      approval: '审批',
       artifact: '产物',
       error: '错误',
     },

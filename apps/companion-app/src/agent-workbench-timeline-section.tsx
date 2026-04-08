@@ -20,6 +20,7 @@ import {
   countCompletedPlanSteps,
   formatIsoTimestamp,
   resolveApprovalStatusLabel,
+  resolveApprovalStatusTone,
   resolveApprovalTargetDescription,
   resolveArtifactKindLabel,
   resolveMessageRoleLabel,
@@ -252,44 +253,86 @@ export function WorkbenchTimelineSection({
 
           /* Approval — clean decision interrupt */
           if (entry.kind === 'approval') {
+            if (
+              entry.status === 'pending' &&
+              selectedRunDocument.run.status === 'needs-approval'
+            ) {
+              return null;
+            }
+
             const approvalTarget = resolveApprovalTargetDescription(entry);
+            const approvalStatusTone = resolveApprovalStatusTone(entry.status);
+            const approvalCardToneStyle =
+              entry.status === 'approved'
+                ? screenStyles.decisionInterruptCardApproved
+                : entry.status === 'rejected'
+                  ? screenStyles.decisionInterruptCardRejected
+                  : null;
             return (
               <View
                 key={item.key}
                 style={[
-                  screenStyles.transcriptTerminal,
-                  {backgroundColor: palette.panelEmphasis, paddingVertical: appSpacing.sm2},
+                  screenStyles.decisionInterruptCard,
+                  approvalCardToneStyle,
                 ]}>
-                {entry.title ? (
-                  <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.xs}}>
-                    <Icon icon={resolveTimelineEntryIcon(entry)} size={13} color={palette.accent} />
-                    <Text style={[screenStyles.infoText, {color: palette.ink, fontWeight: '600'}]}>
-                      {entry.title}
+                <View style={screenStyles.decisionInterruptHeader}>
+                  <View style={screenStyles.decisionInterruptBody}>
+                    <View style={screenStyles.decisionInterruptEyebrowRow}>
+                      <Icon
+                        icon={resolveTimelineEntryIcon(entry)}
+                        size={13}
+                        color={palette.accent}
+                      />
+                      <Text
+                        style={[
+                          screenStyles.decisionInterruptEyebrow,
+                          {color: palette.accent},
+                        ]}>
+                        {appI18n.agentWorkbench.events.approval}
+                      </Text>
+                    </View>
+                    {entry.title ? (
+                      <Text style={screenStyles.decisionInterruptTitle}>
+                        {entry.title}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text style={screenStyles.messageItemTime}>
+                    {formatIsoTimestamp(entry.createdAt)}
+                  </Text>
+                </View>
+                <View style={screenStyles.decisionInterruptMetaRow}>
+                  <StatusBadge
+                    label={resolveApprovalStatusLabel(entry.status)}
+                    tone={approvalStatusTone}
+                    emphasis='soft'
+                    size='sm'
+                  />
+                  <View style={screenStyles.decisionInterruptMetaChip}>
+                    <Text style={screenStyles.decisionInterruptMetaChipLabel}>
+                      {resolvePermissionModeLabel(entry.permissionMode)}
+                    </Text>
+                  </View>
+                  {approvalTarget ? (
+                    <Text
+                      style={screenStyles.decisionInterruptMetaText}
+                      numberOfLines={1}>
+                      {approvalTarget}
+                    </Text>
+                  ) : null}
+                </View>
+                {entry.details ? (
+                  <View style={screenStyles.decisionInterruptDetailsShell}>
+                    <Text
+                      style={[
+                        screenStyles.terminalText,
+                        screenStyles.decisionInterruptDetailsText,
+                      ]}
+                      numberOfLines={entry.status === 'pending' ? 4 : 2}>
+                      {entry.details}
                     </Text>
                   </View>
                 ) : null}
-                {approvalTarget ? (
-                  <Text
-                    style={[screenStyles.toolCardMetaItem, {color: palette.inkMuted, marginTop: appSpacing.xxs}]}
-                    numberOfLines={1}>
-                    {approvalTarget}
-                  </Text>
-                ) : null}
-                {entry.details ? (
-                  <Text
-                    style={[screenStyles.terminalText, {color: palette.inkMuted, fontFamily: terminalFontFamily}]}
-                    numberOfLines={4}>
-                    {entry.details}
-                  </Text>
-                ) : null}
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: appSpacing.sm, marginTop: appSpacing.xs}}>
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.accent}]}>
-                    {resolveApprovalStatusLabel(entry.status)}
-                  </Text>
-                  <Text style={[screenStyles.toolCardMetaItem, {color: palette.inkSoft}]}>
-                    {resolvePermissionModeLabel(entry.permissionMode)}
-                  </Text>
-                </View>
               </View>
             );
           }

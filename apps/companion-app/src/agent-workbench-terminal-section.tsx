@@ -1,7 +1,7 @@
 import React from 'react';
 import {ScrollView, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
-import {useTheme} from '@opapp/ui-native-primitives';
+import {Expander, useTheme} from '@opapp/ui-native-primitives';
 import {type createScreenStyles, terminalFontFamily} from './agent-workbench-styles';
 
 type WorkbenchTerminalSectionProps = {
@@ -15,7 +15,6 @@ export function WorkbenchTerminalSection({
 }: WorkbenchTerminalSectionProps) {
   const {palette} = useTheme();
 
-  // Don't render anything when there's no terminal output
   if (!terminalTranscript) {
     return (
       <View style={[screenStyles.terminalBox, {opacity: 0.4}]}>
@@ -36,20 +35,30 @@ export function WorkbenchTerminalSection({
   }
 
   return (
-    <View style={screenStyles.transcriptTerminal}>
-      <ScrollView style={screenStyles.terminalScroll}>
-        <Text
-          testID='agent-workbench.terminal.transcript'
-          style={[
-            screenStyles.terminalText,
-            {
-              color: palette.ink,
-              fontFamily: terminalFontFamily,
-            },
-          ]}>
+    <View style={screenStyles.terminalSummaryShell}>
+      <View style={screenStyles.terminalSummaryHiddenLocator}>
+        <Text testID='agent-workbench.terminal.transcript'>
           {terminalTranscript}
         </Text>
-      </ScrollView>
+      </View>
+      <Expander
+        title={appI18n.agentWorkbench.labels.terminalSummaryTitle}
+        defaultExpanded={false}>
+        <View style={screenStyles.transcriptTerminal}>
+          <ScrollView style={screenStyles.terminalScroll}>
+            <Text
+              style={[
+                screenStyles.terminalText,
+                {
+                  color: palette.ink,
+                  fontFamily: terminalFontFamily,
+                },
+              ]}>
+              {terminalTranscript}
+            </Text>
+          </ScrollView>
+        </View>
+      </Expander>
     </View>
   );
 }

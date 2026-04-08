@@ -301,6 +301,96 @@ export function createScreenStyles(palette: AppPalette) {
     approvalPanel: {
       gap: appSpacing.lg,
     },
+    decisionInterruptCard: {
+      gap: appSpacing.sm2,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: workbenchRadius.surface,
+      borderColor: palette.border,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.md,
+    },
+    decisionInterruptCardPending: {
+      borderColor: palette.accent,
+      backgroundColor: palette.canvasShade,
+    },
+    decisionInterruptCardApproved: {
+      borderColor: palette.support,
+      backgroundColor: palette.supportSoft,
+    },
+    decisionInterruptCardRejected: {
+      borderColor: palette.errorRed,
+      backgroundColor: palette.panel,
+    },
+    decisionInterruptHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    decisionInterruptBody: {
+      flex: 1,
+      minWidth: 220,
+      gap: appSpacing.xs,
+    },
+    decisionInterruptEyebrowRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      flexWrap: 'wrap',
+    },
+    decisionInterruptEyebrow: {
+      ...appTypography.label,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+    },
+    decisionInterruptTitle: {
+      ...appTypography.body,
+      color: palette.ink,
+      lineHeight: 22,
+      fontWeight: '600',
+    },
+    decisionInterruptMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    decisionInterruptMetaChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xxs,
+      minHeight: 24,
+      maxWidth: '100%',
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: 3,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.border,
+      borderRadius: workbenchRadius.row,
+      backgroundColor: palette.panel,
+    },
+    decisionInterruptMetaChipLabel: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+      flexShrink: 1,
+    },
+    decisionInterruptMetaText: {
+      ...appTypography.caption,
+      color: palette.inkMuted,
+      lineHeight: 18,
+      flexShrink: 1,
+    },
+    decisionInterruptDetailsShell: {
+      borderRadius: workbenchRadius.row,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.sm,
+    },
+    decisionInterruptDetailsText: {
+      color: palette.inkMuted,
+      fontFamily: terminalFontFamily,
+    },
     detailGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -519,6 +609,13 @@ export function createScreenStyles(palette: AppPalette) {
       backgroundColor: palette.canvasShade,
       paddingHorizontal: appSpacing.lg,
       paddingVertical: appSpacing.sm2,
+    },
+    terminalSummaryShell: {
+      gap: appSpacing.xs,
+    },
+    terminalSummaryHiddenLocator: {
+      height: 0,
+      overflow: 'hidden',
     },
     terminalScroll: {
       maxHeight: 360,

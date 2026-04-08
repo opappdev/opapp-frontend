@@ -39,13 +39,22 @@
 - 状态集合固定为 `rest / hover / focus-visible / pressed / selected / disabled`（见 `appInteractionStates`）。
 - 所有交互组件均已配置 `focusable`；离散动作控件默认采用更接近 `focus-visible` 的焦点语义，避免鼠标点击后长期保留外层焦点框。
 - 所有交互组件均已配置 `cursor: 'pointer'`（Windows 桌面光标）。
+- `pressed` 仅在 pointer down / 键盘激活瞬间提供即时反馈；不得承担持久 current/selected 语义。
+- `focus-visible` 仅用于键盘焦点提示；pointer focus 不复用键盘焦点环。
+- `selected/current` 表示当前对象或当前选项，允许在释放后持久保留，但必须与命令按钮和 tab current 语义分开。
 - 组件态规范：
   - `ChoiceChip`: `idle/active + pressed + emphasized` 组合态
   - `FilterChip`: `idle/active + pressed`
   - `ActionButton`: `accent/ghost + pressed + disabled`
+  - `SelectableRow`: `rest/hover/pressed + selected/current + keyboard-only focus-visible`
   - `StatusBadge`: 非交互组件，仅支持 tone + emphasis + size 变化
   - `SignalPill`: 非交互组件，支持 tone + emphasis + size 变化，用于摘要/标签 rail
   - `TimelineStep`: 非交互组件，支持 tone marker + 顺序正文壳层，用于回合轴/流程步骤
+- 默认视觉基线：
+  - 命令按钮：动作优先，允许 accent fill，但不承担 current-item 表达。
+  - 选项 chip / filter：selected 可使用 accent 语义，但只用于选项选择，不外溢成列表 current-item。
+  - SelectableRow：`canvas + border` 起步，hover 提升到 `canvasShade`，selected/current 使用 `panelEmphasis + 2px accent leading indicator`，禁止使用整块 `accentSoft + accent border` 作为通用当前项。
+  - Tab / nav current：使用各自的 current indicator，不复用 CTA fill 或列表 current-item 视觉。
 
 ## 3. Layout Rules
 

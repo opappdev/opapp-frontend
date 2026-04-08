@@ -3,7 +3,11 @@ import { Pressable, Text, View } from 'react-native';
 import type { ResolvedSurfaceSession } from '@opapp/framework-surfaces';
 import { appI18n } from '@opapp/framework-i18n';
 import { useTheme } from '../theme';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './SurfaceSessionChrome.styles';
 
 export function SurfaceSessionChrome({
@@ -55,54 +59,16 @@ export function SurfaceSessionChrome({
                   : null,
               ]}
             >
-              <Pressable
-                focusable
-                {...windowsFocusProps()}
+              <SurfaceTabAction
+                title={tab.title}
+                meta={tab.policy}
+                active={tab.isActive}
                 onPress={() => onSelectTab(tab.tabId)}
-                style={({ pressed }: any) => [
-                  styles.surfaceTabBody,
-                  pressed ? styles.surfaceTabPressed : null,
-                  desktopCursor,
-                ]}
-              >
-                <Text style={[styles.surfaceTabTitle, { color: palette.ink }]}>
-                  {tab.title}
-                </Text>
-                <Text
-                  style={[
-                    styles.surfaceTabMeta,
-                    { color: palette.inkSoft },
-                    tab.isActive ? { color: palette.accent } : null,
-                  ]}
-                >
-                  {tab.policy}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole='button'
-                accessibilityLabel={`${appI18n.app.closeTabLabelPrefix}${tab.title}`}
-                focusable
-                {...windowsFocusProps()}
+              />
+              <SurfaceTabCloseButton
+                label={`${appI18n.app.closeTabLabelPrefix}${tab.title}`}
                 onPress={() => onCloseTab(tab.tabId)}
-                style={({ pressed }: any) => [
-                  styles.surfaceTabClose,
-                  {
-                    borderLeftColor: palette.border,
-                    backgroundColor: palette.canvasShade,
-                  },
-                  pressed ? { backgroundColor: palette.panelEmphasis } : null,
-                  desktopCursor,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.surfaceTabCloseLabel,
-                    { color: palette.inkSoft },
-                  ]}
-                >
-                  X
-                </Text>
-              </Pressable>
+              />
             </View>
           ))}
         </View>
@@ -114,3 +80,131 @@ export function SurfaceSessionChrome({
 // ==========================================================================
 //  NEW COMPONENTS
 // ==========================================================================
+
+function SurfaceTabAction({
+  title,
+  meta,
+  active,
+  onPress,
+}: {
+  title: string;
+  meta: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { palette } = useTheme();
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handlePressIn,
+    handlePressOut,
+    handleFocus,
+    handleKeyDownCapture,
+    handleBlur,
+  } = useDiscretePressableState();
+
+  return (
+    <Pressable
+      focusable
+      {...windowsFocusProps({ nativeFocusRing: false })}
+      onPress={onPress}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onKeyDownCapture={handleKeyDownCapture}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      style={({ pressed }: any) => [
+        styles.surfaceTabBody,
+        !active && hovered ? { backgroundColor: palette.canvasShade } : null,
+        focusVisible ? { backgroundColor: palette.panelEmphasis } : null,
+        pressed ? styles.surfaceTabPressed : null,
+        desktopCursor,
+      ]}
+    >
+      <Text style={[styles.surfaceTabTitle, { color: palette.ink }]}>
+        {title}
+      </Text>
+      <Text
+        style={[
+          styles.surfaceTabMeta,
+          { color: palette.inkSoft },
+          active ? { color: palette.accent } : null,
+        ]}
+      >
+        {meta}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SurfaceTabCloseButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  const { palette } = useTheme();
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handlePressIn,
+    handlePressOut,
+    handleFocus,
+    handleKeyDownCapture,
+    handleBlur,
+  } = useDiscretePressableState();
+
+  return (
+    <Pressable
+      accessibilityRole='button'
+      accessibilityLabel={label}
+      focusable
+      {...windowsFocusProps({ nativeFocusRing: false })}
+      onPress={onPress}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onKeyDownCapture={handleKeyDownCapture}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      style={({ pressed }: any) => [
+        styles.surfaceTabClose,
+        {
+          borderLeftColor: palette.border,
+          backgroundColor: palette.canvasShade,
+        },
+        hovered && !pressed ? { backgroundColor: palette.panel } : null,
+        focusVisible ? { backgroundColor: palette.panelEmphasis } : null,
+        pressed ? { backgroundColor: palette.panelEmphasis } : null,
+        desktopCursor,
+      ]}
+    >
+      <Text
+        style={[
+          styles.surfaceTabCloseLabel,
+          { color: palette.inkSoft },
+        ]}
+      >
+        X
+      </Text>
+    </Pressable>
+  );
+}

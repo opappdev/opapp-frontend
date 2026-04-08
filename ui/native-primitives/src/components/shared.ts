@@ -4,9 +4,44 @@ import { Platform, ViewStyle } from 'react-native';
 export const desktopCursor: ViewStyle =
   Platform.OS === 'windows' ? ({ cursor: 'pointer' } as any) : {};
 
+const keyboardFocusVisibleWindowMs = 1_000;
+const keyboardFocusVisibleKeys = new Set([
+  'Tab',
+  'Enter',
+  ' ',
+  'Space',
+  'Spacebar',
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown',
+]);
+
+let lastKeyboardFocusIntentAt = 0;
+
+function markKeyboardModality(event?: any) {
+  const key = event?.nativeEvent?.key;
+  if (!key || !keyboardFocusVisibleKeys.has(key)) {
+    return;
+  }
+  lastKeyboardFocusIntentAt = Date.now();
+}
+
+function clearKeyboardModality() {
+  lastKeyboardFocusIntentAt = 0;
+}
+
+function hasRecentKeyboardFocusIntent() {
+  return Date.now() - lastKeyboardFocusIntentAt <= keyboardFocusVisibleWindowMs;
+}
+
 export function windowsFocusProps(options?: { nativeFocusRing?: boolean }) {
-  if (Platform.OS === 'windows' && (options?.nativeFocusRing ?? true)) {
-    return { enableFocusRing: true } as any;
+  if (Platform.OS === 'windows') {
+    return { enableFocusRing: options?.nativeFocusRing ?? true } as any;
   }
   return {};
 }
@@ -14,33 +49,60 @@ export function windowsFocusProps(options?: { nativeFocusRing?: boolean }) {
 export function useDiscretePressableState() {
   const [hovered, setHovered] = useState(false);
   const [focusVisible, setFocusVisible] = useState(false);
-  const pointerInteractingRef = useRef(false);
+  const hoveredRef = useRef(false);
+  const suppressFocusVisibleRef = useRef(false);
 
   const handleHoverIn = useCallback(() => {
+    clearKeyboardModality();
+    hoveredRef.current = true;
     setHovered(true);
   }, []);
 
   const handleHoverOut = useCallback(() => {
+    hoveredRef.current = false;
     setHovered(false);
   }, []);
 
   const handlePointerDown = useCallback(() => {
-    pointerInteractingRef.current = true;
+    clearKeyboardModality();
+    suppressFocusVisibleRef.current = true;
     setFocusVisible(false);
   }, []);
 
   const handlePointerUp = useCallback(() => {
-    pointerInteractingRef.current = false;
+    // Keep pointer-initiated focus from reappearing as a keyboard-style ring
+    // after release. The suppression resets on blur.
   }, []);
 
+  const handlePressIn = useCallback((event?: any) => {
+    if (event?.nativeEvent?.pointerType) {
+      handlePointerDown();
+    }
+  }, [handlePointerDown]);
+
+  const handlePressOut = useCallback((event?: any) => {
+    if (event?.nativeEvent?.pointerType) {
+      handlePointerUp();
+    }
+  }, [handlePointerUp]);
+
   const handleFocus = useCallback(() => {
-    // Pointer clicks on Windows also transfer focus. Keep keyboard focus
-    // treatment visible, but do not leave every clicked button with a ring.
-    setFocusVisible(!pointerInteractingRef.current);
+    // Keep keyboard focus treatment visible only when focus closely follows a
+    // navigation/activation keystroke, which better matches :focus-visible.
+    setFocusVisible(
+      hasRecentKeyboardFocusIntent() &&
+        !suppressFocusVisibleRef.current &&
+        !hoveredRef.current,
+    );
+  }, []);
+
+  const handleKeyDownCapture = useCallback((event: any) => {
+    markKeyboardModality(event);
   }, []);
 
   const handleBlur = useCallback(() => {
-    pointerInteractingRef.current = false;
+    hoveredRef.current = false;
+    suppressFocusVisibleRef.current = false;
     setFocusVisible(false);
   }, []);
 
@@ -51,7 +113,10 @@ export function useDiscretePressableState() {
     handleHoverOut,
     handlePointerDown,
     handlePointerUp,
+    handlePressIn,
+    handlePressOut,
     handleFocus,
+    handleKeyDownCapture,
     handleBlur,
   };
 }

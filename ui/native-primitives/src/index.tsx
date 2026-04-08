@@ -70,6 +70,7 @@ export {
   Divider,
   EmptyState,
   DataRow,
+  SelectableRow,
   Expander,
   Toolbar,
   ProgressBar,
@@ -83,10 +84,14 @@ export {
   MenuItem,
   Spinner,
   KeyboardShortcut,
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
 } from './components';
 
 export type {
   TooltipPlacement,
   IconButtonSize,
+  SelectableRowProps,
   SegmentedControlItem,
 } from './components';

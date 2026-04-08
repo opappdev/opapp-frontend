@@ -27,7 +27,10 @@ export function FilterChip({
     handleHoverOut,
     handlePointerDown,
     handlePointerUp,
+    handlePressIn,
+    handlePressOut,
     handleFocus,
+    handleKeyDownCapture,
     handleBlur,
   } = useDiscretePressableState();
   return (
@@ -42,6 +45,9 @@ export function FilterChip({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onKeyDownCapture={handleKeyDownCapture}
       onFocus={handleFocus}
       onBlur={handleBlur}
       style={({ pressed }: any) => [

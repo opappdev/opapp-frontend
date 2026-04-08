@@ -542,7 +542,14 @@ export const appComponentContractsV1 = {
   DataRow: {
     usage:
       'Structured list row for character/style/item display with badge cluster.',
-    avoid: 'Free-form paragraph content and deeply nested layouts.',
+    avoid: 'Selectable current-item rows and deeply nested layouts.',
+  },
+  SelectableRow: {
+    usage:
+      'Selectable current-item rows in master-detail panes, inspectors, and actionable lists.',
+    geometry:
+      'Structured row shell with keyboard-only focus ring and a slim current-item indicator.',
+    avoid: 'Primary CTA strips, passive status banners, and badge-only metadata rows.',
   },
   Expander: {
     usage: 'Collapsible group header with keyboard-accessible toggle.',

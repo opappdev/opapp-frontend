@@ -29,9 +29,13 @@ import {
   AppFrame,
   ChoiceChip,
   MutedText,
+  SelectableRow,
   Stack,
   StatusBadge,
+  desktopCursor,
+  useDiscretePressableState,
   useTheme,
+  windowsFocusProps,
   appRadius,
   appSpacing,
   appTypography,
@@ -400,17 +404,66 @@ function DisclosureSection({
   description,
   expanded,
   onToggle,
+  headerTestID,
+  contentTestID,
   children,
 }: React.PropsWithChildren<{
   title: string;
   description: string;
   expanded: boolean;
   onToggle: () => void;
+  headerTestID?: string;
+  contentTestID?: string;
 }>) {
   const {palette} = useTheme();
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handlePressIn,
+    handlePressOut,
+    handleFocus,
+    handleKeyDownCapture,
+    handleBlur,
+  } = useDiscretePressableState();
   return (
     <View style={{gap: appSpacing.sm, borderTopWidth: 1, borderTopColor: palette.border, paddingTop: appSpacing.md}}>
-      <Pressable onPress={onToggle} style={{flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: appSpacing.md}}>
+      <Pressable
+        testID={headerTestID}
+        accessibilityRole='button'
+        accessibilityState={{expanded}}
+        focusable
+        {...windowsFocusProps({nativeFocusRing: false})}
+        onPress={onToggle}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onKeyDownCapture={handleKeyDownCapture}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        style={({pressed}: any) => [
+          {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: appSpacing.md,
+            borderRadius: appRadius.control,
+            paddingHorizontal: appSpacing.xs,
+            paddingVertical: appSpacing.xs,
+          },
+          hovered && !pressed ? {backgroundColor: palette.canvasShade} : null,
+          focusVisible ? {borderColor: palette.focusRing, borderWidth: 2} : null,
+          pressed ? {backgroundColor: palette.canvasShade} : null,
+          desktopCursor,
+        ]}>
         <View style={{flex: 1, gap: appSpacing.xs}}>
           <Text style={{color: palette.ink, ...appTypography.bodyStrong}}>{title}</Text>
           <Text style={{color: palette.inkMuted, ...appTypography.caption}}>{description}</Text>
@@ -427,7 +480,11 @@ function DisclosureSection({
             : appI18n.bundleLauncher.details.actions.expand}
         </Text>
       </Pressable>
-      {expanded ? <View style={{gap: appSpacing.md}}>{children}</View> : null}
+      {expanded ? (
+        <View testID={contentTestID} style={{gap: appSpacing.md}}>
+          {children}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -957,7 +1014,7 @@ export function BundleLauncherScreen() {
                   groupedLibraryEntries.map(section => (
                     <View key={section.groupId} style={styles.groupSection}>
                       <Text style={styles.groupTitle}>{section.title}</Text>
-                      <View style={styles.groupList}>
+                      <View accessibilityRole='list' style={styles.groupList}>
                         {section.entries.map(entry => {
                           const rowBusy = entry.isBusy;
                           const rowOpenBusy =
@@ -970,21 +1027,18 @@ export function BundleLauncherScreen() {
                           const iconTone = entry.iconTone as AppTone;
                           const iconToneTokens = tonePalette[iconTone].soft;
                           return (
-                            <Pressable
+                            <SelectableRow
                               key={entry.bundleId}
                               ref={(ref: any) => setRowRef(entry.bundleId, ref)}
-                              focusable
-                              {...(arrowKeyEvents ? { keyDownEvents: arrowKeyEvents } as any : {})}
+                              testID={`bundle-launcher.row.${entry.bundleId}`}
+                              keyDownEvents={arrowKeyEvents}
                               onKeyDown={(e: any) => handleRowKeyDown(entry.bundleId, e)}
+                              selected={rowSelected}
                               onPress={() => {
                                 setSelectedBundleId(entry.bundleId);
                                 setStatusMessage(null);
                               }}
-                              style={[
-                                styles.appRow,
-                                rowSelected ? styles.appRowSelected : null,
-                              ]}>
-                              <View style={styles.appRowIdentity}>
+                              leading={
                                 <View style={[styles.appIcon, {backgroundColor: iconToneTokens.container.backgroundColor}]}>
                                   {rowBusy || rowOpenBusy ? (
                                     <ActivityIndicator size="small" color={iconToneTokens.label.color as string} />
@@ -992,9 +1046,14 @@ export function BundleLauncherScreen() {
                                     <Text style={[styles.appIconLabel, {color: iconToneTokens.label.color as string}]}>{entry.monogram}</Text>
                                   )}
                                 </View>
-                                <View style={styles.appMeta}>
-                                  <View style={styles.appMetaHeader}>
-                                    <Text style={styles.appName}>{entry.displayName}</Text>
+                              }
+                              title={entry.displayName}
+                              titleStyle={styles.appName}
+                              subtitle={entry.subtitle}
+                              subtitleStyle={styles.appSubtitle}
+                              trailing={
+                                <View style={styles.appRowTrailing}>
+                                  <View style={styles.appRowSummary}>
                                     {entry.isDefaultStartupApp ? (
                                       <StatusBadge
                                         label={appI18n.bundleLauncher.library.defaultStartup}
@@ -1002,50 +1061,44 @@ export function BundleLauncherScreen() {
                                         size="sm"
                                       />
                                     ) : null}
+                                    <StatusBadge
+                                      label={entry.stateLabel}
+                                      tone={entry.stateTone}
+                                      size="sm"
+                                    />
+                                    <Text style={styles.appVersionSummary}>
+                                      {entry.versionSummary}
+                                    </Text>
                                   </View>
-                                  <Text style={styles.appSubtitle}>{entry.subtitle}</Text>
+                                  {entry.primaryActionLabel ? (
+                                    <ActionButton
+                                      label={
+                                        rowBusy
+                                          ? entry.primaryActionKind === 'install'
+                                            ? appI18n.bundleLauncher.actions.installing
+                                            : appI18n.bundleLauncher.actions.updating
+                                          : rowOpenBusy
+                                            ? appI18n.bundleLauncher.actions.opening
+                                            : entry.primaryActionLabel
+                                      }
+                                      onPress={() => {
+                                        void handlePrimaryAction(entry);
+                                      }}
+                                      disabled={
+                                        rowBusy ||
+                                        rowOpenBusy ||
+                                        (entry.primaryActionKind === 'open' && !rowCanOpen)
+                                      }
+                                      tone={entry.primaryActionTone}
+                                    />
+                                  ) : (
+                                    <MutedText>
+                                      {appI18n.bundleLauncher.library.readOnlyHint}
+                                    </MutedText>
+                                  )}
                                 </View>
-                              </View>
-
-                              <View style={styles.appRowTrailing}>
-                                <View style={styles.appRowSummary}>
-                                  <StatusBadge
-                                    label={entry.stateLabel}
-                                    tone={entry.stateTone}
-                                    size="sm"
-                                  />
-                                  <Text style={styles.appVersionSummary}>
-                                    {entry.versionSummary}
-                                  </Text>
-                                </View>
-                                {entry.primaryActionLabel ? (
-                                  <ActionButton
-                                    label={
-                                      rowBusy
-                                        ? entry.primaryActionKind === 'install'
-                                          ? appI18n.bundleLauncher.actions.installing
-                                          : appI18n.bundleLauncher.actions.updating
-                                        : rowOpenBusy
-                                          ? appI18n.bundleLauncher.actions.opening
-                                          : entry.primaryActionLabel
-                                    }
-                                    onPress={() => {
-                                      void handlePrimaryAction(entry);
-                                    }}
-                                    disabled={
-                                      rowBusy ||
-                                      rowOpenBusy ||
-                                      (entry.primaryActionKind === 'open' && !rowCanOpen)
-                                    }
-                                    tone={entry.primaryActionTone}
-                                  />
-                                ) : (
-                                  <MutedText>
-                                    {appI18n.bundleLauncher.library.readOnlyHint}
-                                  </MutedText>
-                                )}
-                              </View>
-                            </Pressable>
+                              }>
+                            </SelectableRow>
                           );
                         })}
                       </View>
@@ -1165,6 +1218,8 @@ export function BundleLauncherScreen() {
                         appI18n.bundleLauncher.details.startupPreferencesDescription
                       }
                       expanded={startupPreferencesExpanded}
+                      headerTestID='bundle-launcher.startup-preferences.header'
+                      contentTestID='bundle-launcher.startup-preferences.content'
                       onToggle={() => {
                         setStartupPreferencesExpanded(previous => !previous);
                       }}>
@@ -1172,6 +1227,11 @@ export function BundleLauncherScreen() {
                         {selectedEntry.launchTargets.map(target => (
                           <ChoiceChip
                             key={target.targetId}
+                            testID={
+                              selectedEntry.selectedStartupTarget?.targetId === target.targetId
+                                ? 'bundle-launcher.startup-target.selected'
+                                : `bundle-launcher.startup-target.${target.targetId}`
+                            }
                             label={formatLaunchTargetTitle(target)}
                             detail={target.description}
                             active={
@@ -1195,6 +1255,8 @@ export function BundleLauncherScreen() {
                       title={appI18n.bundleLauncher.details.advancedTitle}
                       description={appI18n.bundleLauncher.details.advancedDescription}
                       expanded={advancedDetailsExpanded}
+                      headerTestID='bundle-launcher.advanced-details.header'
+                      contentTestID='bundle-launcher.advanced-details.content'
                       onToggle={() => {
                         setAdvancedDetailsExpanded(previous => !previous);
                       }}>
@@ -1365,27 +1427,6 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
   groupList: {
     gap: appSpacing.sm,
   },
-  appRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: appSpacing.md,
-    borderRadius: appRadius.control,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.canvas,
-    paddingHorizontal: appSpacing.md,
-    paddingVertical: appSpacing.md,
-  },
-  appRowSelected: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accentSoft,
-  },
-  appRowIdentity: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: appSpacing.md,
-  },
   appRowTrailing: {
     alignItems: 'flex-end',
     gap: appSpacing.xs,
@@ -1400,18 +1441,7 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
   appIconLabel: {
     ...appTypography.bodyStrong,
   },
-  appMeta: {
-    flex: 1,
-    gap: appSpacing.xs,
-  },
-  appMetaHeader: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: appSpacing.sm,
-  },
   appName: {
-    flexShrink: 1,
     color: palette.ink,
     ...appTypography.bodyStrong,
   },

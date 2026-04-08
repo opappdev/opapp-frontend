@@ -29,7 +29,10 @@ export function Switch({
     handleHoverOut,
     handlePointerDown,
     handlePointerUp,
+    handlePressIn,
+    handlePressOut,
     handleFocus,
+    handleKeyDownCapture,
     handleBlur,
   } = useDiscretePressableState();
   const thumbAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
@@ -78,6 +81,9 @@ export function Switch({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onKeyDownCapture={handleKeyDownCapture}
       onFocus={handleFocus}
       onBlur={handleBlur}
       style={() => [

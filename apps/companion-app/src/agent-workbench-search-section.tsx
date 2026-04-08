@@ -1,8 +1,9 @@
 import React from 'react';
-import {Pressable, Text, TextInput as RNTextInput, View} from 'react-native';
+import {Text, TextInput as RNTextInput, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
+  SelectableRow,
   useTheme,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget, WorkspaceEntry} from '@opapp/framework-filesystem';
@@ -104,43 +105,32 @@ export function WorkbenchSearchSection({
               {appI18n.agentWorkbench.empty.searchDescription}
             </Text>
           ) : (
-            <View style={screenStyles.threadList}>
+            <View accessibilityRole='list' style={screenStyles.threadList}>
               {searchResults.map(entry => {
                 const isActive =
                   selectedInspectorEntry?.relativePath === entry.relativePath;
                 return (
-                  <Pressable
+                  <SelectableRow
                     key={`${entry.relativePath}:${entry.kind}`}
+                    selected={isActive}
                     onPress={() => {
                       onInspectEntry(entry);
                     }}
-                    style={[
-                      screenStyles.listRow,
-                      isActive && screenStyles.listRowActive,
-                    ]}>
-                    {isActive ? (
-                      <View style={screenStyles.listRowIndicator} />
-                    ) : null}
-                    <Text
-                      style={[
-                        screenStyles.listRowLabel,
-                        {
-                          color: isActive ? palette.accent : palette.ink,
-                          fontWeight: entry.kind === 'directory' ? '600' : undefined,
-                        },
-                      ]}
-                      numberOfLines={1}>
-                      {entry.name}
-                    </Text>
-                    <Text
-                      style={[
-                        screenStyles.listRowMeta,
-                        {color: palette.inkSoft},
-                      ]}
-                      numberOfLines={1}>
-                      {formatWorkspaceEntryMeta(entry)}
-                    </Text>
-                  </Pressable>
+                    title={entry.name}
+                    titleStyle={{
+                      fontWeight: entry.kind === 'directory' ? '600' : undefined,
+                    }}
+                    trailing={
+                      <Text
+                        style={[
+                          screenStyles.listRowMeta,
+                          {color: palette.inkSoft},
+                        ]}
+                        numberOfLines={1}>
+                        {formatWorkspaceEntryMeta(entry)}
+                      </Text>
+                    }
+                  />
                 );
               })}
             </View>

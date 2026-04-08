@@ -38,7 +38,10 @@ export function Expander({
     handleHoverOut,
     handlePointerDown,
     handlePointerUp,
+    handlePressIn,
+    handlePressOut,
     handleFocus,
+    handleKeyDownCapture,
     handleBlur,
   } = useDiscretePressableState();
 
@@ -61,6 +64,9 @@ export function Expander({
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onKeyDownCapture={handleKeyDownCapture}
         onFocus={handleFocus}
         onBlur={handleBlur}
         style={({ pressed }: any) => [

@@ -43,21 +43,25 @@
     - 禁止用于无指导意义的通用"暂无数据"消息。
 12. `DataRow`
     - 用于结构化列表行：角色/物品/样式展示，含 badge 集群。
-    - 禁止用于自由段落内容或深层嵌套布局。
-13. `Expander`
+    - 禁止用于 selectable current-item 行、自由段落内容或深层嵌套布局。
+13. `SelectableRow`
+    - 用于 master-detail、检索结果、对象清单中的当前项/已选中行。
+    - 默认采用 `panelEmphasis + 细 accent 指示条` 表达 current/selected；pointer 点击只显示瞬时 `pressed`，不保留键盘焦点环。
+    - 禁止用于主 CTA、纯状态展示块或导航 tab。
+14. `Expander`
     - 用于可折叠分组标题，支持键盘切换。
     - 禁止用于不可折叠的 section title 或深度嵌套手风琴。
-14. `Toolbar`
+15. `Toolbar`
    - 用于页面级或 section 级横向命令栏。
     - 几何应维持结构性 command rail，避免被做成导航 pill 容器。
     - 禁止用于导航 tab 或行内内容操作。
-15. `ProgressBar`
+16. `ProgressBar`
     - 用于 tone-aware 的数值进度指示器。
     - 禁止用于无数值支撑的装饰性填充条。
-16. `TextInput`
+17. `TextInput`
     - 用于搜索/过滤文本输入，含焦点环和清除操作。
     - 禁止用于多行富文本编辑。
-17. `Tooltip`
+18. `Tooltip`
     - 用于桌面端鼠标悬停信息提示（Windows pointer events）。
     - 禁止用于移动端或常驻展示信息。
 

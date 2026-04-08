@@ -75,7 +75,10 @@ function SegmentedControlSegment<T extends string>({
     handleHoverOut,
     handlePointerDown,
     handlePointerUp,
+    handlePressIn,
+    handlePressOut,
     handleFocus,
+    handleKeyDownCapture,
     handleBlur,
   } = useDiscretePressableState();
 
@@ -91,6 +94,9 @@ function SegmentedControlSegment<T extends string>({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onKeyDownCapture={handleKeyDownCapture}
       onFocus={handleFocus}
       onBlur={handleBlur}
       style={({ pressed }: any) => [

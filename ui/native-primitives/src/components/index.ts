@@ -15,6 +15,7 @@ export { SurfaceSessionChrome } from './SurfaceSessionChrome';
 export { Divider } from './Divider';
 export { EmptyState } from './EmptyState';
 export { DataRow } from './DataRow';
+export { SelectableRow } from './SelectableRow';
 export { Expander } from './Expander';
 export { Toolbar } from './Toolbar';
 export { ProgressBar } from './ProgressBar';
@@ -28,6 +29,12 @@ export { MenuList } from './MenuList';
 export { MenuItem } from './MenuItem';
 export { Spinner } from './Spinner';
 export { KeyboardShortcut } from './KeyboardShortcut';
+export {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 export type { TooltipPlacement } from './Tooltip';
 export type { IconButtonSize } from './IconButton';
+export type { SelectableRowProps } from './SelectableRow';
 export type { SegmentedControlItem } from './SegmentedControl';

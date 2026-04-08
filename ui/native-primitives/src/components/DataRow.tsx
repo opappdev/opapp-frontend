@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
-import { desktopCursor, windowsFocusProps } from './shared';
+import {
+  desktopCursor,
+  useDiscretePressableState,
+  windowsFocusProps,
+} from './shared';
 import { styles } from './DataRow.styles';
 
 export function DataRow({
@@ -22,7 +26,19 @@ export function DataRow({
   testID?: string;
 }) {
   const { palette, spacing } = useTheme();
-  const [hovered, setHovered] = useState(false);
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handlePressIn,
+    handlePressOut,
+    handleFocus,
+    handleKeyDownCapture,
+    handleBlur,
+  } = useDiscretePressableState();
 
   const content = (
     <View
@@ -31,6 +47,7 @@ export function DataRow({
         styles.dataRow,
         { borderBottomColor: palette.border, paddingVertical: spacing.sm2 },
         hovered ? { backgroundColor: palette.canvasShade } : null,
+        focusVisible ? { borderBottomColor: palette.focusRing } : null,
         style,
       ]}
     >
@@ -60,10 +77,18 @@ export function DataRow({
       <Pressable
         accessibilityRole='button'
         focusable
-        {...windowsFocusProps()}
+        {...windowsFocusProps({ nativeFocusRing: false })}
         onPress={onPress}
-        onHoverIn={() => setHovered(true)}
-        onHoverOut={() => setHovered(false)}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onKeyDownCapture={handleKeyDownCapture}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         style={desktopCursor}
       >
         {content}

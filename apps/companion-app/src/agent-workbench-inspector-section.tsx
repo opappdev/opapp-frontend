@@ -5,6 +5,7 @@ import {
   ActionButton,
   Icon,
   InfoPanel,
+  SelectableRow,
   Spinner,
   useTheme,
   appSpacing,
@@ -124,51 +125,40 @@ export function WorkbenchInspectorSection({
                   {appI18n.agentWorkbench.empty.directoryDescription}
                 </Text>
               ) : (
-                <View style={screenStyles.threadList}>
+                <View accessibilityRole='list' style={screenStyles.threadList}>
                   {visibleChildren.map(entry => {
                     const isActive =
                       selectedInspectorEntry.relativePath ===
                       entry.relativePath;
                     return (
-                      <Pressable
+                      <SelectableRow
                         key={`${entry.relativePath}:${entry.kind}`}
+                        selected={isActive}
                         onPress={() => {
                           onInspectEntry(entry);
                         }}
-                        style={({pressed, hovered}: {pressed: boolean; hovered?: boolean}) => [
-                          screenStyles.listRow,
-                          isActive && screenStyles.listRowActive,
-                          !isActive && hovered ? {backgroundColor: palette.panel} : null,
-                          pressed ? {opacity: 0.7} : null,
-                        ]}>
-                        {isActive ? (
-                          <View style={screenStyles.listRowIndicator} />
-                        ) : null}
-                        <Icon
-                          icon={resolveWorkspaceEntryIcon(entry)}
-                          size={12}
-                          color={isActive ? palette.accent : palette.inkSoft}
-                        />
-                        <Text
-                          style={[
-                            screenStyles.listRowLabel,
-                            {
-                              color: isActive ? palette.accent : palette.ink,
-                              fontWeight: entry.kind === 'directory' ? '600' : undefined,
-                            },
-                          ]}
-                          numberOfLines={1}>
-                          {entry.name}
-                        </Text>
-                        <Text
-                          style={[
-                            screenStyles.listRowMeta,
-                            {color: palette.inkSoft},
-                          ]}
-                          numberOfLines={1}>
-                          {formatWorkspaceEntryMeta(entry)}
-                        </Text>
-                      </Pressable>
+                        leading={
+                          <Icon
+                            icon={resolveWorkspaceEntryIcon(entry)}
+                            size={12}
+                            color={isActive ? palette.accent : palette.inkSoft}
+                          />
+                        }
+                        title={entry.name}
+                        titleStyle={{
+                          fontWeight: entry.kind === 'directory' ? '600' : undefined,
+                        }}
+                        trailing={
+                          <Text
+                            style={[
+                              screenStyles.listRowMeta,
+                              {color: palette.inkSoft},
+                            ]}
+                            numberOfLines={1}>
+                            {formatWorkspaceEntryMeta(entry)}
+                          </Text>
+                        }
+                      />
                     );
                   })}
                   {hasChildOverflow ? (

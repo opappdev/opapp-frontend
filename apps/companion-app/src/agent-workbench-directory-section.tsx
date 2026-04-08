@@ -3,6 +3,7 @@ import {Pressable, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {
   Icon,
+  SelectableRow,
   useTheme,
   appSpacing,
 } from '@opapp/ui-native-primitives';
@@ -50,48 +51,39 @@ export function WorkbenchDirectorySection({
       <Text style={screenStyles.sectionTitle}>
         {appI18n.agentWorkbench.sections.directoryTitle}
       </Text>
-      <View style={screenStyles.threadList}>
+      <View accessibilityRole='list' style={screenStyles.threadList}>
         {visibleEntries.map(entry => {
           const isActive =
             selectedInspectorEntry?.relativePath === entry.relativePath;
           return (
-            <Pressable
+            <SelectableRow
               key={entry.relativePath || entry.name}
+              selected={isActive}
               onPress={() => {
                 onInspectEntry(entry);
               }}
-              style={[
-                screenStyles.listRow,
-                isActive && screenStyles.listRowActive,
-              ]}>
-              {isActive ? (
-                <View style={screenStyles.listRowIndicator} />
-              ) : null}
-              <Icon
-                icon={resolveWorkspaceEntryIcon(entry)}
-                size={12}
-                color={isActive ? palette.accent : palette.inkSoft}
-              />
-              <Text
-                style={[
-                  screenStyles.listRowLabel,
-                  {
-                    color: isActive ? palette.accent : palette.ink,
-                    fontWeight: entry.kind === 'directory' ? '600' : undefined,
-                  },
-                ]}
-                numberOfLines={1}>
-                {entry.name}
-              </Text>
-              <Text
-                style={[
-                  screenStyles.listRowMeta,
-                  {color: palette.inkSoft},
-                ]}
-                numberOfLines={1}>
-                {formatWorkspaceEntryMeta(entry)}
-              </Text>
-            </Pressable>
+              leading={
+                <Icon
+                  icon={resolveWorkspaceEntryIcon(entry)}
+                  size={12}
+                  color={isActive ? palette.accent : palette.inkSoft}
+                />
+              }
+              title={entry.name}
+              titleStyle={{
+                fontWeight: entry.kind === 'directory' ? '600' : undefined,
+              }}
+              trailing={
+                <Text
+                  style={[
+                    screenStyles.listRowMeta,
+                    {color: palette.inkSoft},
+                  ]}
+                  numberOfLines={1}>
+                  {formatWorkspaceEntryMeta(entry)}
+                </Text>
+              }
+            />
           );
         })}
         {hasOverflow ? (

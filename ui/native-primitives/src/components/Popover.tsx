@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleProp, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
 import { styles } from './Popover.styles';
@@ -25,8 +25,9 @@ export function Popover({
   const { palette } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
+  const dismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible) {
       setMounted(true);
       fadeAnim.setValue(0);
@@ -44,17 +45,46 @@ export function Popover({
     }
   }, [visible, mounted, fadeAnim]);
 
+  useEffect(() => {
+    return () => {
+      if (dismissTimeoutRef.current !== null) {
+        clearTimeout(dismissTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const cancelScheduledDismiss = () => {
+    if (dismissTimeoutRef.current !== null) {
+      clearTimeout(dismissTimeoutRef.current);
+      dismissTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleDismiss = () => {
+    cancelScheduledDismiss();
+    dismissTimeoutRef.current = setTimeout(() => {
+      dismissTimeoutRef.current = null;
+      onDismiss();
+    }, 80);
+  };
+
   const positionStyles: ViewStyle =
     placement === 'top'
       ? { bottom: '100%', marginBottom: 4 }
       : { top: '100%', marginTop: 4 };
 
   return (
-    <View style={styles.popoverAnchorWrapper}>
+    <View
+      style={styles.popoverAnchorWrapper}
+      onFocus={cancelScheduledDismiss}
+      onBlur={scheduleDismiss}
+    >
       {anchor}
       {mounted ? (
         <Animated.View
           testID={testID}
+          onFocus={cancelScheduledDismiss}
+          onBlur={scheduleDismiss}
           style={[
             styles.popoverPanel,
             positionStyles,

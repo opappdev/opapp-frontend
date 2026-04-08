@@ -44,7 +44,10 @@ export function ChoiceChip({
     handleHoverOut,
     handlePointerDown,
     handlePointerUp,
+    handlePressIn,
+    handlePressOut,
     handleFocus,
+    handleKeyDownCapture,
     handleBlur,
   } = useDiscretePressableState();
   const activationIdRef = useRef(0);
@@ -74,6 +77,17 @@ export function ChoiceChip({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onPressIn={(event: any) => {
+        handlePressIn(event);
+        onPressIn?.();
+        if (activationBehavior === 'press-in') {
+          activationIdRef.current += 1;
+          suppressPressForActivationRef.current = activationIdRef.current;
+          onPress();
+        }
+      }}
+      onPressOut={handlePressOut}
+      onKeyDownCapture={handleKeyDownCapture}
       onFocus={handleFocus}
       onBlur={handleBlur}
       onPress={() => {
@@ -89,14 +103,6 @@ export function ChoiceChip({
           return;
         }
         onPress();
-      }}
-      onPressIn={() => {
-        onPressIn?.();
-        if (activationBehavior === 'press-in') {
-          activationIdRef.current += 1;
-          suppressPressForActivationRef.current = activationIdRef.current;
-          onPress();
-        }
       }}
       onKeyUp={(event: any) => {
         const key = event?.nativeEvent?.key;

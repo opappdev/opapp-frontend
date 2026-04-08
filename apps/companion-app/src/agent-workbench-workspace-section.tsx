@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {Pressable, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
+import {SelectableRow} from '@opapp/ui-native-primitives';
 import type {
   TrustedWorkspaceTarget,
   WorkspaceEntry,
@@ -69,34 +70,21 @@ export function WorkbenchWorkspaceSection({
       </View>
 
       {expanded ? (
-        <View style={screenStyles.threadList}>
+        <View accessibilityRole='list' style={screenStyles.threadList}>
           {workspaceChoices.map(choice => {
             const isActive = selectedCwd === choice.key;
             return (
-              <Pressable
+              <SelectableRow
                 key={choice.key || 'workspace-root'}
                 testID={`agent-workbench.workspace.${choice.key || 'root'}`}
-                accessibilityRole='button'
-                accessibilityState={{selected: isActive}}
+                selected={isActive}
                 onPress={() => {
                   onBrowseDirectory(choice.key);
                 }}
-                style={[
-                  screenStyles.listRow,
-                  isActive ? screenStyles.listRowActive : null,
-                ]}>
-                {isActive ? <View style={screenStyles.listRowIndicator} /> : null}
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    screenStyles.listRowLabel,
-                    isActive
-                      ? {fontWeight: '600'}
-                      : screenStyles.listRowDetail,
-                  ]}>
-                  {choice.label}
-                </Text>
-              </Pressable>
+                title={choice.label}
+                titleNumberOfLines={1}
+                titleStyle={isActive ? {fontWeight: '600'} : screenStyles.listRowDetail}
+              />
             );
           })}
         </View>

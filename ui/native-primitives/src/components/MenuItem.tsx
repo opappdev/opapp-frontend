@@ -34,7 +34,10 @@ export function MenuItem({
     handleHoverOut,
     handlePointerDown,
     handlePointerUp,
+    handlePressIn,
+    handlePressOut,
     handleFocus,
+    handleKeyDownCapture,
     handleBlur,
   } = useDiscretePressableState();
   const fg = destructive
@@ -56,6 +59,9 @@ export function MenuItem({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onKeyDownCapture={handleKeyDownCapture}
       onFocus={handleFocus}
       onBlur={handleBlur}
       style={({ pressed }: any) => [

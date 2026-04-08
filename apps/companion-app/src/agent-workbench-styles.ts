@@ -407,6 +407,59 @@ export function createScreenStyles(palette: AppPalette) {
       alignSelf: 'flex-start',
       maxWidth: '100%',
     },
+    runtimeSelectorPopover: {
+      minWidth: 260,
+      paddingHorizontal: 4,
+      paddingVertical: 4,
+    },
+    runtimeSelectorMenuList: {
+      gap: 4,
+    },
+    runtimeSelectorOption: {
+      gap: appSpacing.xxs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: workbenchRadius.control,
+      paddingHorizontal: appSpacing.sm2,
+      paddingVertical: appSpacing.sm,
+    },
+    runtimeSelectorOptionPressed: {
+      opacity: 0.92,
+    },
+    runtimeSelectorOptionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+    },
+    runtimeSelectorOptionLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      flex: 1,
+      minWidth: 0,
+    },
+    runtimeSelectorOptionLabel: {
+      ...appTypography.captionStrong,
+      flexShrink: 1,
+    },
+    runtimeSelectorOptionBadge: {
+      minHeight: 22,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: 2,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: workbenchRadius.row,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    runtimeSelectorOptionBadgeLabel: {
+      ...appTypography.label,
+      letterSpacing: 0.4,
+    },
+    runtimeSelectorOptionDetail: {
+      ...appTypography.caption,
+      lineHeight: 18,
+    },
     workspaceActionMenuShell: {
       minWidth: 220,
       maxWidth: 280,

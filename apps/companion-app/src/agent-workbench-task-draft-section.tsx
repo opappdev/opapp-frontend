@@ -1,7 +1,7 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
+  Platform,
   Pressable,
-  type PressableStateCallbackType,
   Text,
   TextInput as RNTextInput,
   View,
@@ -11,14 +11,18 @@ import {
   ActionButton,
   Icon,
   InfoPanel,
-  SegmentedControl,
+  MenuList,
+  Popover,
+  SelectableRow,
   Spinner,
   TextInput,
   Tooltip,
+  desktopCursor,
+  useDiscretePressableState,
   useTheme,
+  windowsFocusProps,
   iconCatalog,
   type IconDefinition,
-  type SegmentedControlItem,
 } from '@opapp/ui-native-primitives';
 import type {TrustedWorkspaceTarget} from '@opapp/framework-filesystem';
 import type {
@@ -70,6 +74,22 @@ type StarterActionButtonProps = {
   screenStyles: ReturnType<typeof createScreenStyles>;
 };
 
+type ExecutionModeKey = 'direct' | 'approval';
+
+type ExecutionModeSelectorOptionProps = {
+  testID: string;
+  label: string;
+  detail: string;
+  badge: string;
+  icon: IconDefinition;
+  selected: boolean;
+  onPress: () => void;
+  onKeyDown: (event: {nativeEvent: {key: string}}) => void;
+  optionRef: (ref: View | null) => void;
+  keyDownEvents?: readonly {code: string}[];
+  screenStyles: ReturnType<typeof createScreenStyles>;
+};
+
 function StarterActionButton({
   testID,
   label,
@@ -80,6 +100,20 @@ function StarterActionButton({
   screenStyles,
 }: StarterActionButtonProps) {
   const {palette} = useTheme();
+  const {
+    hovered,
+    focusVisible,
+    handleHoverIn,
+    handleHoverOut,
+    handlePointerDown,
+    handlePointerUp,
+    handlePressIn,
+    handlePressOut,
+    handleFocus,
+    handleKeyDownCapture,
+    handleBlur,
+  } = useDiscretePressableState();
+  const suppressPressForKeyboardActivationRef = useRef(false);
 
   return (
     <Pressable
@@ -87,34 +121,65 @@ function StarterActionButton({
       accessibilityRole='button'
       accessibilityLabel={label}
       accessibilityState={{disabled, selected: active}}
-      onPress={onPress}
+      focusable={!disabled}
+      {...windowsFocusProps({nativeFocusRing: false})}
+      onPress={() => {
+        if (disabled) {
+          return;
+        }
+        if (suppressPressForKeyboardActivationRef.current) {
+          suppressPressForKeyboardActivationRef.current = false;
+          return;
+        }
+        onPress();
+      }}
+      onKeyUp={(event: any) => {
+        if (disabled) {
+          return;
+        }
+        const key = event?.nativeEvent?.key;
+        if (
+          key === 'Enter' ||
+          key === ' ' ||
+          key === 'Space' ||
+          key === 'Spacebar'
+        ) {
+          suppressPressForKeyboardActivationRef.current = true;
+          onPress();
+        }
+      }}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onKeyDownCapture={handleKeyDownCapture}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       disabled={disabled}
-      style={(state: PressableStateCallbackType & {
-        hovered?: boolean;
-        focused?: boolean;
-      }) => {
-        const hovered = state.hovered ?? false;
-        const focused = state.focused ?? false;
-        return [
-          screenStyles.composerPresetButton,
-          {
-            backgroundColor: active
-              ? palette.panelEmphasis
-              : hovered || focused
-                ? palette.panel
-                : palette.canvasShade,
-            borderColor: active
-              ? palette.accent
-              : hovered || focused
-                ? palette.borderStrong
-                : palette.border,
-          },
-          disabled ? {opacity: 0.45} : null,
-          state.pressed && !disabled
-            ? screenStyles.composerPresetButtonPressed
-            : null,
-        ];
-      }}>
+      style={({pressed}: any) => [
+        screenStyles.composerPresetButton,
+        {
+          backgroundColor: active
+            ? palette.panelEmphasis
+            : hovered && !pressed
+              ? palette.panel
+              : palette.canvasShade,
+          borderColor: active
+            ? palette.accent
+            : hovered && !pressed
+              ? palette.borderStrong
+              : palette.border,
+        },
+        focusVisible && !disabled
+          ? {borderColor: palette.focusRing, borderWidth: 2}
+          : null,
+        disabled ? {opacity: 0.45} : null,
+        pressed && !disabled ? screenStyles.composerPresetButtonPressed : null,
+        !disabled ? desktopCursor : null,
+      ]}>
       <Icon
         icon={icon}
         size={12}
@@ -133,18 +198,66 @@ function StarterActionButton({
   );
 }
 
-const executionModeItems: readonly SegmentedControlItem<'direct' | 'approval'>[] = [
-  {
-    key: 'direct',
-    label: appI18n.agentWorkbench.taskDraft.directMode,
-    icon: iconCatalog.play,
-  },
-  {
-    key: 'approval',
-    label: appI18n.agentWorkbench.taskDraft.approvalMode,
-    icon: iconCatalog.shieldTask,
-  },
-];
+function ExecutionModeSelectorOption({
+  testID,
+  label,
+  detail,
+  badge,
+  icon,
+  selected,
+  onPress,
+  onKeyDown,
+  optionRef,
+  keyDownEvents,
+  screenStyles,
+}: ExecutionModeSelectorOptionProps) {
+  const {palette} = useTheme();
+
+  return (
+    <SelectableRow
+      testID={testID}
+      ref={optionRef as any}
+      title={label}
+      subtitle={detail}
+      titleStyle={screenStyles.runtimeSelectorOptionLabel}
+      subtitleStyle={[
+        screenStyles.runtimeSelectorOptionDetail,
+        {color: selected ? palette.ink : palette.inkMuted},
+      ]}
+      titleNumberOfLines={2}
+      leading={
+        <Icon
+          icon={icon}
+          size={13}
+          color={selected ? palette.accent : palette.inkSoft}
+        />
+      }
+      trailing={
+        <View
+          style={[
+            screenStyles.runtimeSelectorOptionBadge,
+            {
+              borderColor: selected ? palette.accent : palette.border,
+              backgroundColor: selected ? palette.accentSoft : palette.panel,
+            },
+          ]}>
+          <Text
+            style={[
+              screenStyles.runtimeSelectorOptionBadgeLabel,
+              {color: selected ? palette.accent : palette.inkSoft},
+            ]}>
+            {badge}
+          </Text>
+        </View>
+      }
+      selected={selected}
+      onPress={onPress}
+      onKeyDown={onKeyDown as any}
+      keyDownEvents={keyDownEvents}
+      style={screenStyles.runtimeSelectorOption}
+    />
+  );
+}
 
 export function WorkbenchTaskDraftSection({
   trustedWorkspace,
@@ -180,6 +293,11 @@ export function WorkbenchTaskDraftSection({
   const [showExecutionModePanel, setShowExecutionModePanel] = useState(false);
   const [showWorkspaceActionMenu, setShowWorkspaceActionMenu] = useState(false);
   const hadWorkspaceRef = useRef(Boolean(trustedWorkspace));
+  const executionModeTriggerRef = useRef<View | null>(null);
+  const executionModeOptionRefs = useRef<Record<ExecutionModeKey, View | null>>({
+    direct: null,
+    approval: null,
+  });
 
   useEffect(() => {
     const hasWorkspace = trustedWorkspace !== null;
@@ -220,6 +338,47 @@ export function WorkbenchTaskDraftSection({
     ? appI18n.agentWorkbench.taskDraft.manageWorkspaceAction
     : appI18n.agentWorkbench.taskDraft.chooseWorkspaceAction;
   const showWorkspacePanel = showWorkspaceConfig || !hasTrustedWorkspace;
+  const executionModeKeyDownEvents = useMemo(
+    () =>
+      Platform.OS === 'windows'
+        ? [
+            {code: 'ArrowDown'},
+            {code: 'ArrowUp'},
+            {code: 'Enter'},
+            {code: 'Space'},
+            {code: 'Escape'},
+          ]
+        : undefined,
+    [],
+  );
+  const currentExecutionMode: ExecutionModeKey = draftRequiresApproval
+    ? 'approval'
+    : 'direct';
+  const executionModeOptions = useMemo(
+    () => [
+      {
+        key: 'direct' as const,
+        label: appI18n.agentWorkbench.taskDraft.directRuntimeLabel,
+        detail: appI18n.agentWorkbench.taskDraft.directModeDetail,
+        badge:
+          currentExecutionMode === 'direct'
+            ? appI18n.agentWorkbench.taskDraft.activeBadge
+            : appI18n.agentWorkbench.taskDraft.availableBadge,
+        icon: iconCatalog.play,
+      },
+      {
+        key: 'approval' as const,
+        label: appI18n.agentWorkbench.taskDraft.approvalRuntimeLabel,
+        detail: appI18n.agentWorkbench.taskDraft.approvalModeDetail,
+        badge:
+          currentExecutionMode === 'approval'
+            ? appI18n.agentWorkbench.taskDraft.activeBadge
+            : appI18n.agentWorkbench.taskDraft.availableBadge,
+        icon: iconCatalog.shieldTask,
+      },
+    ],
+    [currentExecutionMode],
+  );
   useEffect(() => {
     if (!showWorkspacePanel || trustedWorkspace === null) {
       setShowWorkspaceActionMenu(false);
@@ -256,6 +415,100 @@ export function WorkbenchTaskDraftSection({
           ? appI18n.agentWorkbench.taskDraft.footerApprovalReadyHint
           : appI18n.agentWorkbench.taskDraft.footerDirectReadyHint
         : appI18n.agentWorkbench.taskDraft.footerIdleHint;
+  const focusExecutionModeTrigger = useCallback(() => {
+    const ref = executionModeTriggerRef.current as any;
+    if (ref && typeof ref.focus === 'function') {
+      ref.focus();
+    }
+  }, []);
+  const focusExecutionModeOption = useCallback((key: ExecutionModeKey) => {
+    const ref = executionModeOptionRefs.current[key] as any;
+    if (ref && typeof ref.focus === 'function') {
+      ref.focus();
+    }
+  }, []);
+  const closeExecutionModeSelector = useCallback(
+    (restoreFocus = false) => {
+      setShowExecutionModePanel(false);
+      if (restoreFocus) {
+        setTimeout(() => {
+          focusExecutionModeTrigger();
+        }, 0);
+      }
+    },
+    [focusExecutionModeTrigger],
+  );
+  const openExecutionModeSelector = useCallback(
+    (preferredKey: ExecutionModeKey = currentExecutionMode) => {
+      setShowWorkspaceConfig(false);
+      setShowWorkspaceActionMenu(false);
+      setShowExecutionModePanel(true);
+      setTimeout(() => {
+        focusExecutionModeOption(preferredKey);
+      }, 0);
+    },
+    [currentExecutionMode, focusExecutionModeOption],
+  );
+  const handleSelectExecutionMode = useCallback(
+    (key: ExecutionModeKey) => {
+      if (key === 'direct') {
+        onSelectDirectMode();
+      } else {
+        onSelectApprovalMode();
+      }
+      closeExecutionModeSelector(true);
+    },
+    [closeExecutionModeSelector, onSelectApprovalMode, onSelectDirectMode],
+  );
+  const handleExecutionModeTriggerKeyDown = useCallback(
+    (event: {nativeEvent: {key: string}}) => {
+      const key = event.nativeEvent.key;
+      if (key === 'ArrowDown') {
+        openExecutionModeSelector(currentExecutionMode);
+      } else if (key === 'ArrowUp') {
+        openExecutionModeSelector('approval');
+      } else if (
+        key === 'Enter' ||
+        key === ' ' ||
+        key === 'Spacebar' ||
+        key === 'Space'
+      ) {
+        if (showExecutionModePanel) {
+          closeExecutionModeSelector();
+        } else {
+          openExecutionModeSelector(currentExecutionMode);
+        }
+      } else if (key === 'Escape') {
+        closeExecutionModeSelector();
+      }
+    },
+    [
+      closeExecutionModeSelector,
+      currentExecutionMode,
+      openExecutionModeSelector,
+      showExecutionModePanel,
+    ],
+  );
+  const handleExecutionModeOptionKeyDown = useCallback(
+    (key: ExecutionModeKey, event: {nativeEvent: {key: string}}) => {
+      const pressedKey = event.nativeEvent.key;
+      if (pressedKey === 'ArrowDown') {
+        focusExecutionModeOption(key === 'direct' ? 'approval' : 'direct');
+      } else if (pressedKey === 'ArrowUp') {
+        focusExecutionModeOption(key === 'approval' ? 'direct' : 'approval');
+      } else if (
+        pressedKey === 'Enter' ||
+        pressedKey === ' ' ||
+        pressedKey === 'Spacebar' ||
+        pressedKey === 'Space'
+      ) {
+        handleSelectExecutionMode(key);
+      } else if (pressedKey === 'Escape') {
+        closeExecutionModeSelector(true);
+      }
+    },
+    [closeExecutionModeSelector, focusExecutionModeOption, handleSelectExecutionMode],
+  );
 
   return (
     <View style={screenStyles.composerBar}>
@@ -461,49 +714,112 @@ export function WorkbenchTaskDraftSection({
             </Text>
           </View>
 
-          <Pressable
-            testID='agent-workbench.action.toggle-execution-mode'
-            accessibilityRole='button'
-            onPress={() => {
-              setShowExecutionModePanel(prev => !prev);
-              setShowWorkspaceConfig(false);
+          <Popover
+            visible={showExecutionModePanel}
+            onDismiss={() => {
+              closeExecutionModeSelector();
             }}
-            style={[
-              screenStyles.composerChip,
-              screenStyles.composerRuntimeChip,
-              {
-                backgroundColor:
-                  showExecutionModePanel || draftRequiresApproval
-                    ? palette.panelEmphasis
-                    : palette.canvasShade,
-                borderColor:
-                  showExecutionModePanel || draftRequiresApproval
-                    ? palette.accent
-                    : palette.border,
-              },
-            ]}>
-            <Icon
-              icon={draftRequiresApproval ? iconCatalog.shieldTask : iconCatalog.play}
-              size={12}
-              color={
-                showExecutionModePanel || draftRequiresApproval
-                  ? palette.accent
-                  : palette.inkSoft
-              }
-            />
-            <Text
-              style={[
-                screenStyles.composerChipLabel,
-                {
-                  color:
+            placement='top'
+            maxWidth={320}
+            testID='agent-workbench.task.mode'
+            style={screenStyles.runtimeSelectorPopover}
+            anchor={
+              <Pressable
+                ref={(ref: View | null) => {
+                  executionModeTriggerRef.current = ref;
+                }}
+                testID='agent-workbench.action.toggle-execution-mode'
+                focusable
+                accessibilityRole='button'
+                accessibilityLabel={appI18n.agentWorkbench.taskDraft.executionModePanelTitle}
+                accessibilityHint={
+                  appI18n.agentWorkbench.taskDraft.executionModePanelDescription
+                }
+                accessibilityState={{expanded: showExecutionModePanel}}
+                onPress={() => {
+                  if (showExecutionModePanel) {
+                    closeExecutionModeSelector();
+                  } else {
+                    openExecutionModeSelector(currentExecutionMode);
+                  }
+                }}
+                onKeyDown={handleExecutionModeTriggerKeyDown as any}
+                {...(executionModeKeyDownEvents
+                  ? ({keyDownEvents: executionModeKeyDownEvents} as any)
+                  : {})}
+                style={[
+                  screenStyles.composerChip,
+                  screenStyles.composerRuntimeChip,
+                  {
+                    backgroundColor:
+                      showExecutionModePanel || draftRequiresApproval
+                        ? palette.panelEmphasis
+                        : palette.canvasShade,
+                    borderColor:
+                      showExecutionModePanel || draftRequiresApproval
+                        ? palette.accent
+                        : palette.border,
+                  },
+                ]}>
+                <Icon
+                  icon={
+                    draftRequiresApproval ? iconCatalog.shieldTask : iconCatalog.play
+                  }
+                  size={12}
+                  color={
                     showExecutionModePanel || draftRequiresApproval
                       ? palette.accent
-                      : palette.inkSoft,
-                },
-              ]}>
-              {runtimeModeLabel}
-            </Text>
-          </Pressable>
+                      : palette.inkSoft
+                  }
+                />
+                <Text
+                  style={[
+                    screenStyles.composerChipLabel,
+                    {
+                      color:
+                        showExecutionModePanel || draftRequiresApproval
+                          ? palette.accent
+                          : palette.inkSoft,
+                    },
+                  ]}>
+                  {runtimeModeLabel}
+                </Text>
+                <Icon
+                  icon={iconCatalog.chevronDown}
+                  size={12}
+                  color={
+                    showExecutionModePanel || draftRequiresApproval
+                      ? palette.accent
+                      : palette.inkSoft
+                  }
+                />
+              </Pressable>
+            }>
+            <MenuList style={screenStyles.runtimeSelectorMenuList}>
+              {executionModeOptions.map(option => (
+                <ExecutionModeSelectorOption
+                  key={option.key}
+                  testID={`agent-workbench.task.mode.option.${option.key}`}
+                  label={option.label}
+                  detail={option.detail}
+                  badge={option.badge}
+                  icon={option.icon}
+                  selected={option.key === currentExecutionMode}
+                  onPress={() => {
+                    handleSelectExecutionMode(option.key);
+                  }}
+                  onKeyDown={event => {
+                    handleExecutionModeOptionKeyDown(option.key, event);
+                  }}
+                  optionRef={(ref: View | null) => {
+                    executionModeOptionRefs.current[option.key] = ref;
+                  }}
+                  keyDownEvents={executionModeKeyDownEvents}
+                  screenStyles={screenStyles}
+                />
+              ))}
+            </MenuList>
+          </Popover>
 
           <Pressable
             testID='agent-workbench.action.toggle-workspace-config'
@@ -573,38 +889,6 @@ export function WorkbenchTaskDraftSection({
           </Text>
         </View>
       </View>
-
-      {showExecutionModePanel ? (
-        <View
-          style={[
-            screenStyles.workspaceSetupCard,
-            {
-              borderColor: palette.border,
-              backgroundColor: palette.panel,
-            },
-          ]}>
-          <Text style={[screenStyles.inputLabel, {color: palette.inkSoft}]}>
-            {appI18n.agentWorkbench.taskDraft.executionModePanelTitle}
-          </Text>
-          <Text style={[screenStyles.sectionDescription, {color: palette.inkMuted}]}>
-            {appI18n.agentWorkbench.taskDraft.executionModePanelDescription}
-          </Text>
-          <SegmentedControl<'direct' | 'approval'>
-            testID='agent-workbench.task.mode'
-            items={executionModeItems}
-            selectedKey={draftRequiresApproval ? 'approval' : 'direct'}
-            onSelect={(key) => {
-              if (key === 'direct') {
-                onSelectDirectMode();
-              } else {
-                onSelectApprovalMode();
-              }
-              setShowExecutionModePanel(false);
-            }}
-            size='sm'
-          />
-        </View>
-      ) : null}
 
       {showWorkspacePanel ? (
         <View
@@ -685,52 +969,53 @@ export function WorkbenchTaskDraftSection({
           <View style={screenStyles.actionRow}>
             {hasTrustedWorkspace ? (
               <View style={screenStyles.workspaceActionMenuGroup}>
-                <ActionButton
-                  testID='agent-workbench.action.toggle-workspace-actions'
-                  label={workspaceActionLabel}
-                  onPress={() => {
-                    setShowWorkspaceActionMenu(prev => !prev);
+                <Popover
+                  visible={showWorkspaceActionMenu}
+                  onDismiss={() => {
+                    setShowWorkspaceActionMenu(false);
                   }}
-                  disabled={workspaceConfigBusy}
-                  tone='ghost'
-                  icon={iconCatalog.more}
-                />
-                {showWorkspaceActionMenu ? (
-                  <View
-                    testID='agent-workbench.workspace.action-menu'
-                    style={[
-                      screenStyles.workspaceActionMenuShell,
-                      {
-                        backgroundColor: palette.panel,
-                        borderColor: palette.border,
-                      },
-                    ]}>
-                    <View style={screenStyles.workspaceActionMenuList}>
-                      <ActionButton
-                        testID='agent-workbench.action.set-trusted-workspace-root'
-                        label={appI18n.agentWorkbench.workspace.updateRootAction}
-                        onPress={() => {
-                          setShowWorkspaceActionMenu(false);
-                          onTrustWorkspaceRoot();
-                        }}
-                        disabled={workspaceConfigBusy}
-                        tone='ghost'
-                        icon={iconCatalog.save}
-                      />
-                      <ActionButton
-                        testID='agent-workbench.action.clear-trusted-workspace-root'
-                        label={appI18n.agentWorkbench.workspace.clearRootAction}
-                        onPress={() => {
-                          setShowWorkspaceActionMenu(false);
-                          onClearTrustedWorkspaceRoot();
-                        }}
-                        disabled={workspaceConfigBusy}
-                        tone='ghost'
-                        icon={iconCatalog.delete_}
-                      />
-                    </View>
-                  </View>
-                ) : null}
+                  placement='bottom'
+                  maxWidth={280}
+                  testID='agent-workbench.workspace.action-menu'
+                  style={screenStyles.workspaceActionMenuShell}
+                  anchor={
+                    <ActionButton
+                      testID='agent-workbench.action.toggle-workspace-actions'
+                      label={workspaceActionLabel}
+                      onPress={() => {
+                        setShowWorkspaceActionMenu(prev => !prev);
+                        setShowExecutionModePanel(false);
+                      }}
+                      disabled={workspaceConfigBusy}
+                      tone='ghost'
+                      icon={iconCatalog.more}
+                    />
+                  }>
+                  <MenuList style={screenStyles.workspaceActionMenuList}>
+                    <ActionButton
+                      testID='agent-workbench.action.set-trusted-workspace-root'
+                      label={appI18n.agentWorkbench.workspace.updateRootAction}
+                      onPress={() => {
+                        setShowWorkspaceActionMenu(false);
+                        onTrustWorkspaceRoot();
+                      }}
+                      disabled={workspaceConfigBusy}
+                      tone='ghost'
+                      icon={iconCatalog.save}
+                    />
+                    <ActionButton
+                      testID='agent-workbench.action.clear-trusted-workspace-root'
+                      label={appI18n.agentWorkbench.workspace.clearRootAction}
+                      onPress={() => {
+                        setShowWorkspaceActionMenu(false);
+                        onClearTrustedWorkspaceRoot();
+                      }}
+                      disabled={workspaceConfigBusy}
+                      tone='ghost'
+                      icon={iconCatalog.delete_}
+                    />
+                  </MenuList>
+                </Popover>
               </View>
             ) : (
               <ActionButton

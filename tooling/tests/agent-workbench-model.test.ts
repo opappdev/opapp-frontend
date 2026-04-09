@@ -805,6 +805,12 @@ export function run() {
           title: '允许执行任务：审批 smoke',
           details: '批准后执行命令',
           permissionMode: 'workspace-write',
+          requestReason: '允许执行任务：审批 smoke',
+          commandText: 'git diff --stat',
+          requestedCwd: 'opapp-frontend',
+          decisionMode: 'approve-once',
+          decisionNote: null,
+          matchedRuleId: null,
           createdAt: '2026-04-03T02:00:02.000Z',
         },
         {

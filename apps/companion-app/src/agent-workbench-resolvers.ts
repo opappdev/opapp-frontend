@@ -34,6 +34,36 @@ export function formatIsoTimestamp(value: string | null) {
   return `${match[1]} ${match[2]} UTC`;
 }
 
+export function formatElapsedDuration(
+  startValue: string | null | undefined,
+  endValue: string | null | undefined,
+) {
+  if (!startValue || !endValue) {
+    return null;
+  }
+
+  const startMs = Date.parse(startValue);
+  const endMs = Date.parse(endValue);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+    return null;
+  }
+
+  const totalSeconds = Math.max(0, Math.round((endMs - startMs) / 1000));
+  if (totalSeconds < 60) {
+    return `${totalSeconds}s`;
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 60) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
 export function formatSizeBytes(value: number | null) {
   if (value === null || value < 0) {
     return appI18n.common.unknown;

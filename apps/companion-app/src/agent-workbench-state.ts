@@ -100,6 +100,10 @@ async function loadThreadRunHistory(
 export type AgentWorkbenchApprovalBusy = 'requesting' | 'approving' | 'rejecting' | null;
 export type AgentWorkbenchTaskDraftBusy = 'running' | 'requesting' | null;
 export type AgentWorkbenchStatusTone = 'support' | 'danger' | 'neutral';
+type WorkbenchApprovalDecision = {
+  decisionMode: 'approve-once' | 'approve-prefix' | 'reject';
+  reason?: string;
+};
 
 export function useAgentWorkbenchState() {
   // ── core loading / refresh ──
@@ -853,16 +857,46 @@ export function useAgentWorkbenchState() {
     }
   }, [refreshWorkbench, trustedWorkspace, workspaceWriteApprovalCommand]);
 
-  const handleApproveSelectedRun = useCallback(async () => {
+  const handleResolveSelectedApproval = useCallback(async ({
+    decisionMode,
+    reason,
+  }: WorkbenchApprovalDecision) => {
     if (!selectedRunDocument || !selectedPendingApproval) {
       return;
     }
 
-    setApprovalBusy('approving');
+    const runId = selectedRunDocument.run.runId;
+    const approvalId = selectedPendingApproval.approvalId;
+    const rejectReason = reason?.trim() || undefined;
+    setApprovalBusy(decisionMode === 'reject' ? 'rejecting' : 'approving');
     try {
+      if (decisionMode === 'reject') {
+        await rejectPersistedAgentTerminalRun({
+          runId,
+          approvalId,
+          reason: rejectReason,
+        });
+        setStatusTone('neutral');
+        setStatusMessage(appI18n.agentWorkbench.feedback.approvalRejected);
+        logInteraction('agent-workbench.approval.rejected', {
+          runId,
+          approvalId,
+          decisionMode,
+          reason: rejectReason ?? null,
+        });
+        await refreshWorkbench({
+          preferredCwd: selectedCwdRef.current,
+          preferredThreadId: selectedRunDocument.run.threadId,
+          preferredRunId: runId,
+        });
+        return;
+      }
+
       const handle = await approvePersistedAgentTerminalRun({
-        runId: selectedRunDocument.run.runId,
-        approvalId: selectedPendingApproval.approvalId,
+        runId,
+        approvalId,
+        decisionMode:
+          decisionMode === 'approve-prefix' ? 'prefix-rule' : 'once',
       });
 
       attachActiveRunHandle(handle);
@@ -871,7 +905,8 @@ export function useAgentWorkbenchState() {
       logInteraction('agent-workbench.approval.approved', {
         threadId: handle.threadId,
         runId: handle.runId,
-        approvalId: selectedPendingApproval.approvalId,
+        approvalId,
+        decisionMode,
       });
 
       await refreshWorkbench({
@@ -880,9 +915,11 @@ export function useAgentWorkbenchState() {
         preferredRunId: handle.runId,
       });
     } catch (error) {
-      logException('agent-workbench.approval.approve.failed', error, {
-        runId: selectedRunDocument.run.runId,
-        approvalId: selectedPendingApproval.approvalId,
+      logException('agent-workbench.approval.resolve.failed', error, {
+        runId,
+        approvalId,
+        decisionMode,
+        reason: rejectReason ?? null,
       });
       setStatusTone('danger');
       setStatusMessage(appI18n.agentWorkbench.feedback.approvalDecisionFailed);
@@ -900,46 +937,6 @@ export function useAgentWorkbenchState() {
     selectedPendingApproval,
     selectedRunDocument,
   ]);
-
-  const handleRejectSelectedRun = useCallback(async () => {
-    if (!selectedRunDocument || !selectedPendingApproval) {
-      return;
-    }
-
-    setApprovalBusy('rejecting');
-    try {
-      await rejectPersistedAgentTerminalRun({
-        runId: selectedRunDocument.run.runId,
-        approvalId: selectedPendingApproval.approvalId,
-      });
-      setStatusTone('neutral');
-      setStatusMessage(appI18n.agentWorkbench.feedback.approvalRejected);
-      logInteraction('agent-workbench.approval.rejected', {
-        runId: selectedRunDocument.run.runId,
-        approvalId: selectedPendingApproval.approvalId,
-      });
-
-      await refreshWorkbench({
-        preferredCwd: selectedCwdRef.current,
-        preferredThreadId: selectedRunDocument.run.threadId,
-        preferredRunId: selectedRunDocument.run.runId,
-      });
-    } catch (error) {
-      logException('agent-workbench.approval.reject.failed', error, {
-        runId: selectedRunDocument.run.runId,
-        approvalId: selectedPendingApproval.approvalId,
-      });
-      setStatusTone('danger');
-      setStatusMessage(appI18n.agentWorkbench.feedback.approvalDecisionFailed);
-      await refreshWorkbench({
-        preferredCwd: selectedCwdRef.current,
-        preferredThreadId: selectedThreadIdRef.current,
-        preferredRunId: selectedRunIdRef.current,
-      });
-    } finally {
-      setApprovalBusy(null);
-    }
-  }, [refreshWorkbench, selectedPendingApproval, selectedRunDocument]);
 
   const handleCancelRun = useCallback(async () => {
     const handle = activeRunHandleRef.current;
@@ -1432,8 +1429,7 @@ export function useAgentWorkbenchState() {
     handleRunGitStatus,
     handleStartDraftTask,
     handleRequestWriteApproval,
-    handleApproveSelectedRun,
-    handleRejectSelectedRun,
+    handleResolveSelectedApproval,
     handleCancelRun,
     handleRetrySelectedRun,
     handleInspectWorkspaceEntry,

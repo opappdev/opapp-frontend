@@ -1,17 +1,25 @@
 import {
+  createDefaultAgentProviderProfile,
   createDefaultAgentRunSettings,
   createDefaultAgentThreadIndex,
   normalizeAgentStorageId,
   parsePersistedAgentRunDocument,
+  parsePersistedAgentApprovalRulesDocument,
+  parsePersistedAgentLlmProviderConfig,
   parsePersistedAgentThreadDocument,
   parsePersistedAgentThreadIndex,
   serializePersistedAgentRunDocument,
+  serializePersistedAgentApprovalRulesDocument,
   serializePersistedAgentThreadDocument,
   serializePersistedAgentThreadIndex,
+  type AgentApprovalDecisionMode,
   type AgentApprovalMode,
+  type AgentApprovalRule,
+  type AgentApprovalRulesDocument,
   type AgentApprovalTimelineEntry,
   type AgentArtifactTimelineEntry,
   type AgentErrorTimelineEntry,
+  type AgentLlmProviderConfig,
   type AgentMessageTimelineEntry,
   type AgentPermissionMode,
   type AgentPlanTimelineEntry,
@@ -28,6 +36,8 @@ import {
   resolveRequestedAgentArtifact,
 } from './model';
 import {
+  agentApprovalRulesPath,
+  agentLlmProviderConfigPath,
   agentThreadIndexPath,
   buildAgentRunDocumentPath,
   buildAgentThreadDocumentPath,
@@ -38,6 +48,21 @@ import {
   type AgentTerminalSessionHandle,
   type OpenAgentTerminalSessionOptions,
 } from './terminal-core';
+import {
+  requestOpenAiCompatibleAgentTurn,
+  type OpenAiCompatibleAgentSseRequest,
+  type OpenAiCompatibleAgentTurnResult,
+} from './openai-compatible-chat';
+
+const approvalRejectedToolResultOutput = '用户手动拒绝';
+const defaultAgentWorkbenchSystemPrompt = [
+  '你是 OPApp Agent Workbench 的模型层。',
+  '你可以使用 shell_command 工具。',
+  '当用户消息明确给出 command / cwd / shell / env 提示时，必须先发起一次 shell_command 工具调用，并且严格使用提示里的参数，不要改写命令。',
+  '收到 shell_command 的 tool result 后，再用简体中文输出一小段收尾消息。',
+  '如果 tool result 说明“用户手动拒绝”，要明确说明命令没有执行，并引用拒绝原因。',
+].join('\n');
+const defaultRejectedDecisionReason = '用户手动拒绝';
 
 type AgentRuntimeUserFileReader = (
   relativePath: string,
@@ -68,11 +93,13 @@ export type OpenPersistedAgentTerminalRunOptions =
 export type ApprovePersistedAgentTerminalRunOptions = {
   runId: string;
   approvalId?: string | null;
+  decisionMode?: 'once' | 'prefix-rule';
 };
 
 export type RejectPersistedAgentTerminalRunOptions = {
   runId: string;
   approvalId?: string | null;
+  reason?: string | null;
 };
 
 export type ReconcileInterruptedAgentRunsResult = {
@@ -208,6 +235,69 @@ function resolveRunSettings({
     permissionMode: permissionMode ?? defaults.permissionMode,
     approvalMode: approvalMode ?? defaults.approvalMode,
   };
+}
+
+function createProviderProfileFromConfig(
+  providerConfig: AgentLlmProviderConfig | null,
+) {
+  if (!providerConfig) {
+    return null;
+  }
+
+  return {
+    providerId:
+      providerConfig.providerId ||
+      createDefaultAgentProviderProfile().providerId,
+    label: providerConfig.label,
+    apiFamily: providerConfig.apiFamily,
+    baseUrl: providerConfig.baseUrl,
+    model: providerConfig.model,
+  };
+}
+
+async function loadAgentLlmProviderConfig(
+  readUserFile: AgentRuntimeUserFileReader,
+): Promise<AgentLlmProviderConfig | null> {
+  const raw = await readUserFile(agentLlmProviderConfigPath);
+  return raw ? parsePersistedAgentLlmProviderConfig(raw) : null;
+}
+
+async function loadApprovalRulesDocument(
+  readUserFile: AgentRuntimeUserFileReader,
+): Promise<AgentApprovalRulesDocument> {
+  const raw = await readUserFile(agentApprovalRulesPath);
+  return (
+    (raw ? parsePersistedAgentApprovalRulesDocument(raw) : null) ?? {
+      updatedAt: null,
+      rules: [],
+    }
+  );
+}
+
+function normalizeApprovalCommandPrefix(command: string) {
+  return command.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function findMatchingApprovalRule({
+  rules,
+  request,
+  permissionMode,
+}: {
+  rules: ReadonlyArray<AgentApprovalRule>;
+  request: AgentTerminalRunRequest;
+  permissionMode: AgentPermissionMode;
+}) {
+  const requestPrefix = normalizeApprovalCommandPrefix(request.command);
+  const requestCwd = request.cwd?.trim() || null;
+
+  return (
+    rules.find(
+      rule =>
+        rule.permissionMode === permissionMode &&
+        (rule.cwd?.trim() || null) === requestCwd &&
+        rule.commandPrefix === requestPrefix,
+    ) ?? null
+  );
 }
 
 function normalizeRunRequest(
@@ -354,6 +444,13 @@ function createApprovalTimelineEntry({
   title,
   details,
   permissionMode,
+  requestReason,
+  commandText,
+  requestedCwd,
+  decisionMode = null,
+  decisionNote = null,
+  matchedRuleId = null,
+  status = 'pending',
 }: {
   entryId: string;
   runId: string;
@@ -363,6 +460,13 @@ function createApprovalTimelineEntry({
   title: string;
   details?: string | null;
   permissionMode?: AgentPermissionMode | null;
+  requestReason?: string | null;
+  commandText?: string | null;
+  requestedCwd?: string | null;
+  decisionMode?: AgentApprovalDecisionMode | null;
+  decisionNote?: string | null;
+  matchedRuleId?: string | null;
+  status?: AgentApprovalTimelineEntry['status'];
 }): AgentApprovalTimelineEntry {
   return {
     entryId,
@@ -371,10 +475,16 @@ function createApprovalTimelineEntry({
     kind: 'approval',
     createdAt,
     approvalId,
-    status: 'pending',
+    status,
     title,
     details: details?.trim() || null,
     permissionMode: permissionMode ?? null,
+    requestReason: requestReason?.trim() || title,
+    commandText: commandText ?? null,
+    requestedCwd: requestedCwd?.trim() || null,
+    decisionMode,
+    decisionNote: decisionNote ?? null,
+    matchedRuleId: matchedRuleId?.trim() || null,
   };
 }
 
@@ -421,23 +531,27 @@ function buildStructuredToolCallId(runId: string) {
 }
 
 function createMessageTimelineEntry({
+  entryId,
   runId,
   seq,
   createdAt,
+  role,
   content,
 }: {
+  entryId?: string;
   runId: string;
   seq: number;
   createdAt: string;
+  role: AgentMessageTimelineEntry['role'];
   content: string;
 }): AgentMessageTimelineEntry {
   return {
-    entryId: buildStructuredTimelineEntryId(runId, 'message'),
+    entryId: entryId ?? buildStructuredTimelineEntryId(runId, 'message'),
     runId,
     seq,
     kind: 'message',
     createdAt,
-    role: 'user',
+    role,
     content,
   };
 }
@@ -542,9 +656,16 @@ function findStructuredToolCallEntry(document: AgentRunDocument) {
 }
 
 function hasStructuredToolResultEntry(document: AgentRunDocument) {
+  return findStructuredToolResultEntry(document) !== null;
+}
+
+function findStructuredToolResultEntry(document: AgentRunDocument) {
   const callId = buildStructuredToolCallId(document.run.runId);
-  return document.timeline.some(
-    entry => entry.kind === 'tool-result' && entry.callId === callId,
+  return (
+    document.timeline.find(
+      (entry): entry is AgentToolResultTimelineEntry =>
+        entry.kind === 'tool-result' && entry.callId === callId,
+    ) ?? null
   );
 }
 
@@ -590,9 +711,11 @@ function createStructuredTimelineSeed({
 
   runDocument.timeline.push(
     createMessageTimelineEntry({
+      entryId: buildStructuredTimelineEntryId(runDocument.run.runId, 'message'),
       runId: runDocument.run.runId,
       seq: 0,
       createdAt,
+      role: 'user',
       content: goal,
     }),
   );
@@ -684,6 +807,118 @@ function buildStructuredToolResultOutput(document: AgentRunDocument) {
   return output.join('');
 }
 
+function buildAgentWorkbenchSystemPrompt(
+  providerConfig: AgentLlmProviderConfig,
+) {
+  const customPrompt = providerConfig.systemPrompt.trim();
+  return customPrompt
+    ? `${defaultAgentWorkbenchSystemPrompt}\n\n${customPrompt}`
+    : defaultAgentWorkbenchSystemPrompt;
+}
+
+function serializeToolRequestArguments(request: AgentTerminalRunRequest) {
+  return JSON.stringify({
+    command: request.command,
+    cwd: request.cwd,
+    shell: request.shell,
+    env: request.env,
+  });
+}
+
+function buildAgentWorkbenchInitialMessages({
+  providerConfig,
+  goal,
+  request,
+}: {
+  providerConfig: AgentLlmProviderConfig;
+  goal: string;
+  request: AgentTerminalRunRequest;
+}) {
+  return [
+    {
+      role: 'system' as const,
+      content: buildAgentWorkbenchSystemPrompt(providerConfig),
+    },
+    {
+      role: 'user' as const,
+      content: [
+        `任务目标：${goal}`,
+        '',
+        '请先调用一次 shell_command 工具，并且严格使用下面这些参数，不要改写命令：',
+        serializeToolRequestArguments(request),
+      ].join('\n'),
+    },
+  ];
+}
+
+function buildAgentWorkbenchContinuationMessages({
+  providerConfig,
+  runDocument,
+  toolResultOutput,
+}: {
+  providerConfig: AgentLlmProviderConfig;
+  runDocument: AgentRunDocument;
+  toolResultOutput: string;
+}) {
+  const request = runDocument.run.request;
+  if (!request) {
+    throw new Error('Persisted agent run is missing its terminal request.');
+  }
+
+  const callId = buildStructuredToolCallId(runDocument.run.runId);
+  return [
+    ...buildAgentWorkbenchInitialMessages({
+      providerConfig,
+      goal: runDocument.run.goal,
+      request,
+    }),
+    {
+      role: 'assistant' as const,
+      content: null,
+      toolCalls: [
+        {
+          id: callId,
+          name: 'shell_command',
+          argumentsText: serializeToolRequestArguments(request),
+        },
+      ],
+    },
+    {
+      role: 'tool' as const,
+      toolCallId: callId,
+      content: toolResultOutput,
+    },
+  ];
+}
+
+function resolveShellToolRequestFromTurnResult({
+  turnResult,
+  fallbackRequest,
+}: {
+  turnResult: OpenAiCompatibleAgentTurnResult;
+  fallbackRequest: AgentTerminalRunRequest;
+}) {
+  const shellToolCall =
+    turnResult.toolCalls.find(
+      toolCall => toolCall.name === 'shell_command' && toolCall.request,
+    ) ?? null;
+  if (!shellToolCall?.request) {
+    throw new Error('Agent model did not return a valid shell_command tool call.');
+  }
+
+  return {
+    callId: shellToolCall.callId,
+    request: {
+      ...fallbackRequest,
+      ...shellToolCall.request,
+      env:
+        Object.keys(shellToolCall.request.env).length > 0
+          ? shellToolCall.request.env
+          : fallbackRequest.env,
+    },
+  };
+}
+
 function resolveExitStatus({
   exitCode,
   cancelRequested,
@@ -766,6 +1001,7 @@ export function createPersistedAgentTerminalRuntime({
       await import('./terminal');
     return openNativeAgentTerminalSession(options, listener);
   },
+  openSseRequestImpl,
   now = () => new Date().toISOString(),
   createId = createStorageId,
 }: {
@@ -779,6 +1015,7 @@ export function createPersistedAgentTerminalRuntime({
       onError?: (error: Error & {code?: string}) => void;
     },
   ) => Promise<AgentTerminalSessionHandle>;
+  openSseRequestImpl?: OpenAiCompatibleAgentSseRequest;
   now?: () => string;
   createId?: (prefix: string) => string;
 }) {
@@ -810,6 +1047,116 @@ export function createPersistedAgentTerminalRuntime({
     if (!persisted) {
       throw new Error(`Failed to persist ${relativePath}.`);
     }
+  }
+
+  async function persistApprovalRulesDocument(
+    document: AgentApprovalRulesDocument,
+  ) {
+    await persistUserFile(
+      agentApprovalRulesPath,
+      serializePersistedAgentApprovalRulesDocument(document),
+    );
+  }
+
+  async function resolveRuntimeProviderConfig(
+    providerOverride?: AgentProviderProfile | null,
+  ): Promise<AgentLlmProviderConfig | null> {
+    const persistedProviderConfig = await loadAgentLlmProviderConfig(readUserFile);
+    if (!persistedProviderConfig) {
+      return null;
+    }
+
+    return {
+      ...persistedProviderConfig,
+      providerId:
+        providerOverride?.providerId?.trim() || persistedProviderConfig.providerId,
+      label: providerOverride?.label ?? persistedProviderConfig.label,
+      apiFamily:
+        providerOverride?.apiFamily ?? persistedProviderConfig.apiFamily,
+      baseUrl:
+        providerOverride?.baseUrl?.trim() || persistedProviderConfig.baseUrl,
+      model: providerOverride?.model?.trim() || persistedProviderConfig.model,
+    };
+  }
+
+  async function requestInitialLlmShellToolCall({
+    providerConfig,
+    goal,
+    request,
+  }: {
+    providerConfig: AgentLlmProviderConfig;
+    goal: string;
+    request: AgentTerminalRunRequest;
+  }) {
+    const turnResult = await requestOpenAiCompatibleAgentTurn({
+      provider: providerConfig,
+      messages: buildAgentWorkbenchInitialMessages({
+        providerConfig,
+        goal,
+        request,
+      }),
+      allowToolCalls: true,
+      openSseRequestImpl,
+    });
+
+    return resolveShellToolRequestFromTurnResult({
+      turnResult,
+      fallbackRequest: request,
+    }).request;
+  }
+
+  async function appendLlmContinuationMessage({
+    runDocument,
+    thread,
+    providerConfig,
+    toolResultOutput,
+    createdAt,
+  }: {
+    runDocument: AgentRunDocument;
+    thread: AgentThreadSummary;
+    providerConfig: AgentLlmProviderConfig | null;
+    toolResultOutput: string;
+    createdAt: string;
+  }) {
+    if (!providerConfig) {
+      return;
+    }
+
+    const turnResult = await requestOpenAiCompatibleAgentTurn({
+      provider: providerConfig,
+      messages: buildAgentWorkbenchContinuationMessages({
+        providerConfig,
+        runDocument,
+        toolResultOutput,
+      }),
+      allowToolCalls: false,
+      openSseRequestImpl,
+    });
+    const assistantText = turnResult.assistantText.trim();
+    if (!assistantText) {
+      return;
+    }
+
+    const nextSeq =
+      runDocument.timeline.reduce(
+        (maxSeq, entry) => Math.max(maxSeq, entry.seq),
+        -1,
+      ) + 1;
+    runDocument.timeline.push(
+      createMessageTimelineEntry({
+        entryId: createId('entry'),
+        runId: runDocument.run.runId,
+        seq: nextSeq,
+        createdAt,
+        role: 'assistant',
+        content: assistantText,
+      }),
+    );
+    runDocument.run.updatedAt = createdAt;
+    thread.updatedAt = createdAt;
+    thread.lastRunStatus = runDocument.run.status;
+    thread.lastRunId = runDocument.run.runId;
+    markThreadAttention(thread, createdAt);
   }
 
   async function persistRunState({
@@ -986,6 +1333,9 @@ export function createPersistedAgentTerminalRuntime({
     if (!request) {
       throw new Error('Persisted agent run is missing its terminal request.');
     }
+    const requiresLlmContinuation = runDocument.timeline.some(
+      entry => entry.kind === 'approval',
+    );
 
     const requestedArtifact = resolveRequestedAgentArtifact(request.env);
     let nextSeq =
@@ -1110,6 +1460,47 @@ export function createPersistedAgentTerminalRuntime({
       thread.lastRunId = runDocument.run.runId;
     };
 
+    const appendContinuationAndPersist = async ({
+      createdAt,
+      toolResultOutput,
+    }: {
+      createdAt: string;
+      toolResultOutput: string;
+    }) => {
+      if (requiresLlmContinuation) {
+        try {
+          const providerConfig = await resolveRuntimeProviderConfig(
+            runDocument.run.settings.provider,
+          );
+          await appendLlmContinuationMessage({
+            runDocument,
+            thread,
+            providerConfig,
+            toolResultOutput,
+            createdAt,
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Agent continuation failed after shell execution.';
+          appendErrorEvent({
+            code: null,
+            message,
+            createdAt,
+          });
+          runDocument.run.status = 'failed';
+          runDocument.run.updatedAt = createdAt;
+          runDocument.run.completedAt = createdAt;
+          thread.updatedAt = createdAt;
+          thread.lastRunStatus = runDocument.run.status;
+          thread.lastRunId = runDocument.run.runId;
+        }
+      }
+
+      await persistSnapshot(true);
+    };
+
     let sessionHandle: AgentTerminalSessionHandle;
     try {
       sessionHandle = await openAgentTerminalSession(
@@ -1131,6 +1522,7 @@ export function createPersistedAgentTerminalRuntime({
               updateStructuredToolCallStatus(runDocument, 'running');
               markThreadAttention(thread, event.createdAt);
             } else if (event.event === 'exit') {
+              const toolResultOutput = buildStructuredToolResultOutput(runDocument);
               runDocument.run.status = resolveExitStatus({
                 exitCode: event.exitCode,
                 cancelRequested,
@@ -1153,7 +1545,7 @@ export function createPersistedAgentTerminalRuntime({
                     : runDocument.run.status === 'failed'
                       ? 'error'
                       : 'cancelled',
-                outputText: buildStructuredToolResultOutput(runDocument),
+                outputText: toolResultOutput,
                 exitCode: event.exitCode,
               });
               if (runDocument.run.status === 'completed') {
@@ -1165,15 +1557,22 @@ export function createPersistedAgentTerminalRuntime({
             thread.lastRunStatus = runDocument.run.status;
             thread.lastRunId = runDocument.run.runId;
 
-            const persistPromise = persistSnapshot(
-              event.event === 'started' || event.event === 'exit',
-            );
+            const persistPromise =
+              event.event === 'exit'
+                ? appendContinuationAndPersist({
+                    createdAt: event.createdAt,
+                    toolResultOutput:
+                      buildStructuredToolResultOutput(runDocument),
+                  })
+                : persistSnapshot(event.event === 'started');
             if (event.event === 'exit') {
               settleWhenReady(persistPromise);
             }
           },
           onError(error) {
             const createdAt = now();
+            const toolResultOutput =
+              buildStructuredToolResultOutput(runDocument) || error.message;
             updateStructuredPlanStatus(runDocument, 'completed');
             updateStructuredToolCallStatus(
               runDocument,
@@ -1182,8 +1581,7 @@ export function createPersistedAgentTerminalRuntime({
             appendToolResult({
               createdAt,
               status: cancelRequested ? 'cancelled' : 'error',
-              outputText:
-                buildStructuredToolResultOutput(runDocument) || error.message,
+              outputText: toolResultOutput,
               exitCode: null,
             });
             appendErrorEvent({
@@ -1199,7 +1597,12 @@ export function createPersistedAgentTerminalRuntime({
             thread.lastRunId = runDocument.run.runId;
             markThreadAttention(thread, createdAt);
 
-            settleWhenReady(persistSnapshot(true));
+            settleWhenReady(
+              appendContinuationAndPersist({
+                createdAt,
+                toolResultOutput,
+              }),
+            );
           },
         },
       );
@@ -1214,11 +1617,12 @@ export function createPersistedAgentTerminalRuntime({
 
       updateStructuredPlanStatus(runDocument, 'completed');
       updateStructuredToolCallStatus(runDocument, 'failed');
+      const toolResultOutput =
+        buildStructuredToolResultOutput(runDocument) || normalizedError.message;
       appendToolResult({
         createdAt,
         status: 'error',
-        outputText:
-          buildStructuredToolResultOutput(runDocument) || normalizedError.message,
+        outputText: toolResultOutput,
         exitCode: null,
       });
       appendErrorEvent({
@@ -1234,7 +1638,12 @@ export function createPersistedAgentTerminalRuntime({
       thread.lastRunId = runDocument.run.runId;
       markThreadAttention(thread, createdAt);
 
-      settleWhenReady(persistSnapshot(true));
+      settleWhenReady(
+        appendContinuationAndPersist({
+          createdAt,
+          toolResultOutput,
+        }),
+      );
       throw normalizedError;
     }
 
@@ -1269,22 +1678,50 @@ export function createPersistedAgentTerminalRuntime({
     const runId = createId('run');
     const createdAt = now();
     const workspaceTarget = await getTrustedWorkspaceTarget();
-    const request = normalizeRunRequest(options);
+    const requestedRunRequest = normalizeRunRequest(options);
     const goal = formatGoal({
-      command: request.command,
-      cwd: request.cwd,
+      command: requestedRunRequest.command,
+      cwd: requestedRunRequest.cwd,
       goal: options.goal,
     });
+    const llmProviderConfig =
+      options.requiresApproval === true
+        ? await resolveRuntimeProviderConfig(options.provider)
+        : null;
+    const plannedRunRequest =
+      options.requiresApproval === true && llmProviderConfig
+        ? await requestInitialLlmShellToolCall({
+            providerConfig: llmProviderConfig,
+            goal,
+            request: requestedRunRequest,
+          })
+        : requestedRunRequest;
     const settings = resolveRunSettings({
       workspaceTarget,
-      provider: options.provider,
+      provider:
+        createProviderProfileFromConfig(llmProviderConfig) ?? options.provider,
       permissionMode: options.permissionMode,
       approvalMode: options.approvalMode,
     });
     const requiresApproval =
       options.requiresApproval === true && settings.approvalMode === 'manual';
+    const approvalRules = requiresApproval
+      ? await loadApprovalRulesDocument(readUserFile)
+      : {
+          updatedAt: null,
+          rules: [],
+        };
+    const matchedApprovalRule = requiresApproval
+      ? findMatchingApprovalRule({
+          rules: approvalRules.rules,
+          request: plannedRunRequest,
+          permissionMode: settings.permissionMode,
+        })
+      : null;
     const initialRunStatus: AgentRunStatus = requiresApproval
-      ? 'needs-approval'
+      ? matchedApprovalRule
+        ? 'queued'
+        : 'needs-approval'
       : 'queued';
     const previousThreadState = continuedThreadId
       ? await loadPersistedThreadState(continuedThreadId)
@@ -1306,7 +1743,7 @@ export function createPersistedAgentTerminalRuntime({
           title: formatThreadTitle({
             title: options.title,
             goal,
-            command: request.command,
+            command: plannedRunRequest.command,
           }),
           createdAt,
           lastRunStatus: initialRunStatus,
@@ -1317,7 +1754,7 @@ export function createPersistedAgentTerminalRuntime({
       runId,
       goal,
       settings,
-      request,
+      request: plannedRunRequest,
       createdAt,
       resumedFromRunId,
       status: initialRunStatus,
@@ -1325,7 +1762,7 @@ export function createPersistedAgentTerminalRuntime({
     createStructuredTimelineSeed({
       runDocument,
       createdAt,
-      requiresApproval,
+      requiresApproval: requiresApproval && matchedApprovalRule === null,
     });
     const runIds = previousThreadState
       ? mergeRunIds(previousThreadState.runIds, runId)
@@ -1344,6 +1781,12 @@ export function createPersistedAgentTerminalRuntime({
           title: options.approvalTitle?.trim() || goal,
           details: options.approvalDetails,
           permissionMode: settings.permissionMode,
+          requestReason: options.approvalTitle?.trim() || goal,
+          commandText: plannedRunRequest.command,
+          requestedCwd: plannedRunRequest.cwd,
+          status: matchedApprovalRule ? 'approved' : 'pending',
+          decisionMode: matchedApprovalRule ? 'approve-prefix' : null,
+          matchedRuleId: matchedApprovalRule?.ruleId ?? null,
         }),
       );
 
@@ -1353,19 +1796,21 @@ export function createPersistedAgentTerminalRuntime({
         runIds,
       });
 
-      return buildHandle({
-        runDocument,
-        whenSettled,
-        cancel: async () => {
-          await rejectRun({
-            runId,
-            approvalId,
-          });
-        },
-        sendInput: async () => {
-          throw new Error('Persisted agent terminal run is waiting for approval.');
-        },
-      });
+      if (matchedApprovalRule === null) {
+        return buildHandle({
+          runDocument,
+          whenSettled,
+          cancel: async () => {
+            await rejectRun({
+              runId,
+              approvalId,
+            });
+          },
+          sendInput: async () => {
+            throw new Error('Persisted agent terminal run is waiting for approval.');
+          },
+        });
+      }
     }
 
     await persistRunState({
@@ -1385,6 +1830,7 @@ export function createPersistedAgentTerminalRuntime({
   async function approveRun({
     runId,
     approvalId,
+    decisionMode = 'once',
   }: ApprovePersistedAgentTerminalRunOptions) {
     const state = await loadPersistedRunState(runId);
     const pendingApproval = findPendingApprovalEntry(
@@ -1400,6 +1846,34 @@ export function createPersistedAgentTerminalRuntime({
 
     const createdAt = now();
     pendingApproval.status = 'approved';
+    pendingApproval.decisionMode =
+      decisionMode === 'prefix-rule' ? 'approve-prefix' : 'approve-once';
+    pendingApproval.decisionNote = null;
+    if (decisionMode === 'prefix-rule') {
+      const approvalRulesDocument = await loadApprovalRulesDocument(readUserFile);
+      const existingRule = findMatchingApprovalRule({
+        rules: approvalRulesDocument.rules,
+        request: state.runDocument.run.request,
+        permissionMode: state.runDocument.run.settings.permissionMode,
+      });
+      const ruleId = existingRule?.ruleId ?? createId('approval-rule');
+      pendingApproval.matchedRuleId = ruleId;
+      if (!existingRule) {
+        approvalRulesDocument.rules.push({
+          ruleId,
+          commandPrefix: normalizeApprovalCommandPrefix(
+            state.runDocument.run.request.command,
+          ),
+          cwd: state.runDocument.run.request.cwd,
+          permissionMode: state.runDocument.run.settings.permissionMode,
+          createdAt,
+        });
+        approvalRulesDocument.updatedAt = createdAt;
+        await persistApprovalRulesDocument(approvalRulesDocument);
+      }
+    } else {
+      pendingApproval.matchedRuleId = null;
+    }
     state.runDocument.run.status = 'queued';
     state.runDocument.run.updatedAt = createdAt;
     state.runDocument.run.completedAt = null;
@@ -1421,6 +1895,7 @@ export function createPersistedAgentTerminalRuntime({
   async function rejectRun({
     runId,
     approvalId,
+    reason,
   }: RejectPersistedAgentTerminalRunOptions) {
     const state = await loadPersistedRunState(runId);
     const pendingApproval = findPendingApprovalEntry(
@@ -1432,7 +1907,11 @@ export function createPersistedAgentTerminalRuntime({
     }
 
     const createdAt = now();
+    const rejectionReason = reason?.trim() || defaultRejectedDecisionReason;
+    const rejectionToolResultOutput = `${approvalRejectedToolResultOutput}：${rejectionReason}`;
     pendingApproval.status = 'rejected';
+    pendingApproval.decisionMode = 'reject';
+    pendingApproval.decisionNote = rejectionReason;
     updateStructuredPlanStatus(state.runDocument, 'completed');
     updateStructuredToolCallStatus(state.runDocument, 'cancelled');
     if (!hasStructuredToolResultEntry(state.runDocument)) {
@@ -1447,17 +1926,54 @@ export function createPersistedAgentTerminalRuntime({
           seq: nextSeq,
           createdAt,
           status: 'cancelled',
-          outputText: '',
-          exitCode: null,
+          outputText: rejectionToolResultOutput,
+          exitCode: -1,
         }),
       );
     }
-    state.runDocument.run.status = 'cancelled';
+    state.runDocument.run.status = 'completed';
     state.runDocument.run.updatedAt = createdAt;
     state.runDocument.run.completedAt = createdAt;
     state.thread.updatedAt = createdAt;
     state.thread.lastRunStatus = state.runDocument.run.status;
     state.thread.lastRunId = state.runDocument.run.runId;
+
+    try {
+      const providerConfig = await resolveRuntimeProviderConfig(
+        state.runDocument.run.settings.provider,
+      );
+      await appendLlmContinuationMessage({
+        runDocument: state.runDocument,
+        thread: state.thread,
+        providerConfig,
+        toolResultOutput: rejectionToolResultOutput,
+        createdAt,
+      });
+    } catch (error) {
+      state.runDocument.run.status = 'failed';
+      state.runDocument.run.updatedAt = createdAt;
+      state.runDocument.run.completedAt = createdAt;
+      state.thread.updatedAt = createdAt;
+      state.thread.lastRunStatus = state.runDocument.run.status;
+      state.thread.lastRunId = state.runDocument.run.runId;
+      state.runDocument.timeline.push(
+        createErrorTimelineEntry({
+          entryId: createId('entry'),
+          runId: state.runDocument.run.runId,
+          seq:
+            state.runDocument.timeline.reduce(
+              (maxSeq, entry) => Math.max(maxSeq, entry.seq),
+              -1,
+            ) + 1,
+          createdAt,
+          code: null,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Agent continuation failed after approval rejection.',
+        }),
+      );
+    }
 
     await persistRunState({
       ...state,
@@ -1549,6 +2065,10 @@ export function createPersistedAgentTerminalRuntime({
           continue;
         }
         if (state.runDocument.timeline.some(entry => entry.kind === 'artifact')) {
+          continue;
+        }
+        const toolResultEntry = findStructuredToolResultEntry(state.runDocument);
+        if (!toolResultEntry || toolResultEntry.status !== 'success') {
           continue;
         }
 

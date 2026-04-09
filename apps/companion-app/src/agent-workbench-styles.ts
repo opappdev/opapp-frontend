@@ -123,12 +123,12 @@ export function createScreenStyles(palette: AppPalette) {
       borderBottomColor: palette.border,
     },
     inlineStatusNotice: {
-      gap: appSpacing.xxs,
+      gap: 2,
       marginBottom: appSpacing.xs,
       borderWidth: StyleSheet.hairlineWidth,
       borderRadius: workbenchRadius.control,
       paddingHorizontal: appSpacing.sm2,
-      paddingVertical: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
     },
     inlineStatusNoticeNeutral: {
       borderColor: palette.border,
@@ -143,13 +143,17 @@ export function createScreenStyles(palette: AppPalette) {
       backgroundColor: palette.panel,
     },
     inlineStatusNoticeLabel: {
-      ...appTypography.label,
+      ...appTypography.captionStrong,
       letterSpacing: 0.8,
       textTransform: 'uppercase',
     },
     inlineStatusNoticeMessage: {
-      ...appTypography.body,
-      lineHeight: 20,
+      ...appTypography.caption,
+      lineHeight: 18,
+    },
+    hiddenAutomationText: {
+      height: 0,
+      overflow: 'hidden',
     },
 
     /* ── 2+1 zone layout ──────────────────────────────── */
@@ -184,6 +188,7 @@ export function createScreenStyles(palette: AppPalette) {
     /** Main conversation area — generous, breathing */
     mainPane: {
       flex: 1,
+      position: 'relative',
     },
     mainPaneCompact: {
       width: '100%',
@@ -217,7 +222,7 @@ export function createScreenStyles(palette: AppPalette) {
 
     /* ── Section containers ───────────────────────────── */
     sectionCard: {
-      gap: appSpacing.md,
+      gap: appSpacing.sm2,
     },
     sectionCardCompact: {
       gap: appSpacing.xs,
@@ -316,13 +321,13 @@ export function createScreenStyles(palette: AppPalette) {
       gap: appSpacing.lg,
     },
     decisionInterruptCard: {
-      gap: appSpacing.sm2,
+      gap: appSpacing.xs,
       borderWidth: StyleSheet.hairlineWidth,
       borderRadius: workbenchRadius.surface,
       borderColor: palette.border,
       backgroundColor: palette.panel,
-      paddingHorizontal: appSpacing.lg,
-      paddingVertical: appSpacing.md,
+      paddingHorizontal: appSpacing.md,
+      paddingVertical: appSpacing.sm,
     },
     decisionInterruptCardPending: {
       borderColor: palette.accent,
@@ -346,7 +351,7 @@ export function createScreenStyles(palette: AppPalette) {
     decisionInterruptBody: {
       flex: 1,
       minWidth: 220,
-      gap: appSpacing.xs,
+      gap: 4,
     },
     decisionInterruptEyebrowRow: {
       flexDirection: 'row',
@@ -362,8 +367,18 @@ export function createScreenStyles(palette: AppPalette) {
     decisionInterruptTitle: {
       ...appTypography.body,
       color: palette.ink,
-      lineHeight: 22,
+      lineHeight: 20,
       fontWeight: '600',
+    },
+    decisionInterruptNarrative: {
+      ...appTypography.caption,
+      color: palette.inkSoft,
+      lineHeight: 18,
+    },
+    decisionInterruptPromptText: {
+      ...appTypography.caption,
+      color: palette.inkMuted,
+      lineHeight: 18,
     },
     decisionInterruptMetaRow: {
       flexDirection: 'row',
@@ -396,7 +411,7 @@ export function createScreenStyles(palette: AppPalette) {
       flexShrink: 1,
     },
     decisionInterruptSummaryList: {
-      gap: appSpacing.xs,
+      gap: 6,
     },
     decisionInterruptSummaryItem: {
       gap: 4,
@@ -405,7 +420,7 @@ export function createScreenStyles(palette: AppPalette) {
       borderRadius: workbenchRadius.row,
       backgroundColor: palette.panel,
       paddingHorizontal: appSpacing.sm,
-      paddingVertical: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
     },
     decisionInterruptSummaryLabel: {
       ...appTypography.label,
@@ -419,10 +434,23 @@ export function createScreenStyles(palette: AppPalette) {
       lineHeight: 18,
     },
     decisionInterruptDetailsShell: {
+      gap: appSpacing.xs,
       borderRadius: workbenchRadius.row,
       backgroundColor: palette.panel,
       paddingHorizontal: appSpacing.sm,
       paddingVertical: appSpacing.sm,
+    },
+    decisionInterruptDetailsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: appSpacing.sm,
+      flexWrap: 'wrap',
+    },
+    decisionInterruptDetailsHint: {
+      ...appTypography.caption,
+      color: palette.inkMuted,
+      lineHeight: 18,
     },
     decisionInterruptDetailsText: {
       color: palette.inkMuted,
@@ -437,7 +465,7 @@ export function createScreenStyles(palette: AppPalette) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: appSpacing.sm2,
-      paddingTop: appSpacing.sm,
+      paddingTop: appSpacing.xxs,
     },
     workspaceActionMenuGroup: {
       gap: appSpacing.xxs,
@@ -589,6 +617,24 @@ export function createScreenStyles(palette: AppPalette) {
       paddingHorizontal: appSpacing.lg,
       paddingVertical: appSpacing.md,
     },
+    planCompactCard: {
+      gap: appSpacing.xxs,
+      borderRadius: workbenchRadius.surface,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.sm2,
+    },
+    planCompactMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.xs,
+      flexWrap: 'wrap',
+    },
+    planCompactText: {
+      ...appTypography.caption,
+      color: palette.ink,
+      lineHeight: 20,
+    },
     planCardHeader: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -688,11 +734,86 @@ export function createScreenStyles(palette: AppPalette) {
       ...appTypography.label,
       color: palette.inkMuted,
     },
+    shellCommandItem: {
+      gap: appSpacing.xxs,
+    },
+    shellCommandToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: appSpacing.sm,
+      borderRadius: workbenchRadius.row,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      backgroundColor: palette.canvas,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'transparent',
+    },
+    shellCommandToggleHovered: {
+      backgroundColor: palette.canvasShade,
+    },
+    shellCommandToggleFocused: {
+      borderColor: palette.focusRing,
+      borderWidth: 2,
+    },
+    shellCommandTogglePressed: {
+      backgroundColor: palette.canvasShade,
+      opacity: 0.92,
+    },
+    shellCommandToggleTitle: {
+      ...appTypography.caption,
+      color: palette.inkSoft,
+      flex: 1,
+      minWidth: 0,
+      lineHeight: 20,
+    },
+    shellCommandToggleTitleExpanded: {
+      ...appTypography.captionStrong,
+      color: palette.ink,
+    },
+    shellCommandToggleChevron: {
+      ...appTypography.captionStrong,
+      color: palette.inkMuted,
+      width: 12,
+      textAlign: 'center',
+    },
+    shellCommandPanel: {
+      gap: appSpacing.sm,
+      borderRadius: workbenchRadius.surface,
+      backgroundColor: palette.canvasShade,
+      paddingHorizontal: appSpacing.lg,
+      paddingVertical: appSpacing.sm,
+    },
+    shellCommandPanelLabel: {
+      ...appTypography.captionStrong,
+      color: palette.inkSoft,
+      lineHeight: 20,
+    },
+    shellCommandPanelBody: {
+      gap: appSpacing.sm,
+    },
+    shellCommandPanelCommand: {
+      color: palette.ink,
+      fontFamily: terminalFontFamily,
+    },
+    shellCommandPanelOutput: {
+      color: palette.inkSoft,
+      fontFamily: terminalFontFamily,
+    },
+    shellCommandPanelFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: appSpacing.xs,
+    },
+    shellCommandPanelStatus: {
+      ...appTypography.captionStrong,
+      lineHeight: 18,
+    },
 
     /* ── Expander body ────────────────────────────────── */
     expanderBody: {
       gap: appSpacing.sm2,
-      paddingTop: appSpacing.xxs,
+      paddingTop: 2,
     },
     runDetailGrid: {
       flexDirection: 'row',
@@ -842,19 +963,19 @@ export function createScreenStyles(palette: AppPalette) {
       paddingTop: 2,
     },
     runHeader: {
-      gap: appSpacing.sm2,
+      gap: appSpacing.xs,
     },
     runHeaderTop: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
-      gap: appSpacing.md,
+      gap: appSpacing.sm,
       flexWrap: 'wrap',
     },
     runHeaderIntro: {
       flex: 1,
       minWidth: 220,
-      gap: appSpacing.xs,
+      gap: 4,
     },
     runHeaderContextRow: {
       flexDirection: 'row',
@@ -867,7 +988,7 @@ export function createScreenStyles(palette: AppPalette) {
       borderRadius: workbenchRadius.row,
       backgroundColor: palette.canvasShade,
       paddingHorizontal: appSpacing.sm,
-      paddingVertical: appSpacing.xs,
+      paddingVertical: 6,
     },
     runHeaderContextCopy: {
       flex: 1,
@@ -894,13 +1015,18 @@ export function createScreenStyles(palette: AppPalette) {
     runHeaderTitle: {
       ...appTypography.title,
       color: palette.ink,
-      lineHeight: 30,
+      lineHeight: 28,
+    },
+    runHeaderDecisionLabel: {
+      ...appTypography.label,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
     },
     runHeaderActionCluster: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'flex-end',
-      gap: appSpacing.xs,
+      gap: 6,
       flexWrap: 'wrap',
       maxWidth: '100%',
     },
@@ -965,8 +1091,23 @@ export function createScreenStyles(palette: AppPalette) {
       borderTopColor: palette.border,
       backgroundColor: palette.canvas,
       paddingHorizontal: 56,
-      paddingVertical: appSpacing.lg2,
-      gap: appSpacing.xs,
+      paddingVertical: appSpacing.md,
+      gap: 6,
+    },
+    approvalFloatingOverlay: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingHorizontal: 56,
+      paddingBottom: appSpacing.md,
+      zIndex: 8,
+    },
+    approvalFloatingCard: {
+      shadowColor: '#000',
+      shadowOpacity: 0.24,
+      shadowRadius: 24,
+      shadowOffset: {width: 0, height: -8},
     },
     composerAssistRow: {
       flexDirection: 'row',
@@ -1051,19 +1192,36 @@ export function createScreenStyles(palette: AppPalette) {
     composerShell: {
       borderWidth: StyleSheet.hairlineWidth,
       borderRadius: workbenchRadius.surface,
-      paddingHorizontal: appSpacing.lg2,
-      paddingTop: appSpacing.sm,
-      paddingBottom: appSpacing.sm,
-      gap: appSpacing.sm,
+      paddingHorizontal: appSpacing.lg,
+      paddingTop: appSpacing.xs,
+      paddingBottom: appSpacing.xs,
+      gap: appSpacing.xs,
+      position: 'relative',
+      overflow: 'hidden',
+    },
+    composerShellContentHidden: {
+      opacity: 0,
+    },
+    composerApprovalHost: {
+      position: 'absolute',
+      top: appSpacing.xs,
+      right: appSpacing.lg,
+      bottom: appSpacing.xs,
+      left: appSpacing.lg,
+      justifyContent: 'flex-end',
+    },
+    composerApprovalSheet: {
+      flex: 1,
+      justifyContent: 'space-between',
     },
     composerPromptInput: {
-      minHeight: 92,
-      maxHeight: 180,
+      minHeight: 72,
+      maxHeight: 160,
       paddingVertical: 0,
       paddingHorizontal: 0,
     },
     composerPromptPlaceholder: {
-      minHeight: 92,
+      minHeight: 72,
       justifyContent: 'flex-start',
       paddingHorizontal: 0,
       paddingVertical: 0,
@@ -1095,10 +1253,10 @@ export function createScreenStyles(palette: AppPalette) {
       fontWeight: '600',
     },
     composerAdvancedPanel: {
-      gap: appSpacing.sm,
+      gap: appSpacing.xs,
       borderRadius: workbenchRadius.row,
       paddingHorizontal: appSpacing.sm2,
-      paddingVertical: appSpacing.sm,
+      paddingVertical: appSpacing.xs,
     },
     composerAdvancedHeader: {
       flexDirection: 'row',
@@ -1177,6 +1335,85 @@ export function createScreenStyles(palette: AppPalette) {
     composerPrimaryActionPressed: {
       opacity: 0.9,
       transform: [{scale: 0.96}],
+    },
+    approvalSheet: {
+      gap: appSpacing.md,
+    },
+    approvalSheetSection: {
+      gap: appSpacing.xs,
+    },
+    approvalSheetLabel: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+    },
+    approvalSheetReasonText: {
+      ...appTypography.body,
+      color: palette.ink,
+      lineHeight: 24,
+      fontWeight: '600',
+    },
+    approvalCommandShell: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.border,
+      borderRadius: workbenchRadius.control,
+      backgroundColor: palette.canvasShade,
+      paddingHorizontal: appSpacing.sm2,
+      paddingVertical: appSpacing.sm,
+    },
+    approvalCommandText: {
+      fontFamily: terminalFontFamily,
+      lineHeight: 20,
+    },
+    approvalDecisionList: {
+      gap: 6,
+    },
+    approvalDecisionRow: {
+      gap: appSpacing.xxs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: workbenchRadius.control,
+      paddingHorizontal: appSpacing.sm2,
+      paddingVertical: appSpacing.sm,
+    },
+    approvalDecisionTitle: {
+      ...appTypography.captionStrong,
+      color: palette.ink,
+    },
+    approvalDecisionDetail: {
+      ...appTypography.caption,
+      color: palette.inkMuted,
+      lineHeight: 18,
+    },
+    approvalDecisionRadio: {
+      width: 12,
+      minWidth: 12,
+      height: 12,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      borderColor: palette.borderStrong,
+      backgroundColor: 'transparent',
+    },
+    approvalRejectReasonShell: {
+      minHeight: 72,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: workbenchRadius.control,
+      paddingHorizontal: appSpacing.sm2,
+      paddingVertical: appSpacing.sm,
+    },
+    approvalRejectReasonInput: {
+      minHeight: 64,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+      fontSize: appTypography.body.fontSize,
+      lineHeight: appTypography.body.lineHeight,
+    },
+    approvalSheetFooter: {
+      flexDirection: 'row',
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      gap: appSpacing.sm,
+      paddingTop: appSpacing.xxs,
     },
 
     /* ── Transcript inline elements ───────────────────── */

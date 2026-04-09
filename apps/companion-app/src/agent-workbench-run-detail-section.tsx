@@ -8,20 +8,14 @@ import type {
 import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
-  Expander,
-  Icon,
   StatusBadge,
-  iconCatalog,
   useTheme,
 } from '@opapp/ui-native-primitives';
 import {
   formatIsoTimestamp,
-  resolveArtifactKindLabel,
-  resolvePermissionModeLabel,
   resolveRunStatusLabel,
   resolveRunStatusTone,
 } from './agent-workbench-resolvers';
-import {buildApprovalSummaryItems} from './agent-workbench-approval-summary';
 import type {createScreenStyles} from './agent-workbench-styles';
 
 type WorkbenchRunDetailSectionProps = {
@@ -36,7 +30,6 @@ type WorkbenchRunDetailSectionProps = {
   canRestoreSelectedRunWorkspace: boolean;
   canInspectSelectedRunArtifact: boolean;
   retryBusy: boolean;
-  approvalBusy: 'requesting' | 'approving' | 'rejecting' | null;
   viewingHistoricalRun: boolean;
   latestThreadRunDocument: AgentRunDocument | null;
   previousThreadRunDocument: AgentRunDocument | null;
@@ -44,8 +37,6 @@ type WorkbenchRunDetailSectionProps = {
   onRetry: () => void;
   onRestore: () => void;
   onInspectArtifact: () => void;
-  onApprove: () => void;
-  onReject: () => void;
   onViewPreviousRun: () => void;
   onFocusLatestRun: () => void;
   onBrowseWorkspaceRoot: () => void;
@@ -56,15 +47,10 @@ export function WorkbenchRunDetailSection({
   selectedRunDocument,
   selectedRunRequest,
   selectedPendingApproval,
-  selectedRunArtifactKind,
-  selectedRunArtifactLabel,
-  selectedRunArtifactPath,
-  selectedRunArtifactHasStandaloneLabel,
   canRetrySelectedRun,
   canRestoreSelectedRunWorkspace,
   canInspectSelectedRunArtifact,
   retryBusy,
-  approvalBusy,
   viewingHistoricalRun,
   latestThreadRunDocument,
   previousThreadRunDocument,
@@ -72,8 +58,6 @@ export function WorkbenchRunDetailSection({
   onRetry,
   onRestore,
   onInspectArtifact,
-  onApprove,
-  onReject,
   onViewPreviousRun,
   onFocusLatestRun,
   onBrowseWorkspaceRoot,
@@ -88,14 +72,18 @@ export function WorkbenchRunDetailSection({
   const workspacePath =
     selectedRunRequest?.cwd?.trim() || selectedCwd.trim() || null;
   const showHistoricalContext =
-    viewingHistoricalRun && latestThreadRunDocument !== null;
+    viewingHistoricalRun &&
+    latestThreadRunDocument !== null &&
+    selectedPendingApproval === null;
   const showContextActions =
-    (!viewingHistoricalRun && previousThreadRunDocument !== null) ||
-    selectedCwd.length > 0;
+    selectedPendingApproval === null &&
+    ((!viewingHistoricalRun && previousThreadRunDocument !== null) ||
+      selectedCwd.length > 0);
   const showPrimaryActions =
-    canInspectSelectedRunArtifact ||
-    canRetrySelectedRun ||
-    canRestoreSelectedRunWorkspace;
+    selectedPendingApproval === null &&
+    (canInspectSelectedRunArtifact ||
+      canRetrySelectedRun ||
+      canRestoreSelectedRunWorkspace);
   const runSummaryParts = [
     `${appI18n.agentWorkbench.labels.updatedAt} ${formatIsoTimestamp(
       selectedRunDocument?.run.updatedAt ?? null,
@@ -104,13 +92,6 @@ export function WorkbenchRunDetailSection({
       ? `${appI18n.agentWorkbench.labels.cwd} ${workspacePath}`
       : null,
   ].filter((value): value is string => Boolean(value));
-  const pendingApprovalSummaryItems = selectedPendingApproval
-    ? buildApprovalSummaryItems(selectedPendingApproval, {
-        requestedCwd: selectedRunRequest?.cwd ?? selectedCwd,
-        command: selectedRunRequest?.command ?? null,
-      })
-    : [];
-
   if (!selectedRunDocument) {
     return null;
   }
@@ -121,16 +102,27 @@ export function WorkbenchRunDetailSection({
         <View style={screenStyles.runHeaderTop}>
           <View style={screenStyles.runHeaderIntro}>
             <View style={screenStyles.runHeaderEyebrowRow}>
-              <StatusBadge
-                label={resolveRunStatusLabel(selectedRunDocument.run.status)}
-                tone={resolveRunStatusTone(selectedRunDocument.run.status)}
-                emphasis='soft'
-                size='sm'
-              />
               {selectedPendingApproval ? (
                 <Text
                   style={[
-                    screenStyles.toolCardMetaItem,
+                    screenStyles.runHeaderDecisionLabel,
+                    {color: palette.accent},
+                  ]}>
+                  {appI18n.agentWorkbench.approval.pendingTitle}
+                </Text>
+              ) : (
+                <StatusBadge
+                  label={resolveRunStatusLabel(selectedRunDocument.run.status)}
+                  tone={resolveRunStatusTone(selectedRunDocument.run.status)}
+                  emphasis='soft'
+                  size='sm'
+                />
+              )}
+              {!selectedPendingApproval &&
+              selectedRunDocument.run.status === 'needs-approval' ? (
+                <Text
+                  style={[
+                    screenStyles.runHeaderDecisionLabel,
                     {color: palette.accent},
                   ]}>
                   {appI18n.agentWorkbench.approval.pendingTitle}
@@ -253,226 +245,6 @@ export function WorkbenchRunDetailSection({
           ) : null}
         </View>
       </View>
-
-      {/* Hidden locators for smoke test accessibility */}
-      <View style={{height: 0, overflow: 'hidden'}}>
-        <Text testID='agent-workbench.run.run-id'>
-          {selectedRunDocument.run.runId}
-        </Text>
-        <Text testID='agent-workbench.run.command'>
-          {selectedRunRequest?.command ?? appI18n.common.unknown}
-        </Text>
-        <Text testID='agent-workbench.run.cwd'>
-          {selectedRunRequest?.cwd ?? appI18n.agentWorkbench.workspace.rootLabel}
-        </Text>
-        <Text testID='agent-workbench.run.thread-id'>
-          {selectedRunDocument.run.threadId}
-        </Text>
-        <Text testID='agent-workbench.run.session-id'>
-          {selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
-        </Text>
-        {selectedRunDocument.run.resumedFromRunId ? (
-          <Text testID='agent-workbench.run.resumed-from'>
-            {selectedRunDocument.run.resumedFromRunId}
-          </Text>
-        ) : null}
-      </View>
-
-      {/* Pending approval — decision interrupt card */}
-      {selectedPendingApproval ? (
-        <View
-          testID='agent-workbench.approval.panel'
-          style={[
-            screenStyles.decisionInterruptCard,
-            screenStyles.decisionInterruptCardPending,
-          ]}>
-          <View style={screenStyles.decisionInterruptHeader}>
-            <View style={screenStyles.decisionInterruptBody}>
-              <View style={screenStyles.decisionInterruptEyebrowRow}>
-                <Icon
-                  icon={iconCatalog.shieldTask}
-                  size={13}
-                  color={palette.accent}
-                />
-                <Text
-                  style={[
-                    screenStyles.decisionInterruptEyebrow,
-                    {color: palette.accent},
-                  ]}>
-                  {appI18n.agentWorkbench.approval.pendingTitle}
-                </Text>
-              </View>
-              <Text style={screenStyles.decisionInterruptTitle}>
-                {selectedPendingApproval.title}
-              </Text>
-              <View style={screenStyles.decisionInterruptMetaRow}>
-                <View style={screenStyles.decisionInterruptMetaChip}>
-                  <Text style={screenStyles.decisionInterruptMetaChipLabel}>
-                    {resolvePermissionModeLabel(
-                      selectedPendingApproval.permissionMode,
-                    )}
-                  </Text>
-                </View>
-              </View>
-            </View>
-            <Text style={screenStyles.messageItemTime}>
-              {formatIsoTimestamp(selectedPendingApproval.createdAt)}
-            </Text>
-          </View>
-          <View style={screenStyles.decisionInterruptSummaryList}>
-            {pendingApprovalSummaryItems.map(summaryItem => (
-              <View
-                key={summaryItem.key}
-                style={screenStyles.decisionInterruptSummaryItem}>
-                <Text style={screenStyles.decisionInterruptSummaryLabel}>
-                  {summaryItem.label}
-                </Text>
-                <Text
-                  style={screenStyles.decisionInterruptSummaryText}
-                  numberOfLines={3}>
-                  {summaryItem.value}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <View style={screenStyles.actionRow}>
-            <ActionButton
-              testID='agent-workbench.action.approve-request'
-              label={
-                approvalBusy === 'approving'
-                  ? appI18n.agentWorkbench.actions.approvingRequest
-                  : appI18n.agentWorkbench.actions.approveRequest
-              }
-              onPress={onApprove}
-              disabled={approvalBusy !== null}
-            />
-            <ActionButton
-              testID='agent-workbench.action.reject-request'
-              label={
-                approvalBusy === 'rejecting'
-                  ? appI18n.agentWorkbench.actions.rejectingRequest
-                  : appI18n.agentWorkbench.actions.rejectRequest
-              }
-              onPress={onReject}
-              disabled={approvalBusy !== null}
-              tone='ghost'
-            />
-          </View>
-        </View>
-      ) : null}
-
-      {/* Collapsed details — minimal chrome */}
-      <Expander
-        title={appI18n.agentWorkbench.labels.runDetailExpanderTitle ?? 'Details'}
-        defaultExpanded={false}>
-        <View style={screenStyles.expanderBody}>
-          <View style={screenStyles.runDetailGrid}>
-            <View style={screenStyles.runDetailField}>
-              <Text style={screenStyles.runDetailFieldLabel}>
-                {appI18n.agentWorkbench.labels.threadId}
-              </Text>
-              <Text
-                style={screenStyles.runDetailFieldValue}
-                numberOfLines={1}>
-                {selectedRunDocument.run.threadId}
-              </Text>
-            </View>
-            <View style={screenStyles.runDetailField}>
-              <Text style={screenStyles.runDetailFieldLabel}>
-                {appI18n.agentWorkbench.labels.sessionId}
-              </Text>
-              <Text
-                style={screenStyles.runDetailFieldValue}
-                numberOfLines={1}>
-                {selectedRunDocument.run.sessionId ?? appI18n.common.unknown}
-              </Text>
-            </View>
-            {selectedRunDocument.run.resumedFromRunId ? (
-              <View style={screenStyles.runDetailField}>
-                <Text style={screenStyles.runDetailFieldLabel}>
-                  {appI18n.agentWorkbench.labels.resumedFromRunId}
-                </Text>
-                <Text
-                  style={screenStyles.runDetailFieldValue}
-                  numberOfLines={1}>
-                  {selectedRunDocument.run.resumedFromRunId}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          <View style={screenStyles.runDetailCommandShell}>
-            <Text style={screenStyles.runDetailFieldLabel}>
-              {appI18n.agentWorkbench.labels.command}
-            </Text>
-            <Text
-              style={[
-                screenStyles.terminalText,
-                screenStyles.runDetailCommandText,
-              ]}
-              numberOfLines={4}>
-              $ {selectedRunRequest?.command ?? appI18n.common.unknown}
-            </Text>
-            <Text
-              style={screenStyles.runDetailCommandMeta}
-              numberOfLines={1}>
-              {appI18n.agentWorkbench.labels.cwd} ·{' '}
-              {selectedRunRequest?.cwd ??
-                appI18n.agentWorkbench.workspace.rootLabel}
-            </Text>
-          </View>
-
-          {selectedRunArtifactKind ||
-          selectedRunArtifactHasStandaloneLabel ||
-          selectedRunArtifactPath ? (
-            <View style={screenStyles.runDetailGrid}>
-              {selectedRunArtifactKind ? (
-                <View style={screenStyles.runDetailField}>
-                  <Text style={screenStyles.runDetailFieldLabel}>
-                    {appI18n.agentWorkbench.labels.runArtifactKind}
-                  </Text>
-                  <Text
-                    testID='agent-workbench.run.artifact-kind'
-                    style={screenStyles.runDetailFieldValue}
-                    numberOfLines={1}>
-                    {resolveArtifactKindLabel(selectedRunArtifactKind)}
-                  </Text>
-                </View>
-              ) : null}
-              {selectedRunArtifactHasStandaloneLabel ? (
-                <View style={screenStyles.runDetailField}>
-                  <Text style={screenStyles.runDetailFieldLabel}>
-                    {appI18n.agentWorkbench.labels.runArtifactLabel}
-                  </Text>
-                  <Text
-                    testID='agent-workbench.run.artifact-label'
-                    style={screenStyles.runDetailFieldValue}
-                    numberOfLines={1}>
-                    {selectedRunArtifactLabel ?? appI18n.common.unknown}
-                  </Text>
-                </View>
-              ) : null}
-              {selectedRunArtifactPath ? (
-                <View
-                  style={[
-                    screenStyles.runDetailField,
-                    screenStyles.runDetailFieldWide,
-                  ]}>
-                  <Text style={screenStyles.runDetailFieldLabel}>
-                    {appI18n.agentWorkbench.labels.runArtifactPath}
-                  </Text>
-                  <Text
-                    testID='agent-workbench.run.artifact-path'
-                    style={screenStyles.runDetailFieldValue}
-                    numberOfLines={2}>
-                    {selectedRunArtifactPath}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-        </View>
-      </Expander>
     </View>
   );
 }

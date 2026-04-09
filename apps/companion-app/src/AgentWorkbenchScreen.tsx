@@ -24,6 +24,7 @@ import {WorkbenchThreadsSection} from './agent-workbench-threads-section';
 import {WorkbenchInspectorSection} from './agent-workbench-inspector-section';
 import {WorkbenchRunHistorySection} from './agent-workbench-run-history-section';
 import {WorkbenchRunDetailSection} from './agent-workbench-run-detail-section';
+import {WorkbenchRunDiagnosticsSection} from './agent-workbench-run-diagnostics-section';
 import {WorkbenchTimelineSection} from './agent-workbench-timeline-section';
 import {WorkbenchTerminalSection} from './agent-workbench-terminal-section';
 
@@ -58,6 +59,11 @@ export function AgentWorkbenchScreen() {
   const inlineStatusTone = navigationErrorMessage
     ? 'danger'
     : state.statusTone;
+  const showInlineStatusNotice =
+    inlineStatusMessage !== null &&
+    (navigationErrorMessage !== null ||
+      inlineStatusTone === 'danger' ||
+      state.selectedRunDocument === null);
 
   async function handleReturnMain() {
     if (returnMainBusy) {
@@ -181,7 +187,12 @@ export function AgentWorkbenchScreen() {
             isCompactLayout ? screenStyles.mainPaneCompact : null,
           ]}>
           <ScrollView contentContainerStyle={screenStyles.mainPaneInner}>
-            {inlineStatusMessage ? (
+            <View style={screenStyles.hiddenAutomationText}>
+              <Text testID='agent-workbench.status.message'>
+                {inlineStatusMessage ?? ''}
+              </Text>
+            </View>
+            {showInlineStatusNotice ? (
               <View
                 style={[
                   screenStyles.inlineStatusNotice,
@@ -206,7 +217,6 @@ export function AgentWorkbenchScreen() {
                   {appI18n.agentWorkbench.feedback.title}
                 </Text>
                 <Text
-                  testID='agent-workbench.status.message'
                   style={[
                     screenStyles.inlineStatusNoticeMessage,
                     {
@@ -242,7 +252,6 @@ export function AgentWorkbenchScreen() {
                 state.canInspectSelectedRunArtifact
               }
               retryBusy={state.retryBusy}
-              approvalBusy={state.approvalBusy}
               viewingHistoricalRun={state.viewingHistoricalRun}
               latestThreadRunDocument={state.latestThreadRunDocument}
               previousThreadRunDocument={state.previousThreadRunDocument}
@@ -255,12 +264,6 @@ export function AgentWorkbenchScreen() {
               }}
               onInspectArtifact={() => {
                 void state.handleInspectSelectedRunArtifact();
-              }}
-              onApprove={() => {
-                void state.handleApproveSelectedRun();
-              }}
-              onReject={() => {
-                void state.handleRejectSelectedRun();
               }}
               onViewPreviousRun={state.handleViewPreviousRun}
               onFocusLatestRun={state.handleFocusLatestRun}
@@ -282,12 +285,26 @@ export function AgentWorkbenchScreen() {
               terminalTranscript={state.terminalTranscript}
               screenStyles={screenStyles}
             />
+
+            <WorkbenchRunDiagnosticsSection
+              selectedRunDocument={state.selectedRunDocument}
+              selectedRunRequest={state.selectedRunRequest}
+              selectedRunArtifactKind={state.selectedRunArtifactKind}
+              selectedRunArtifactLabel={state.selectedRunArtifactLabel}
+              selectedRunArtifactPath={state.selectedRunArtifactPath}
+              selectedRunArtifactHasStandaloneLabel={
+                state.selectedRunArtifactHasStandaloneLabel
+              }
+              screenStyles={screenStyles}
+            />
           </ScrollView>
 
           {/* ── Composer bar pinned to bottom ── */}
           <WorkbenchTaskDraftSection
             trustedWorkspace={state.trustedWorkspace}
             selectedCwd={state.selectedCwd}
+            selectedPendingApproval={state.selectedPendingApproval}
+            selectedRunRequest={state.selectedRunRequest}
             textInputsReady={state.textInputsReady}
             draftGoal={state.draftGoal}
             draftCommand={state.draftCommand}
@@ -295,6 +312,7 @@ export function AgentWorkbenchScreen() {
             draftTask={state.draftTask}
             taskDraftBusy={state.taskDraftBusy}
             activeRunInfo={state.activeRunInfo}
+            pendingApprovalActive={state.selectedPendingApproval !== null}
             approvalBusy={state.approvalBusy}
             workspaceRootDraft={state.workspaceRootDraft}
             workspaceRecoveryTarget={state.workspaceRecoveryTarget}
@@ -311,6 +329,9 @@ export function AgentWorkbenchScreen() {
             }}
             onStartDraftTask={() => {
               void state.handleStartDraftTask();
+            }}
+            onSubmitApprovalDecision={decision => {
+              void state.handleResolveSelectedApproval(decision);
             }}
             onCancelRun={() => {
               void state.handleCancelRun();

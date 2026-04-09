@@ -594,6 +594,10 @@ export function buildWorkbenchTimelineDisplayItems(
   const displayItems: RawWorkbenchTimelineDisplayItem[] = [];
 
   for (const entry of document.timeline) {
+    if (entry.kind === 'approval') {
+      continue;
+    }
+
     if (entry.kind === 'tool-call') {
       const resultCandidates = toolResultsByCallId.get(entry.callId) ?? [];
       const resultIndex = resultCandidates.findIndex(

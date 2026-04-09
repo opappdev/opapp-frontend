@@ -16,22 +16,7 @@ export function WorkbenchTerminalSection({
   const {palette} = useTheme();
 
   if (!terminalTranscript) {
-    return (
-      <View style={[screenStyles.terminalBox, {opacity: 0.4}]}>
-        <Text
-          testID='agent-workbench.terminal.transcript'
-          style={[
-            screenStyles.terminalText,
-            {
-              color: palette.inkSoft,
-              fontFamily: terminalFontFamily,
-            },
-          ]}
-          numberOfLines={1}>
-          {appI18n.agentWorkbench.empty.terminalDescription}
-        </Text>
-      </View>
-    );
+    return null;
   }
 
   return (

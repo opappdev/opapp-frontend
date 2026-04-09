@@ -50,6 +50,11 @@ export const agentApprovalStatuses = [
   'rejected',
   'expired',
 ] as const;
+export const agentApprovalDecisionModes = [
+  'approve-once',
+  'approve-prefix',
+  'reject',
+] as const;
 export const agentArtifactKinds = [
   'diff',
   'file',
@@ -95,6 +100,8 @@ export type AgentPlanStepStatus = (typeof agentPlanStepStatuses)[number];
 export type AgentToolCallStatus = (typeof agentToolCallStatuses)[number];
 export type AgentToolResultStatus = (typeof agentToolResultStatuses)[number];
 export type AgentApprovalStatus = (typeof agentApprovalStatuses)[number];
+export type AgentApprovalDecisionMode =
+  (typeof agentApprovalDecisionModes)[number];
 export type AgentArtifactKind = (typeof agentArtifactKinds)[number];
 export type AgentTerminalEventType =
   (typeof agentTerminalEventTypes)[number];
@@ -218,6 +225,35 @@ export type AgentApprovalTimelineEntry = AgentTimelineBase & {
   title: string;
   details: string | null;
   permissionMode: AgentPermissionMode | null;
+  requestReason: string | null;
+  commandText: string | null;
+  requestedCwd: string | null;
+  decisionMode: AgentApprovalDecisionMode | null;
+  decisionNote: string | null;
+  matchedRuleId: string | null;
+};
+
+export type AgentApprovalRule = {
+  ruleId: string;
+  commandPrefix: string;
+  cwd: string | null;
+  permissionMode: AgentPermissionMode;
+  createdAt: string;
+};
+
+export type AgentApprovalRulesDocument = {
+  updatedAt: string | null;
+  rules: AgentApprovalRule[];
+};
+
+export type AgentLlmProviderConfig = {
+  providerId: string;
+  label: string | null;
+  apiFamily: AgentProviderApiFamily;
+  baseUrl: string;
+  model: string;
+  token: string;
+  systemPrompt: string;
 };
 
 export type AgentErrorTimelineEntry = AgentTimelineBase & {
@@ -414,6 +450,62 @@ function parseAgentProviderProfile(value: unknown): AgentProviderProfile {
       defaults.apiFamily,
     baseUrl: readOptionalTrimmedString(record.baseUrl),
     model: readOptionalTrimmedString(record.model),
+  };
+}
+
+function parseAgentApprovalRule(value: unknown): AgentApprovalRule | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const ruleId = readRequiredStorageId(value.ruleId);
+  const commandPrefix = readOptionalTrimmedString(value.commandPrefix);
+  const createdAt = readRequiredTimestamp(value.createdAt);
+  const permissionMode = readEnumValue(
+    agentPermissionModes,
+    value.permissionMode,
+  );
+  if (!ruleId || !commandPrefix || !createdAt || !permissionMode) {
+    return null;
+  }
+
+  return {
+    ruleId,
+    commandPrefix,
+    cwd: readOptionalTrimmedString(value.cwd),
+    permissionMode,
+    createdAt,
+  };
+}
+
+function parseAgentLlmProviderConfigRecord(
+  value: unknown,
+): AgentLlmProviderConfig | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const defaults = createDefaultAgentProviderProfile();
+  const providerId =
+    readRequiredStorageId(value.providerId) ?? defaults.providerId;
+  const apiFamily =
+    readEnumValue(agentProviderApiFamilies, value.apiFamily) ??
+    defaults.apiFamily;
+  const baseUrl = readOptionalTrimmedString(value.baseUrl);
+  const model = readOptionalTrimmedString(value.model);
+  const token = readOptionalTrimmedString(value.token);
+  if (!baseUrl || !model || !token) {
+    return null;
+  }
+
+  return {
+    providerId,
+    label: readOptionalTrimmedString(value.label),
+    apiFamily,
+    baseUrl,
+    model,
+    token,
+    systemPrompt: readOptionalString(value.systemPrompt) ?? '',
   };
 }
 
@@ -673,6 +765,15 @@ function parseAgentTimelineEntry(value: unknown): AgentTimelineEntry | null {
         title,
         details: readOptionalString(value.details),
         permissionMode: readEnumValue(agentPermissionModes, value.permissionMode),
+        requestReason: readOptionalTrimmedString(value.requestReason),
+        commandText: readOptionalString(value.commandText),
+        requestedCwd: readOptionalTrimmedString(value.requestedCwd),
+        decisionMode: readEnumValue(
+          agentApprovalDecisionModes,
+          value.decisionMode,
+        ),
+        decisionNote: readOptionalString(value.decisionNote),
+        matchedRuleId: readRequiredStorageId(value.matchedRuleId),
       };
     }
     case 'error': {
@@ -847,6 +948,54 @@ export function parsePersistedAgentRunDocument(
 
 export function serializePersistedAgentRunDocument(document: AgentRunDocument) {
   return JSON.stringify(document);
+}
+
+export function parsePersistedAgentApprovalRulesDocument(
+  raw: string,
+): AgentApprovalRulesDocument | null {
+  const record = parseJsonRecord(raw);
+  if (!record) {
+    return null;
+  }
+
+  const rules = Array.isArray(record.rules)
+    ? record.rules
+        .map(parseAgentApprovalRule)
+        .filter((rule): rule is AgentApprovalRule => rule !== null)
+    : [];
+
+  const dedupedRules = new Map<string, AgentApprovalRule>();
+  for (const rule of rules) {
+    dedupedRules.set(rule.ruleId, rule);
+  }
+
+  return {
+    updatedAt: readOptionalTrimmedString(record.updatedAt),
+    rules: [...dedupedRules.values()],
+  };
+}
+
+export function serializePersistedAgentApprovalRulesDocument(
+  document: AgentApprovalRulesDocument,
+) {
+  return JSON.stringify(document);
+}
+
+export function parsePersistedAgentLlmProviderConfig(
+  raw: string,
+): AgentLlmProviderConfig | null {
+  const record = parseJsonRecord(raw);
+  if (!record) {
+    return null;
+  }
+
+  return parseAgentLlmProviderConfigRecord(record);
+}
+
+export function serializePersistedAgentLlmProviderConfig(
+  config: AgentLlmProviderConfig,
+) {
+  return JSON.stringify(config);
 }
 
 // ---------------------------------------------------------------------------

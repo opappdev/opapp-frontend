@@ -66,14 +66,47 @@ function parseApprovalDetails(
   };
 }
 
+export function resolveApprovalRequestedCwd(
+  approval: AgentApprovalTimelineEntry,
+  options?: ResolveApprovalSummaryOptions,
+) {
+  const structuredRequestedCwd = normalizeApprovalSummaryText(
+    approval.requestedCwd,
+  );
+  const parsed = parseApprovalDetails(approval.details);
+  return (
+    normalizeApprovalSummaryText(options?.requestedCwd) ??
+    structuredRequestedCwd ??
+    parsed.requestedCwd
+  );
+}
+
+export function resolveApprovalCommandPreview(
+  approval: AgentApprovalTimelineEntry,
+  options?: ResolveApprovalSummaryOptions,
+) {
+  const structuredCommand = normalizeApprovalSummaryText(approval.commandText);
+  const parsed = parseApprovalDetails(approval.details);
+  return (
+    normalizeApprovalSummaryText(options?.command) ??
+    structuredCommand ??
+    parsed.command
+  );
+}
+
+export function approvalMentionsDiffPreview(
+  approval: AgentApprovalTimelineEntry,
+) {
+  return parseApprovalDetails(approval.details).mentionsDiffPreview;
+}
+
 function resolveApprovalImpactSummary(
   approval: AgentApprovalTimelineEntry,
   options?: ResolveApprovalSummaryOptions,
 ) {
   const parsed = parseApprovalDetails(approval.details);
-  const requestedCwd =
-    normalizeApprovalSummaryText(options?.requestedCwd) ?? parsed.requestedCwd;
-  const command = normalizeApprovalSummaryText(options?.command) ?? parsed.command;
+  const requestedCwd = resolveApprovalRequestedCwd(approval, options);
+  const command = resolveApprovalCommandPreview(approval, options);
 
   if (parsed.targetPath && requestedCwd) {
     return appI18n.agentWorkbench.approval.summaryImpact.fileInWorkspace(
@@ -106,8 +139,7 @@ function resolveApprovalImpactSummary(
 }
 
 function resolveApprovalOutputSummary(approval: AgentApprovalTimelineEntry) {
-  const parsed = parseApprovalDetails(approval.details);
-  const hasDiffPreview = parsed.mentionsDiffPreview;
+  const hasDiffPreview = approvalMentionsDiffPreview(approval);
 
   switch (approval.status) {
     case 'approved':
@@ -133,7 +165,10 @@ export function buildApprovalSummaryItems(
     {
       key: 'what',
       label: appI18n.agentWorkbench.approval.summaryLabels.what,
-      value: normalizeApprovalSummaryText(approval.title) ?? appI18n.common.unknown,
+      value:
+        normalizeApprovalSummaryText(approval.requestReason) ??
+        normalizeApprovalSummaryText(approval.title) ??
+        appI18n.common.unknown,
     },
     {
       key: 'impact',

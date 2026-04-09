@@ -61,8 +61,10 @@ export function WorkbenchRunHistorySection({
       <View accessibilityRole='list' style={screenStyles.threadList}>
         {threadRunDocuments.map((document, index) => {
           const isActive = document.run.runId === selectedRunId;
-          const isLatest =
-            document.run.runId === latestThreadRunDocument?.run.runId;
+          const statusTone = resolveRunStatusTone(document.run.status);
+          const showStatusChip =
+            document.run.status === 'running' ||
+            document.run.status === 'needs-approval';
           return (
             <SelectableRow
               key={document.run.runId}
@@ -82,7 +84,12 @@ export function WorkbenchRunHistorySection({
                         ? palette.support
                         : palette.inkSoft
                   }
-                  style={{opacity: isLatest ? 1 : 0.6}}
+                  style={{
+                    opacity:
+                      document.run.runId === latestThreadRunDocument?.run.runId
+                        ? 1
+                        : 0.6,
+                  }}
                 />
               }
               title={
@@ -100,22 +107,33 @@ export function WorkbenchRunHistorySection({
                 </Text>
               }
               trailing={
-                isLatest ? (
+                showStatusChip ? (
                   <View
                     style={[
                       screenStyles.sidebarStatusChip,
                       {
-                        borderColor: palette.border,
-                        backgroundColor: palette.canvasShade,
+                        borderColor:
+                          statusTone === 'warning'
+                            ? palette.accent
+                            : palette.borderStrong,
+                        backgroundColor:
+                          statusTone === 'warning'
+                            ? palette.accentSoft
+                            : palette.canvasShade,
                       },
                     ]}>
                     <Text
                       numberOfLines={1}
                       style={[
                         screenStyles.sidebarStatusChipLabel,
-                        {color: palette.inkSoft},
+                        {
+                          color:
+                            statusTone === 'warning'
+                              ? palette.accent
+                              : palette.ink,
+                        },
                       ]}>
-                      {appI18n.agentWorkbench.runHistory.latestBadge}
+                      {resolveRunStatusLabel(document.run.status)}
                     </Text>
                   </View>
                 ) : null

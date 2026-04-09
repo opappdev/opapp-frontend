@@ -6,6 +6,10 @@ export const agentWorkspaceTargetPath =
 export const agentThreadDocumentsDir = `${agentRuntimeStorageRoot}/threads`;
 export const agentRunDocumentsDir = `${agentRuntimeStorageRoot}/runs`;
 export const agentThreadIndexPath = `${agentRuntimeStorageRoot}/thread-index.json`;
+export const agentApprovalRulesPath =
+  `${agentRuntimeStorageRoot}/approval-rules.json`;
+export const agentLlmProviderConfigPath =
+  `${agentRuntimeStorageRoot}/llm-provider-config.json`;
 
 export function buildAgentThreadDocumentPath(threadId: string) {
   return `${agentThreadDocumentsDir}/${normalizeAgentStorageId(

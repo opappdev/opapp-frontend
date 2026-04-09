@@ -51,15 +51,24 @@ export function WorkbenchThreadsSection({
             const isActive = thread.threadId === selectedThreadId;
             const attention = deriveSessionAttention(thread, nowIso);
             const lifecycle = resolveSessionLifecycle(thread);
+            const needsApproval = thread.lastRunStatus === 'needs-approval';
             const isUnread = attention !== 'read';
             const trailingLabel =
-              lifecycle === 'running'
+              needsApproval
+                ? appI18n.agentWorkbench.status.needsApproval
+                : lifecycle === 'running'
                 ? resolveSessionLifecycleLabel(lifecycle)
                 : isUnread
                   ? resolveSessionAttentionLabel(attention)
                   : null;
             const trailingColors =
-              lifecycle === 'running'
+              needsApproval
+                ? {
+                    borderColor: palette.accent,
+                    backgroundColor: palette.accentSoft,
+                    color: palette.accent,
+                  }
+                : lifecycle === 'running'
                 ? {
                     borderColor: palette.accent,
                     backgroundColor: palette.accentSoft,
@@ -108,7 +117,9 @@ export function WorkbenchThreadsSection({
                 title={thread.title}
                 titleNumberOfLines={2}
                 titleStyle={
-                  !isActive && isUnread
+                  !isActive && needsApproval
+                    ? {color: palette.ink, fontWeight: '600'}
+                    : !isActive && isUnread
                     ? {color: palette.ink, fontWeight: '600'}
                     : !isActive
                       ? {color: palette.inkMuted}

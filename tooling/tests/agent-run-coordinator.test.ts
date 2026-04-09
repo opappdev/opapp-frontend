@@ -369,6 +369,15 @@ export async function run() {
   if (pendingRunDocument?.timeline[3]?.kind === 'approval') {
     assert.equal(pendingRunDocument.timeline[3].status, 'pending');
     assert.equal(pendingRunDocument.timeline[3].approvalId, 'approval-1');
+    assert.equal(
+      pendingRunDocument.timeline[3].commandText,
+      'Set-Content .tmp/approval-smoke.txt ready',
+    );
+    assert.equal(
+      pendingRunDocument.timeline[3].requestReason,
+      'Allow workspace write smoke',
+    );
+    assert.equal(pendingRunDocument.timeline[3].requestedCwd, null);
   }
 
   const approvedHandle = await approvalRuntime.approveRun({
@@ -436,6 +445,7 @@ export async function run() {
   }
   if (approvedDocument.timeline[3]?.kind === 'approval') {
     assert.equal(approvedDocument.timeline[3].status, 'approved');
+    assert.equal(approvedDocument.timeline[3].decisionMode, 'approve-once');
   }
   if (approvedDocument.timeline[7]?.kind === 'tool-result') {
     assert.equal(approvedDocument.timeline[7].status, 'success');
@@ -499,18 +509,23 @@ export async function run() {
     title: 'Rejected Write Smoke',
     goal: 'Create approval smoke file',
     command: 'Set-Content .tmp/rejected-approval-smoke.txt nope',
+    env: {
+      [agentWorkbenchArtifactPathEnvVar]: '.tmp/rejected-approval-smoke.txt',
+      [agentWorkbenchArtifactKindEnvVar]: 'diff',
+    },
     requiresApproval: true,
     approvalTitle: 'Allow rejected workspace write smoke',
   });
 
   const rejectedDocument = await rejectedRuntime.rejectRun({
     runId: 'run-3',
+    reason: '当前不允许写入临时文件',
   });
   const rejectedSettledDocument = await rejectedHandle.whenSettled;
   await flushMicrotasks();
 
-  assert.equal(rejectedDocument.run.status, 'cancelled');
-  assert.equal(rejectedSettledDocument.run.status, 'cancelled');
+  assert.equal(rejectedDocument.run.status, 'completed');
+  assert.equal(rejectedSettledDocument.run.status, 'completed');
   assert.deepEqual(
     rejectedDocument.timeline.map(entry =>
       entry.kind === 'terminal-event' ? entry.event : entry.kind,
@@ -525,13 +540,29 @@ export async function run() {
   }
   if (rejectedDocument.timeline[3]?.kind === 'approval') {
     assert.equal(rejectedDocument.timeline[3].status, 'rejected');
+    assert.equal(rejectedDocument.timeline[3].decisionMode, 'reject');
+    assert.equal(rejectedDocument.timeline[3].decisionNote, '当前不允许写入临时文件');
   }
   if (rejectedDocument.timeline[4]?.kind === 'tool-result') {
     assert.equal(rejectedDocument.timeline[4].status, 'cancelled');
-    assert.equal(rejectedDocument.timeline[4].exitCode, null);
+    assert.equal(rejectedDocument.timeline[4].exitCode, -1);
+    assert.equal(
+      rejectedDocument.timeline[4].outputText,
+      '用户手动拒绝：当前不允许写入临时文件',
+    );
   }
   assert.equal(
     rejectedDocument.timeline.some(entry => entry.kind === 'artifact'),
+    false,
+  );
+  const rejectedArtifactReconciliation =
+    await rejectedRuntime.reconcileRequestedRunArtifacts();
+  assert.deepEqual(rejectedArtifactReconciliation.reconciledRunIds, []);
+  const reconciledRejectedDocument = parsePersistedAgentRunDocument(
+    rejectedFiles.get(buildAgentRunDocumentPath('run-3')) ?? '',
+  );
+  assert.equal(
+    reconciledRejectedDocument?.timeline.some(entry => entry.kind === 'artifact'),
     false,
   );
 

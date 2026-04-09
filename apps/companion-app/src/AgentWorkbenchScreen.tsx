@@ -1,85 +1,156 @@
 import React, {useMemo, useState} from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import {ActivityIndicator, Pressable, ScrollView, Text, TextInput as RNTextInput, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {useOpenSurface} from '@opapp/framework-windowing';
-import {
-  Toolbar,
-  useTheme,
-  appLayout,
-} from '@opapp/ui-native-primitives';
-import {createScreenStyles} from './agent-workbench-styles';
+import {ActionButton, StatusBadge, Toolbar, useTheme} from '@opapp/ui-native-primitives';
+import {WorkbenchApprovalDockSection} from './agent-workbench-approval-dock-section';
+import {type WorkbenchTimelineDisplayItem} from './agent-workbench-model';
 import {useAgentWorkbenchState} from './agent-workbench-state';
-import {WorkbenchWorkspaceSection} from './agent-workbench-workspace-section';
-import {WorkbenchTaskDraftSection} from './agent-workbench-task-draft-section';
-import {WorkbenchDirectorySection} from './agent-workbench-directory-section';
-import {WorkbenchSearchSection} from './agent-workbench-search-section';
-import {WorkbenchThreadsSection} from './agent-workbench-threads-section';
-import {WorkbenchInspectorSection} from './agent-workbench-inspector-section';
-import {WorkbenchRunHistorySection} from './agent-workbench-run-history-section';
-import {WorkbenchRunDetailSection} from './agent-workbench-run-detail-section';
-import {WorkbenchRunDiagnosticsSection} from './agent-workbench-run-diagnostics-section';
-import {WorkbenchTimelineSection} from './agent-workbench-timeline-section';
-import {WorkbenchTerminalSection} from './agent-workbench-terminal-section';
+import {createScreenStyles} from './agent-workbench-styles';
+import {
+  formatIsoTimestamp,
+  resolveArtifactKindLabel,
+  resolveMessageRoleLabel,
+  resolveRunStatusLabel,
+  resolveRunStatusTone,
+  resolveToolCallStatusLabel,
+  resolveToolResultStatusLabel,
+} from './agent-workbench-resolvers';
 
-export function AgentWorkbenchScreen() {
-  const {width} = useWindowDimensions();
-  const {palette} = useTheme();
-  const screenStyles = useMemo(() => createScreenStyles(palette), [palette]);
-  const isCompactLayout = width < appLayout.breakpoints.compact;
-  const state = useAgentWorkbenchState();
-  const openSurface = useOpenSurface();
-  const [returnMainBusy, setReturnMainBusy] = useState(false);
-  const [navigationErrorMessage, setNavigationErrorMessage] = useState<
-    string | null
-  >(null);
-
-  // Detail pane is contextual — only show when user has actively opened a file,
-  // is browsing a specific directory entry, or has search results to review.
-  // The default state is hidden to maximize conversation space (Copilot/Codex pattern).
-  const hasDetailContent =
-    state.selectedInspectorEntry !== null ||
-    state.searchResults.length > 0;
-
-  if (state.loading) {
+function renderTimelineItem(
+  item: WorkbenchTimelineDisplayItem,
+  palette: ReturnType<typeof useTheme>['palette'],
+  screenStyles: ReturnType<typeof createScreenStyles>,
+) {
+  if (item.kind === 'tool-invocation') {
+    const command = item.call?.inputText || appI18n.agentWorkbench.values.noTextContent;
+    const output = item.result?.outputText || appI18n.agentWorkbench.values.noToolResultYet;
     return (
-      <View style={screenStyles.loadingShell}>
-        <ActivityIndicator size='small' color={palette.accent} />
+      <View key={item.key} style={screenStyles.planCard}>
+        <View style={screenStyles.runHeaderTop}>
+          <Text style={screenStyles.runHeaderTitle} numberOfLines={2}>
+            {item.toolName || appI18n.agentWorkbench.values.unknownTool}
+          </Text>
+          <View style={screenStyles.runHeaderActionCluster}>
+            {item.call ? (
+              <StatusBadge
+                label={resolveToolCallStatusLabel(item.call.status)}
+                tone='accent'
+                emphasis='soft'
+                size='sm'
+              />
+            ) : null}
+            <StatusBadge
+              label={
+                item.result
+                  ? resolveToolResultStatusLabel(item.result.status)
+                  : appI18n.agentWorkbench.values.noToolResultYet
+              }
+              tone={
+                item.result?.status === 'success'
+                  ? 'support'
+                  : item.result?.status === 'error'
+                    ? 'danger'
+                    : 'warning'
+              }
+              emphasis='soft'
+              size='sm'
+            />
+          </View>
+        </View>
+        <View style={[screenStyles.terminalBox, {backgroundColor: palette.canvasShade}]}>
+          <Text style={[screenStyles.terminalText, {color: palette.ink}]}>$ {command}</Text>
+          <Text style={[screenStyles.terminalText, {color: palette.inkSoft}]}>{output}</Text>
+        </View>
       </View>
     );
   }
 
+  let title = '';
+  let body = '';
+  let tone = palette.ink;
+  switch (item.entry.kind) {
+    case 'message':
+      title = resolveMessageRoleLabel(item.entry.role);
+      body = item.entry.content || appI18n.agentWorkbench.values.noTextContent;
+      break;
+    case 'plan':
+      title = appI18n.agentWorkbench.events.plan;
+      body = item.entry.steps.map(step => `${step.status === 'completed' ? '✓' : '•'} ${step.title}`).join('\n');
+      break;
+    case 'artifact':
+      title = `${resolveArtifactKindLabel(item.entry.artifactKind)} · ${item.entry.label}`;
+      body = item.entry.path || '';
+      break;
+    case 'error':
+      title = appI18n.agentWorkbench.status.failed;
+      body = item.entry.message;
+      tone = palette.errorRed;
+      break;
+    case 'terminal-event':
+      if (!item.entry.text) return null;
+      title = item.entry.event;
+      body = item.entry.text;
+      tone = palette.inkSoft;
+      break;
+    default:
+      return null;
+  }
+
+  return (
+    <View key={item.key} style={screenStyles.transcriptTerminal}>
+      <Text style={screenStyles.sectionDescription}>{title}</Text>
+      <Text style={[screenStyles.terminalText, {color: tone}]}>{body}</Text>
+    </View>
+  );
+}
+
+export function AgentWorkbenchScreen() {
+  const {palette} = useTheme();
+  const screenStyles = useMemo(() => createScreenStyles(palette), [palette]);
+  const state = useAgentWorkbenchState();
+  const openSurface = useOpenSurface();
+  const [returnMainBusy, setReturnMainBusy] = useState(false);
+  const [showCommandInput, setShowCommandInput] = useState(false);
+  const [navigationErrorMessage, setNavigationErrorMessage] = useState<string | null>(null);
+  const latestTool = useMemo(
+    () =>
+      state.selectedTimelineItems.find(
+        (
+          item,
+        ): item is Extract<WorkbenchTimelineDisplayItem, {kind: 'tool-invocation'}> =>
+          item.kind === 'tool-invocation' && item.toolInvocationIndex === 0,
+      ) ?? null,
+    [state.selectedTimelineItems],
+  );
   const inlineStatusMessage = navigationErrorMessage ?? state.statusMessage;
-  const inlineStatusTone = navigationErrorMessage
-    ? 'danger'
-    : state.statusTone;
-  const showInlineStatusNotice =
-    inlineStatusMessage !== null &&
-    (navigationErrorMessage !== null ||
-      inlineStatusTone === 'danger' ||
-      state.selectedRunDocument === null);
+  const selectedRunDocument = state.selectedRunDocument;
+  const selectedRunRequest = state.selectedRunRequest;
+  const runHeadline =
+    selectedRunDocument?.run.goal ||
+    selectedRunRequest?.command ||
+    state.draftGoal ||
+    appI18n.agentWorkbench.empty.timelineIdleTitle;
+  const selectedCwdLabel =
+    state.selectedCwd || state.trustedWorkspace?.displayName || appI18n.agentWorkbench.workspace.rootLabel;
+  const canStart =
+    state.textInputsReady &&
+    state.trustedWorkspace !== null &&
+    state.activeRunInfo === null &&
+    state.approvalBusy === null &&
+    state.taskDraftBusy === null &&
+    state.draftTask !== null &&
+    (state.draftRequiresApproval || state.draftTask.canRunDirect);
 
   async function handleReturnMain() {
-    if (returnMainBusy) {
-      return;
-    }
-
+    if (returnMainBusy) return;
     setReturnMainBusy(true);
     setNavigationErrorMessage(null);
-
     try {
       await openSurface({
         surfaceId: 'companion.main',
         presentation: 'current-window',
-        initialProps: {
-          skipStartupAutoOpen: true,
-        },
+        initialProps: {skipStartupAutoOpen: true},
       });
     } catch (error) {
       setNavigationErrorMessage(
@@ -92,324 +163,147 @@ export function AgentWorkbenchScreen() {
     }
   }
 
+  if (state.loading) {
+    return (
+      <View style={screenStyles.loadingShell}>
+        <ActivityIndicator size='small' color={palette.accent} />
+      </View>
+    );
+  }
+
   return (
     <View testID='agent-workbench.screen' style={screenStyles.screen}>
-      {/* ── Toolbar — global escape only ── */}
-      <Toolbar
-        testID='agent-workbench.toolbar'
-        style={screenStyles.toolbar}>
-        <View style={screenStyles.toolbarButtonRow}>
-          <Pressable
-            testID='agent-workbench.action.return-main'
-            accessibilityRole='button'
-            accessibilityLabel={
-              returnMainBusy
-                ? appI18n.agentWorkbench.actions.returnMainBusy
-                : appI18n.agentWorkbench.actions.returnMain
-            }
-            onPress={() => {
-              void handleReturnMain();
-            }}
-            disabled={returnMainBusy}
-            style={({pressed}) => [
-              screenStyles.toolbarBackButton,
-              pressed && !returnMainBusy
-                ? screenStyles.toolbarBackButtonPressed
-                : null,
-            ]}>
-            <Text
-              style={[
-                screenStyles.toolbarBackLabel,
-                returnMainBusy ? {color: palette.inkSoft} : null,
-              ]}>
-              ←{' '}
-              {returnMainBusy
-                ? appI18n.agentWorkbench.actions.returnMainBusy
-                : appI18n.agentWorkbench.actions.returnMain}
-            </Text>
-          </Pressable>
-        </View>
+      <Toolbar testID='agent-workbench.toolbar' style={screenStyles.toolbar}>
+        <Pressable
+          testID='agent-workbench.action.return-main'
+          accessibilityRole='button'
+          onPress={() => void handleReturnMain()}
+          disabled={returnMainBusy}
+          style={screenStyles.toolbarBackButton}>
+          <Text style={screenStyles.toolbarBackLabel}>
+            ← {returnMainBusy ? appI18n.agentWorkbench.actions.returnMainBusy : appI18n.agentWorkbench.actions.returnMain}
+          </Text>
+        </Pressable>
       </Toolbar>
 
-      {/* ── Layout: sidebar (threads-first) | conversation | contextual detail ── */}
-      <View
-        style={[
-          screenStyles.contentShell,
-          isCompactLayout ? screenStyles.contentShellCompact : null,
-        ]}>
+      <View style={screenStyles.hiddenAutomationText}>
+        {[
+          ['agent-workbench.status.message', inlineStatusMessage ?? ''],
+          ['agent-workbench.run.run-id', selectedRunDocument?.run.runId ?? ''],
+          ['agent-workbench.run.command', selectedRunRequest?.command ?? ''],
+          ['agent-workbench.run.cwd', selectedRunRequest?.cwd ?? ''],
+          ['agent-workbench.run.resumed-from', selectedRunDocument?.run.resumedFromRunId ?? ''],
+          ['agent-workbench.terminal.transcript', state.terminalTranscript],
+          ['agent-workbench.timeline.tool.0.name', latestTool?.toolName ?? ''],
+          ['agent-workbench.timeline.tool.0.call-status', latestTool?.call ? resolveToolCallStatusLabel(latestTool.call.status) : ''],
+          ['agent-workbench.timeline.tool.0.result-status', latestTool?.result ? resolveToolResultStatusLabel(latestTool.result.status) : ''],
+          ['agent-workbench.timeline.tool.0.input', latestTool?.call?.inputText ?? ''],
+          ['agent-workbench.timeline.tool.0.output', latestTool?.result?.outputText ?? ''],
+        ].map(([testID, value]) => (
+          <Text key={testID} testID={testID}>
+            {value}
+          </Text>
+        ))}
+      </View>
 
-        {/* ── LEFT: Threads-first sidebar ── */}
-        <View
-          style={[
-            screenStyles.sidebar,
-            isCompactLayout ? screenStyles.sidebarCompact : null,
-          ]}>
-          <ScrollView contentContainerStyle={screenStyles.sidebarInner}>
-            {/* Threads come first — primary navigation */}
-            <WorkbenchThreadsSection
-              threads={state.threads}
-              selectedThreadId={state.selectedThreadId}
-              onSelectThread={state.handleSelectThread}
-              screenStyles={screenStyles}
-            />
-
-            <View style={screenStyles.sectionDivider} />
-
-            {/* Run history — second priority */}
-            <WorkbenchRunHistorySection
-              threadRunDocuments={state.threadRunDocuments}
-              selectedRunId={state.selectedRunId}
-              latestThreadRunDocument={state.latestThreadRunDocument}
-              onSelectRun={state.handleSelectRun}
-              screenStyles={screenStyles}
-            />
-
-            <View style={screenStyles.sectionDivider} />
-
-            {/* Workspace selector — collapsed, tertiary priority */}
-            <WorkbenchWorkspaceSection
-              trustedWorkspace={state.trustedWorkspace}
-              selectedCwd={state.selectedCwd}
-              selectedWorkspaceStat={state.selectedWorkspaceStat}
-              workspaceChoices={state.workspaceChoices}
-              onBrowseDirectory={relativePath => {
-                void state.handleBrowseDirectory(relativePath);
-              }}
-              screenStyles={screenStyles}
-            />
-          </ScrollView>
-        </View>
-
-        {/* ── CENTRE: Unified conversation transcript ── */}
-        <View
-          style={[
-            screenStyles.mainPane,
-            isCompactLayout ? screenStyles.mainPaneCompact : null,
-          ]}>
-          <ScrollView contentContainerStyle={screenStyles.mainPaneInner}>
-            <View style={screenStyles.hiddenAutomationText}>
-              <Text testID='agent-workbench.status.message'>
-                {inlineStatusMessage ?? ''}
+      <ScrollView contentContainerStyle={screenStyles.mainPaneInner}>
+        <View style={screenStyles.sectionCardPrimary}>
+          <View style={screenStyles.runHeaderTop}>
+            <View style={screenStyles.runHeaderIntro}>
+              <StatusBadge
+                label={resolveRunStatusLabel(selectedRunDocument?.run.status ?? null)}
+                tone={resolveRunStatusTone(selectedRunDocument?.run.status ?? null)}
+                emphasis='soft'
+                size='sm'
+              />
+              <Text testID='agent-workbench.run.goal' style={screenStyles.runHeaderTitle}>
+                {runHeadline}
+              </Text>
+              <Text testID='agent-workbench.detail.selected-cwd' style={screenStyles.runHeaderSummaryText}>
+                {`${appI18n.agentWorkbench.labels.cwd} ${selectedCwdLabel}`}
+              </Text>
+              <Text style={screenStyles.runHeaderSummaryText}>
+                {selectedRunDocument
+                  ? `${appI18n.agentWorkbench.labels.updatedAt} ${formatIsoTimestamp(selectedRunDocument.run.updatedAt)}`
+                  : appI18n.agentWorkbench.empty.timelineIdleDescription}
               </Text>
             </View>
-            {showInlineStatusNotice ? (
-              <View
-                style={[
-                  screenStyles.inlineStatusNotice,
-                  inlineStatusTone === 'danger'
-                    ? screenStyles.inlineStatusNoticeDanger
-                    : inlineStatusTone === 'support'
-                      ? screenStyles.inlineStatusNoticeSupport
-                      : screenStyles.inlineStatusNoticeNeutral,
-                ]}>
-                <Text
-                  style={[
-                    screenStyles.inlineStatusNoticeLabel,
-                    {
-                      color:
-                        inlineStatusTone === 'danger'
-                          ? palette.errorRed
-                          : inlineStatusTone === 'support'
-                            ? palette.support
-                            : palette.inkSoft,
-                    },
-                  ]}>
-                  {appI18n.agentWorkbench.feedback.title}
-                </Text>
-                <Text
-                  style={[
-                    screenStyles.inlineStatusNoticeMessage,
-                    {
-                      color:
-                        inlineStatusTone === 'danger'
-                          ? palette.errorRed
-                          : inlineStatusTone === 'support'
-                            ? palette.ink
-                            : palette.inkMuted,
-                    },
-                  ]}>
-                  {inlineStatusMessage}
-                </Text>
-              </View>
-            ) : null}
-
-            {/* Run header + inline actions */}
-            <WorkbenchRunDetailSection
-              selectedRunDocument={state.selectedRunDocument}
-              selectedRunRequest={state.selectedRunRequest}
-              selectedPendingApproval={state.selectedPendingApproval}
-              selectedRunArtifactKind={state.selectedRunArtifactKind}
-              selectedRunArtifactLabel={state.selectedRunArtifactLabel}
-              selectedRunArtifactPath={state.selectedRunArtifactPath}
-              selectedRunArtifactHasStandaloneLabel={
-                state.selectedRunArtifactHasStandaloneLabel
-              }
-              canRetrySelectedRun={state.canRetrySelectedRun}
-              canRestoreSelectedRunWorkspace={
-                state.canRestoreSelectedRunWorkspace
-              }
-              canInspectSelectedRunArtifact={
-                state.canInspectSelectedRunArtifact
-              }
-              retryBusy={state.retryBusy}
-              viewingHistoricalRun={state.viewingHistoricalRun}
-              latestThreadRunDocument={state.latestThreadRunDocument}
-              previousThreadRunDocument={state.previousThreadRunDocument}
-              selectedCwd={state.selectedCwd}
-              onRetry={() => {
-                void state.handleRetrySelectedRun();
-              }}
-              onRestore={() => {
-                void state.handleRestoreSelectedRunWorkspace();
-              }}
-              onInspectArtifact={() => {
-                void state.handleInspectSelectedRunArtifact();
-              }}
-              onViewPreviousRun={state.handleViewPreviousRun}
-              onFocusLatestRun={state.handleFocusLatestRun}
-              onBrowseWorkspaceRoot={() => {
-                void state.handleBrowseDirectory('');
-              }}
-              screenStyles={screenStyles}
-            />
-
-            {/* Timeline items inline in the conversation flow */}
-            <WorkbenchTimelineSection
-              selectedRunDocument={state.selectedRunDocument}
-              selectedTimelineItems={state.selectedTimelineItems}
-              screenStyles={screenStyles}
-            />
-
-            {/* Terminal transcript inline at the end */}
-            <WorkbenchTerminalSection
-              terminalTranscript={state.terminalTranscript}
-              screenStyles={screenStyles}
-            />
-
-            <WorkbenchRunDiagnosticsSection
-              selectedRunDocument={state.selectedRunDocument}
-              selectedRunRequest={state.selectedRunRequest}
-              selectedRunArtifactKind={state.selectedRunArtifactKind}
-              selectedRunArtifactLabel={state.selectedRunArtifactLabel}
-              selectedRunArtifactPath={state.selectedRunArtifactPath}
-              selectedRunArtifactHasStandaloneLabel={
-                state.selectedRunArtifactHasStandaloneLabel
-              }
-              screenStyles={screenStyles}
-            />
-          </ScrollView>
-
-          {/* ── Composer bar pinned to bottom ── */}
-          <WorkbenchTaskDraftSection
-            trustedWorkspace={state.trustedWorkspace}
-            selectedCwd={state.selectedCwd}
-            selectedPendingApproval={state.selectedPendingApproval}
-            selectedRunRequest={state.selectedRunRequest}
-            textInputsReady={state.textInputsReady}
-            draftGoal={state.draftGoal}
-            draftCommand={state.draftCommand}
-            draftRequiresApproval={state.draftRequiresApproval}
-            draftTask={state.draftTask}
-            taskDraftBusy={state.taskDraftBusy}
-            activeRunInfo={state.activeRunInfo}
-            pendingApprovalActive={state.selectedPendingApproval !== null}
-            approvalBusy={state.approvalBusy}
-            workspaceRootDraft={state.workspaceRootDraft}
-            workspaceRecoveryTarget={state.workspaceRecoveryTarget}
-            workspaceConfigBusy={state.workspaceConfigBusy}
-            onDraftGoalChange={state.handleDraftGoalChange}
-            onDraftCommandChange={state.handleDraftCommandChange}
-            onSelectDirectMode={state.handleSelectDirectDraftMode}
-            onSelectApprovalMode={state.handleSelectApprovalDraftMode}
-            onPopulateWriteApprovalDraft={
-              state.handlePopulateWriteApprovalDraft
-            }
-            onRunGitStatus={() => {
-              void state.handleRunGitStatus();
-            }}
-            onStartDraftTask={() => {
-              void state.handleStartDraftTask();
-            }}
-            onSubmitApprovalDecision={decision => {
-              void state.handleResolveSelectedApproval(decision);
-            }}
-            onCancelRun={() => {
-              void state.handleCancelRun();
-            }}
-            onWorkspaceRootDraftChange={state.handleWorkspaceRootDraftChange}
-            onTrustWorkspaceRoot={() => {
-              void state.handleTrustWorkspaceRoot();
-            }}
-            onClearTrustedWorkspaceRoot={() => {
-              void state.handleClearTrustedWorkspaceRoot();
-            }}
-            onTrustRecoveredWorkspace={() => {
-              void state.handleTrustRecoveredWorkspace();
-            }}
-            screenStyles={screenStyles}
-          />
+          </View>
+          {inlineStatusMessage ? (
+            <Text style={[screenStyles.sectionDescription, {color: navigationErrorMessage ? palette.errorRed : palette.inkSoft}]}>
+              {inlineStatusMessage}
+            </Text>
+          ) : null}
         </View>
 
-        {/* ── RIGHT: Truly contextual detail (only when a specific item selected) ── */}
-        {(hasDetailContent || isCompactLayout) ? (
-          <View
-            style={[
-              screenStyles.detailPane,
-              isCompactLayout ? screenStyles.detailPaneCompact : null,
-            ]}>
-            <ScrollView contentContainerStyle={screenStyles.detailPaneInner}>
-              <WorkbenchInspectorSection
-                selectedInspectorEntry={state.selectedInspectorEntry}
-                selectedInspectorChildren={state.selectedInspectorChildren}
-                selectedInspectorContent={state.selectedInspectorContent}
-                inspectorLoading={state.inspectorLoading}
-                selectedCwd={state.selectedCwd}
-                selectedDiffPath={state.selectedDiffPath}
-                selectedDiffOutput={state.selectedDiffOutput}
-                selectedDiffError={state.selectedDiffError}
-                diffLoading={state.diffLoading}
-                selectedGitDiffCommand={state.selectedGitDiffCommand}
-                onInspectEntry={entry => {
-                  void state.handleInspectWorkspaceEntry(entry);
-                }}
-                onBrowseDirectory={relativePath => {
-                  void state.handleBrowseDirectory(relativePath);
-                }}
-                onLoadDiff={() => {
-                  void state.handleLoadSelectedDiff();
-                }}
-                screenStyles={screenStyles}
-              />
-
-              <WorkbenchDirectorySection
-                trustedWorkspace={state.trustedWorkspace}
-                workspaceEntries={state.workspaceEntries}
-                selectedInspectorEntry={state.selectedInspectorEntry}
-                onInspectEntry={entry => {
-                  void state.handleInspectWorkspaceEntry(entry);
-                }}
-                screenStyles={screenStyles}
-              />
-
-              <WorkbenchSearchSection
-                trustedWorkspace={state.trustedWorkspace}
-                textInputsReady={state.textInputsReady}
-                searchQuery={state.searchQuery}
-                searching={state.searching}
-                searchResults={state.searchResults}
-                selectedInspectorEntry={state.selectedInspectorEntry}
-                onSearchQueryChange={state.handleSearchQueryChange}
-                onSearch={() => {
-                  void state.handleSearch();
-                }}
-                onInspectEntry={entry => {
-                  void state.handleInspectWorkspaceEntry(entry);
-                }}
-                screenStyles={screenStyles}
-              />
-            </ScrollView>
+        {!selectedRunDocument ? (
+          <View style={screenStyles.conversationEmptyCard}>
+            <Text style={screenStyles.conversationEmptyTitle}>
+              {appI18n.agentWorkbench.empty.timelineIdleTitle}
+            </Text>
+            <Text style={screenStyles.conversationEmptyHint}>
+              {appI18n.agentWorkbench.empty.timelineIdleDescription}
+            </Text>
           </View>
-        ) : null}
+        ) : (
+          <View style={screenStyles.sectionCard}>
+            {state.selectedTimelineItems.map(item => renderTimelineItem(item, palette, screenStyles))}
+          </View>
+        )}
+
+      </ScrollView>
+
+      <View style={screenStyles.composerBar}>
+        {state.selectedPendingApproval ? (
+          <WorkbenchApprovalDockSection
+            selectedPendingApproval={state.selectedPendingApproval}
+            selectedRunRequest={selectedRunRequest}
+            selectedCwd={state.selectedCwd}
+            approvalBusy={state.approvalBusy}
+            onSubmitDecision={decision => void state.handleResolveSelectedApproval(decision)}
+            cardStyle={screenStyles.approvalFloatingCard}
+            screenStyles={screenStyles}
+          />
+        ) : !state.textInputsReady ? (
+          <View style={screenStyles.loadingInline}>
+            <ActivityIndicator size='small' color={palette.accent} />
+          </View>
+        ) : (
+          <View style={[screenStyles.composerShell, {borderColor: palette.border, backgroundColor: palette.panel}]}>
+            <View style={screenStyles.composerAssistRow}>
+              <View style={screenStyles.composerAssistCluster}>
+                <ActionButton testID='agent-workbench.action.run-git-status' label={appI18n.agentWorkbench.actions.runGitStatus} onPress={() => void state.handleRunGitStatus()} tone='ghost' />
+                <ActionButton testID='agent-workbench.action.populate-write-approval-draft' label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft} onPress={state.handlePopulateWriteApprovalDraft} tone='ghost' />
+                <ActionButton testID='agent-workbench.action.toggle-command-input' label={showCommandInput ? appI18n.agentWorkbench.taskDraft.collapseAdvancedCommand : appI18n.agentWorkbench.taskDraft.expandAdvancedCommand} onPress={() => setShowCommandInput(value => !value)} tone='ghost' />
+              </View>
+              <View style={screenStyles.composerModeCluster}>
+                <ActionButton label={appI18n.agentWorkbench.taskDraft.directRuntimeLabel} onPress={state.handleSelectDirectDraftMode} tone={state.draftRequiresApproval ? 'ghost' : 'accent'} />
+                <ActionButton label={appI18n.agentWorkbench.taskDraft.approvalRuntimeLabel} onPress={state.handleSelectApprovalDraftMode} tone={state.draftRequiresApproval ? 'accent' : 'ghost'} />
+              </View>
+            </View>
+            <RNTextInput testID='agent-workbench.task.goal-input' value={state.draftGoal} onChangeText={state.handleDraftGoalChange} placeholder={appI18n.agentWorkbench.taskDraft.goalPlaceholder} placeholderTextColor={palette.inkSoft} style={[screenStyles.textInputField, {color: palette.ink}]} />
+            {showCommandInput ? (
+              <RNTextInput testID='agent-workbench.task.command-input' value={state.draftCommand} onChangeText={state.handleDraftCommandChange} placeholder={appI18n.agentWorkbench.taskDraft.commandPlaceholder} placeholderTextColor={palette.inkSoft} multiline textAlignVertical='top' style={[screenStyles.textInputField, screenStyles.textInputMultiline, {color: palette.ink}]} />
+            ) : null}
+            <View style={screenStyles.composerShellFooter}>
+              <Text style={[screenStyles.composerRuntimeMeta, {color: palette.inkSoft}]}>
+                {state.trustedWorkspace?.rootPath || appI18n.agentWorkbench.empty.workspaceDescription}
+              </Text>
+              <ActionButton
+                testID='agent-workbench.action.start-draft-task'
+                label={
+                  state.activeRunInfo
+                    ? appI18n.agentWorkbench.actions.cancelRun
+                    : state.taskDraftBusy
+                      ? appI18n.agentWorkbench.actions.runningDraftTask
+                      : appI18n.agentWorkbench.actions.runDraftTask
+                }
+                onPress={() => void (state.activeRunInfo ? state.handleCancelRun() : state.handleStartDraftTask())}
+                disabled={!state.activeRunInfo && !canStart}
+              />
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );

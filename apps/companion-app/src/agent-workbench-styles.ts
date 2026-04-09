@@ -395,6 +395,29 @@ export function createScreenStyles(palette: AppPalette) {
       lineHeight: 18,
       flexShrink: 1,
     },
+    decisionInterruptSummaryList: {
+      gap: appSpacing.xs,
+    },
+    decisionInterruptSummaryItem: {
+      gap: 4,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.border,
+      borderRadius: workbenchRadius.row,
+      backgroundColor: palette.panel,
+      paddingHorizontal: appSpacing.sm,
+      paddingVertical: appSpacing.sm,
+    },
+    decisionInterruptSummaryLabel: {
+      ...appTypography.label,
+      color: palette.inkSoft,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    decisionInterruptSummaryText: {
+      ...appTypography.caption,
+      color: palette.ink,
+      lineHeight: 18,
+    },
     decisionInterruptDetailsShell: {
       borderRadius: workbenchRadius.row,
       backgroundColor: palette.panel,

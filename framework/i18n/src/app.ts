@@ -602,6 +602,32 @@ export const zhCNApp = {
       commandRequestTitle: (goal: string) => `允许执行任务：${goal}`,
       commandRequestDetails: (command: string, requestedCwd: string) =>
         `批准后会在 ${requestedCwd} 下执行以下命令：${command}`,
+      summaryLabels: {
+        what: '要批准什么',
+        impact: '影响什么',
+        output: '会产出什么',
+      },
+      summaryImpact: {
+        fileInWorkspace: (requestedCwd: string, relativePath: string) =>
+          `会在 ${requestedCwd} 下更新 ${relativePath}。`,
+        fileOnly: (relativePath: string) => `会更新 ${relativePath}。`,
+        commandInWorkspace: (requestedCwd: string) =>
+          `会在 ${requestedCwd} 下继续执行一条待审批命令。`,
+        workspaceOnly: (requestedCwd: string) =>
+          `会在 ${requestedCwd} 下继续执行这次任务。`,
+        generic: (permissionLabel: string) =>
+          `会按 ${permissionLabel} 权限继续执行这次任务。`,
+      },
+      summaryOutput: {
+        pending: '批准后会继续在下方时间线和终端证据里记录执行过程。',
+        pendingDiffPreview:
+          '批准后会继续生成 diff 预览，并把执行过程写进下方时间线和终端证据。',
+        approved: '审批已通过，执行过程已继续写入时间线和终端证据。',
+        approvedDiffPreview:
+          '审批已通过，后续已继续生成 diff 预览，并把执行过程写进时间线和终端证据。',
+        rejected: '审批已拒绝，本次命令没有继续执行，也不会新增终端输出。',
+        expired: '审批已过期，这次命令没有继续执行。',
+      },
       status: {
         pending: '待审批',
         approved: '已批准',
@@ -693,7 +719,7 @@ export const zhCNApp = {
       permissionMode: '权限模式',
       errorCode: '错误码',
       retryable: '可重试',
-      runDetailExpanderTitle: '详细信息',
+      runDetailExpanderTitle: '运行与诊断',
       terminalSummaryTitle: '终端汇总',
     },
     status: {

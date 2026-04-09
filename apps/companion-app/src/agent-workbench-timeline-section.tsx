@@ -13,12 +13,12 @@ import {
   appSpacing,
 } from '@opapp/ui-native-primitives';
 import type {WorkbenchTimelineDisplayItem} from './agent-workbench-model';
+import {buildApprovalSummaryItems} from './agent-workbench-approval-summary';
 import {
   countCompletedPlanSteps,
   formatIsoTimestamp,
   resolveApprovalStatusLabel,
   resolveApprovalStatusTone,
-  resolveApprovalTargetDescription,
   resolveArtifactKindLabel,
   resolveMessageRoleLabel,
   resolvePermissionModeLabel,
@@ -264,7 +264,6 @@ export function WorkbenchTimelineSection({
               return null;
             }
 
-            const approvalTarget = resolveApprovalTargetDescription(entry);
             const approvalStatusTone = resolveApprovalStatusTone(entry.status);
             const approvalCardToneStyle =
               entry.status === 'approved'
@@ -272,6 +271,7 @@ export function WorkbenchTimelineSection({
                 : entry.status === 'rejected'
                   ? screenStyles.decisionInterruptCardRejected
                   : null;
+            const approvalSummaryItems = buildApprovalSummaryItems(entry);
             return (
               <View
                 key={item.key}
@@ -317,26 +317,23 @@ export function WorkbenchTimelineSection({
                       {resolvePermissionModeLabel(entry.permissionMode)}
                     </Text>
                   </View>
-                  {approvalTarget ? (
-                    <Text
-                      style={screenStyles.decisionInterruptMetaText}
-                      numberOfLines={1}>
-                      {approvalTarget}
-                    </Text>
-                  ) : null}
                 </View>
-                {entry.details ? (
-                  <View style={screenStyles.decisionInterruptDetailsShell}>
-                    <Text
-                      style={[
-                        screenStyles.terminalText,
-                        screenStyles.decisionInterruptDetailsText,
-                      ]}
-                      numberOfLines={entry.status === 'pending' ? 4 : 2}>
-                      {entry.details}
-                    </Text>
-                  </View>
-                ) : null}
+                <View style={screenStyles.decisionInterruptSummaryList}>
+                  {approvalSummaryItems.map(summaryItem => (
+                    <View
+                      key={`${item.key}.${summaryItem.key}`}
+                      style={screenStyles.decisionInterruptSummaryItem}>
+                      <Text style={screenStyles.decisionInterruptSummaryLabel}>
+                        {summaryItem.label}
+                      </Text>
+                      <Text
+                        style={screenStyles.decisionInterruptSummaryText}
+                        numberOfLines={entry.status === 'pending' ? 3 : 2}>
+                        {summaryItem.value}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             );
           }

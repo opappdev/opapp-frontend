@@ -21,6 +21,7 @@ import {
   resolveRunStatusLabel,
   resolveRunStatusTone,
 } from './agent-workbench-resolvers';
+import {buildApprovalSummaryItems} from './agent-workbench-approval-summary';
 import type {createScreenStyles} from './agent-workbench-styles';
 
 type WorkbenchRunDetailSectionProps = {
@@ -103,6 +104,12 @@ export function WorkbenchRunDetailSection({
       ? `${appI18n.agentWorkbench.labels.cwd} ${workspacePath}`
       : null,
   ].filter((value): value is string => Boolean(value));
+  const pendingApprovalSummaryItems = selectedPendingApproval
+    ? buildApprovalSummaryItems(selectedPendingApproval, {
+        requestedCwd: selectedRunRequest?.cwd ?? selectedCwd,
+        command: selectedRunRequest?.command ?? null,
+      })
+    : [];
 
   if (!selectedRunDocument) {
     return null;
@@ -271,6 +278,89 @@ export function WorkbenchRunDetailSection({
         ) : null}
       </View>
 
+      {/* Pending approval — decision interrupt card */}
+      {selectedPendingApproval ? (
+        <View
+          testID='agent-workbench.approval.panel'
+          style={[
+            screenStyles.decisionInterruptCard,
+            screenStyles.decisionInterruptCardPending,
+          ]}>
+          <View style={screenStyles.decisionInterruptHeader}>
+            <View style={screenStyles.decisionInterruptBody}>
+              <View style={screenStyles.decisionInterruptEyebrowRow}>
+                <Icon
+                  icon={iconCatalog.shieldTask}
+                  size={13}
+                  color={palette.accent}
+                />
+                <Text
+                  style={[
+                    screenStyles.decisionInterruptEyebrow,
+                    {color: palette.accent},
+                  ]}>
+                  {appI18n.agentWorkbench.approval.pendingTitle}
+                </Text>
+              </View>
+              <Text style={screenStyles.decisionInterruptTitle}>
+                {selectedPendingApproval.title}
+              </Text>
+              <View style={screenStyles.decisionInterruptMetaRow}>
+                <View style={screenStyles.decisionInterruptMetaChip}>
+                  <Text style={screenStyles.decisionInterruptMetaChipLabel}>
+                    {resolvePermissionModeLabel(
+                      selectedPendingApproval.permissionMode,
+                    )}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <Text style={screenStyles.messageItemTime}>
+              {formatIsoTimestamp(selectedPendingApproval.createdAt)}
+            </Text>
+          </View>
+          <View style={screenStyles.decisionInterruptSummaryList}>
+            {pendingApprovalSummaryItems.map(summaryItem => (
+              <View
+                key={summaryItem.key}
+                style={screenStyles.decisionInterruptSummaryItem}>
+                <Text style={screenStyles.decisionInterruptSummaryLabel}>
+                  {summaryItem.label}
+                </Text>
+                <Text
+                  style={screenStyles.decisionInterruptSummaryText}
+                  numberOfLines={3}>
+                  {summaryItem.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <View style={screenStyles.actionRow}>
+            <ActionButton
+              testID='agent-workbench.action.approve-request'
+              label={
+                approvalBusy === 'approving'
+                  ? appI18n.agentWorkbench.actions.approvingRequest
+                  : appI18n.agentWorkbench.actions.approveRequest
+              }
+              onPress={onApprove}
+              disabled={approvalBusy !== null}
+            />
+            <ActionButton
+              testID='agent-workbench.action.reject-request'
+              label={
+                approvalBusy === 'rejecting'
+                  ? appI18n.agentWorkbench.actions.rejectingRequest
+                  : appI18n.agentWorkbench.actions.rejectRequest
+              }
+              onPress={onReject}
+              disabled={approvalBusy !== null}
+              tone='ghost'
+            />
+          </View>
+        </View>
+      ) : null}
+
       {/* Collapsed details — minimal chrome */}
       <Expander
         title={appI18n.agentWorkbench.labels.runDetailExpanderTitle ?? 'Details'}
@@ -320,7 +410,7 @@ export function WorkbenchRunDetailSection({
                 screenStyles.terminalText,
                 screenStyles.runDetailCommandText,
               ]}
-              numberOfLines={2}>
+              numberOfLines={4}>
               $ {selectedRunRequest?.command ?? appI18n.common.unknown}
             </Text>
             <Text
@@ -383,82 +473,6 @@ export function WorkbenchRunDetailSection({
           ) : null}
         </View>
       </Expander>
-
-      {/* Pending approval — decision interrupt card */}
-      {selectedPendingApproval ? (
-        <View
-          testID='agent-workbench.approval.panel'
-          style={[
-            screenStyles.decisionInterruptCard,
-            screenStyles.decisionInterruptCardPending,
-          ]}>
-          <View style={screenStyles.decisionInterruptHeader}>
-            <View style={screenStyles.decisionInterruptBody}>
-              <View style={screenStyles.decisionInterruptEyebrowRow}>
-                <Icon
-                  icon={iconCatalog.shieldTask}
-                  size={13}
-                  color={palette.accent}
-                />
-                <Text
-                  style={[
-                    screenStyles.decisionInterruptEyebrow,
-                    {color: palette.accent},
-                  ]}>
-                  {appI18n.agentWorkbench.approval.pendingTitle}
-                </Text>
-              </View>
-              <Text style={screenStyles.decisionInterruptTitle}>
-                {selectedPendingApproval.title}
-              </Text>
-              <View style={screenStyles.decisionInterruptMetaRow}>
-                <View style={screenStyles.decisionInterruptMetaChip}>
-                  <Text style={screenStyles.decisionInterruptMetaChipLabel}>
-                    {resolvePermissionModeLabel(
-                      selectedPendingApproval.permissionMode,
-                    )}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-          {selectedPendingApproval.details ? (
-            <View style={screenStyles.decisionInterruptDetailsShell}>
-              <Text
-                style={[
-                  screenStyles.terminalText,
-                  screenStyles.decisionInterruptDetailsText,
-                ]}
-                numberOfLines={4}>
-                {selectedPendingApproval.details}
-              </Text>
-            </View>
-          ) : null}
-          <View style={screenStyles.actionRow}>
-            <ActionButton
-              testID='agent-workbench.action.approve-request'
-              label={
-                approvalBusy === 'approving'
-                  ? appI18n.agentWorkbench.actions.approvingRequest
-                  : appI18n.agentWorkbench.actions.approveRequest
-              }
-              onPress={onApprove}
-              disabled={approvalBusy !== null}
-            />
-            <ActionButton
-              testID='agent-workbench.action.reject-request'
-              label={
-                approvalBusy === 'rejecting'
-                  ? appI18n.agentWorkbench.actions.rejectingRequest
-                  : appI18n.agentWorkbench.actions.rejectRequest
-              }
-              onPress={onReject}
-              disabled={approvalBusy !== null}
-              tone='ghost'
-            />
-          </View>
-        </View>
-      ) : null}
     </View>
   );
 }

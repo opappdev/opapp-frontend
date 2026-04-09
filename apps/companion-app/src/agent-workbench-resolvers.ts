@@ -604,28 +604,6 @@ export function resolveTimelineEntryIcon(entry: AgentTimelineEntry): IconDefinit
   }
 }
 
-export function resolveApprovalTargetDescription(approval: AgentApprovalTimelineEntry): string | null {
-  if (!approval.details) {
-    return null;
-  }
-  // Extract file path from approval details (common patterns: "write to path", path in first line)
-  const pathMatch = approval.details.match(
-    /(?:^|\s)((?:[\w./-]+\/)+[\w.-]+)/,
-  );
-  if (pathMatch) {
-    const filePath = pathMatch[1];
-    switch (approval.permissionMode) {
-      case 'workspace-write':
-        return `Write → ${filePath}`;
-      case 'danger-full-access':
-        return `Full access → ${filePath}`;
-      default:
-        return filePath;
-    }
-  }
-  return null;
-}
-
 // ---------------------------------------------------------------------------
 //  Run status → icon
 // ---------------------------------------------------------------------------

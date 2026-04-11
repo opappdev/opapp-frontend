@@ -1,8 +1,10 @@
 import {
+  appearancePresets,
   parseWindowPolicyInput,
   normalizeWindowPolicyId,
   settingsSurfacePresentations,
   startupTargetPresentations,
+  type AppearancePreset,
   type StartupTargetPreference,
   type StartupTargetPresentation,
   windowSizeModes,
@@ -17,6 +19,7 @@ const windowSizeModeSet = new Set<WindowSizeMode>(windowSizeModes);
 const settingsSurfacePresentationSet = new Set<SettingsSurfacePresentation>(
   settingsSurfacePresentations,
 );
+const appearancePresetSet = new Set<AppearancePreset>(appearancePresets);
 const startupTargetPresentationSet = new Set<StartupTargetPresentation>(
   startupTargetPresentations,
 );
@@ -25,6 +28,7 @@ export const defaultWindowPreferences: WindowPreferences = {
   mainWindowMode: 'balanced',
   settingsWindowMode: 'balanced',
   settingsPresentation: 'current-window',
+  appearancePreset: 'classic',
 };
 
 function isWindowSizeMode(value: unknown): value is WindowSizeMode {
@@ -37,6 +41,13 @@ function isSettingsSurfacePresentation(
   return (
     typeof value === 'string' &&
     settingsSurfacePresentationSet.has(value as SettingsSurfacePresentation)
+  );
+}
+
+function isAppearancePreset(value: unknown): value is AppearancePreset {
+  return (
+    typeof value === 'string' &&
+    appearancePresetSet.has(value as AppearancePreset)
   );
 }
 
@@ -66,6 +77,9 @@ export function normalizeWindowPreferences(
     settingsPresentation: isSettingsSurfacePresentation(value?.settingsPresentation)
       ? value.settingsPresentation
       : defaultWindowPreferences.settingsPresentation,
+    appearancePreset: isAppearancePreset(value?.appearancePreset)
+      ? value.appearancePreset
+      : defaultWindowPreferences.appearancePreset,
   };
 }
 

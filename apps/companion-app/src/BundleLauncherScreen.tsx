@@ -1,6 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -17,9 +16,11 @@ import {
   getCachedOtaRemoteCatalog,
   getOtaRemoteUrl,
   getStagedBundles,
+  getTitleBarMetrics,
   runBundleUpdate,
   type BundleUpdateStatus,
   type StagedBundleRecord,
+  type TitleBarMetrics,
   useCurrentWindowId,
   useOpenSurface,
 } from '@opapp/framework-windowing';
@@ -27,9 +28,8 @@ import {appI18n} from '@opapp/framework-i18n';
 import {
   ActionButton,
   AppFrame,
+  AppThemeProvider,
   ChoiceChip,
-  MutedText,
-  SelectableRow,
   Stack,
   StatusBadge,
   desktopCursor,
@@ -38,9 +38,10 @@ import {
   windowsFocusProps,
   appRadius,
   appSpacing,
+  appLayout,
   appTypography,
   type AppPalette,
-  type AppTone,
+  type AppTheme,
 } from '@opapp/ui-native-primitives';
 import {
   buildBundleLauncherDiscoveryEntries,
@@ -50,10 +51,15 @@ import {
 } from './bundle-launcher-discovery';
 import {
   buildBundleLibraryEntries,
+  resolveBundleLibraryOpenTarget,
   type BundleLibraryEntry,
   type BundleLibraryGroupId,
 } from './bundle-library-model';
 import {humanizeSurfaceId} from './bundle-library-presentation';
+import {
+  BundleLibraryPane,
+  type BundleLibrarySection,
+} from './bundle-launcher-library-pane';
 import {
   buildDiscoveredCompanionLaunchTargets,
   companionBundleIds,
@@ -85,6 +91,113 @@ type ServicePresentation = {
   tone: 'support' | 'warning' | 'neutral' | 'danger';
   detail: string;
 };
+
+function buildBundleLauncherTonePalette(
+  palette: AppPalette,
+  colorScheme: AppTheme['colorScheme'],
+): AppTheme['tonePalette'] {
+  const isLight = colorScheme === 'light';
+
+  return {
+    accent: {
+      soft: {
+        container: {
+          backgroundColor: palette.accentSoft,
+          borderColor: palette.accent,
+        },
+        label: {color: isLight ? '#864260' : '#773d58'},
+      },
+      solid: {
+        container: {
+          backgroundColor: palette.accent,
+          borderColor: palette.accent,
+        },
+        label: {color: '#fff8fb'},
+      },
+    },
+    neutral: {
+      soft: {
+        container: {
+          backgroundColor: palette.panel,
+          borderColor: palette.border,
+        },
+        label: {color: palette.inkMuted},
+      },
+      solid: {
+        container: {
+          backgroundColor: palette.borderStrong,
+          borderColor: palette.borderStrong,
+        },
+        label: {color: '#fbf8fd'},
+      },
+    },
+    support: {
+      soft: {
+        container: {
+          backgroundColor: palette.supportSoft,
+          borderColor: palette.support,
+        },
+        label: {color: isLight ? '#2c737d' : '#2b6f79'},
+      },
+      solid: {
+        container: {
+          backgroundColor: palette.support,
+          borderColor: palette.support,
+        },
+        label: {color: '#f7ffff'},
+      },
+    },
+    warning: {
+      soft: {
+        container: {
+          backgroundColor: isLight ? '#f6ecd8' : '#f0e3c7',
+          borderColor: isLight ? '#c39a61' : '#c29a64',
+        },
+        label: {color: isLight ? '#7a5c32' : '#73582f'},
+      },
+      solid: {
+        container: {
+          backgroundColor: isLight ? '#c39a61' : '#c29a64',
+          borderColor: isLight ? '#c39a61' : '#c29a64',
+        },
+        label: {color: '#fff9f1'},
+      },
+    },
+    danger: {
+      soft: {
+        container: {
+          backgroundColor: isLight ? '#f7dde7' : '#efd4de',
+          borderColor: isLight ? '#cf7a95' : '#cc7891',
+        },
+        label: {color: isLight ? '#824156' : '#7c3f53'},
+      },
+      solid: {
+        container: {
+          backgroundColor: isLight ? '#c86a87' : '#c56782',
+          borderColor: isLight ? '#c86a87' : '#c56782',
+        },
+        label: {color: '#fff8fb'},
+      },
+    },
+  };
+}
+
+function buildBundleLauncherTheme(baseTheme: AppTheme): AppTheme {
+  if (
+    baseTheme.colorScheme === 'high-contrast' ||
+    baseTheme.appearancePreset !== 'blossom'
+  ) {
+    return baseTheme;
+  }
+
+  return {
+    ...baseTheme,
+    tonePalette: buildBundleLauncherTonePalette(
+      baseTheme.palette,
+      baseTheme.colorScheme,
+    ),
+  };
+}
 
 const remoteCatalogRequestTimeoutMs = 5_000;
 
@@ -363,7 +476,9 @@ function buildServicePresentation(
   }
 }
 
-function groupBundleLibraryEntries(entries: ReadonlyArray<BundleLibraryEntry>) {
+function groupBundleLibraryEntries(
+  entries: ReadonlyArray<BundleLibraryEntry>,
+): BundleLibrarySection[] {
   const sectionOrder: BundleLibraryGroupId[] = [
     'updates',
     'installed',
@@ -498,21 +613,316 @@ function DetailField({
 }) {
   const {palette} = useTheme();
   return (
-    <View style={{flexGrow: 1, minWidth: 180, gap: appSpacing.xs, borderRadius: appRadius.control, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.canvas, paddingHorizontal: appSpacing.md, paddingVertical: appSpacing.sm}}>
-      <Text style={{color: palette.inkSoft, ...appTypography.captionStrong}}>{label}</Text>
-      <Text style={{color: palette.ink, ...appTypography.body}}>{value}</Text>
+    <View
+      style={{
+        flexGrow: 1,
+        minWidth: 180,
+        gap: appSpacing.xs,
+        borderRadius: appRadius.control,
+        borderWidth: 1,
+        borderColor: palette.border,
+        backgroundColor: palette.panel,
+        paddingHorizontal: appSpacing.md,
+        paddingVertical: appSpacing.sm2,
+      }}>
+      <Text
+        style={{
+          color: palette.inkSoft,
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+          ...appTypography.labelTightBold,
+        }}>
+        {label}
+      </Text>
+      <Text style={{color: palette.ink, ...appTypography.bodyStrong}}>
+        {value}
+      </Text>
     </View>
+  );
+}
+
+type BundleDetailPaneProps = {
+  selectedEntry: BundleLibraryEntry | null;
+  selectedTargetTitle: string | null;
+  selectedEntryOpenTarget: CompanionLaunchTarget | null;
+  selectedEntryCanOpen: boolean;
+  actingBundleId: string | null;
+  openingTargetId: string | null;
+  savingStartupTarget: boolean;
+  startupPreferencesExpanded: boolean;
+  advancedDetailsExpanded: boolean;
+  statusMessage: string | null;
+  statusTone: 'support' | 'danger' | 'neutral';
+  currentWindowId: string | null;
+  onPrimaryAction: (entry: BundleLibraryEntry) => void;
+  onSaveStartupTarget: () => void;
+  onChooseStartupTarget: (bundleId: string, targetId: string) => void;
+  onToggleStartupPreferences: () => void;
+  onToggleAdvancedDetails: () => void;
+  styles: ReturnType<typeof createScreenStyles>;
+};
+
+function BundleDetailPane({
+  selectedEntry,
+  selectedTargetTitle,
+  selectedEntryOpenTarget,
+  selectedEntryCanOpen,
+  actingBundleId,
+  openingTargetId,
+  savingStartupTarget,
+  startupPreferencesExpanded,
+  advancedDetailsExpanded,
+  statusMessage,
+  statusTone,
+  currentWindowId,
+  onPrimaryAction,
+  onSaveStartupTarget,
+  onChooseStartupTarget,
+  onToggleStartupPreferences,
+  onToggleAdvancedDetails,
+  styles,
+}: BundleDetailPaneProps) {
+  const detailPrimaryActionLabel =
+    selectedEntry?.primaryActionLabel === null || selectedEntry === null
+      ? null
+      : actingBundleId === selectedEntry.bundleId
+        ? selectedEntry.primaryActionKind === 'install'
+          ? appI18n.bundleLauncher.actions.installing
+          : selectedEntry.primaryActionKind === 'update'
+            ? appI18n.bundleLauncher.actions.updating
+            : appI18n.bundleLauncher.actions.opening
+        : selectedEntry.primaryActionKind === 'open'
+          ? appI18n.bundleLauncher.actions.openSelected
+          : selectedEntry.primaryActionLabel;
+  const detailPrimaryActionDisabled =
+    selectedEntry === null
+      ? true
+      : actingBundleId === selectedEntry.bundleId ||
+        openingTargetId === selectedEntryOpenTarget?.targetId ||
+        (selectedEntry.primaryActionKind === 'open' && !selectedEntryCanOpen);
+
+  return (
+    <>
+      <Text style={styles.paneTitle}>
+        {appI18n.bundleLauncher.sections.detailTitle}
+      </Text>
+
+      {selectedEntry ? (
+        <View style={styles.detailCard}>
+          <View style={styles.detailHeader}>
+            <View style={styles.detailHeaderCopy}>
+              <Text testID='bundle-launcher.detail.title' style={styles.detailTitle}>
+                {selectedEntry.displayName}
+              </Text>
+              <Text
+                testID='bundle-launcher.detail.subtitle'
+                style={styles.detailSubtitle}>
+                {selectedEntry.subtitle}
+              </Text>
+            </View>
+            <StatusBadge
+              label={selectedEntry.stateLabel}
+              tone={selectedEntry.stateTone}
+              size='sm'
+            />
+          </View>
+
+          <View style={styles.detailHighlights}>
+            <DetailField
+              label={appI18n.bundleLauncher.details.installedVersion}
+              value={
+                selectedEntry.currentVersion ??
+                appI18n.bundleLauncher.details.values.notInstalled
+              }
+            />
+            <DetailField
+              label={appI18n.bundleLauncher.details.availableVersion}
+              value={
+                selectedEntry.latestVersion ??
+                appI18n.bundleLauncher.details.values.notAvailable
+              }
+            />
+            <DetailField
+              label={appI18n.bundleLauncher.details.selectedEntry}
+              value={
+                selectedTargetTitle ??
+                appI18n.bundleLauncher.details.values.none
+              }
+            />
+          </View>
+
+          {selectedEntry.detailNote ? (
+            <Text style={styles.detailNote}>{selectedEntry.detailNote}</Text>
+          ) : null}
+          {statusMessage ? (
+            <Text
+              style={[
+                styles.statusMessage,
+                statusTone === 'support' ? styles.statusMessageSuccess : null,
+                statusTone === 'danger' ? styles.statusMessageError : null,
+              ]}>
+              {statusMessage}
+            </Text>
+          ) : null}
+
+          <View style={styles.detailActions}>
+            {detailPrimaryActionLabel ? (
+              <ActionButton
+                testID='bundle-launcher.detail.action.primary'
+                label={detailPrimaryActionLabel}
+                onPress={() => {
+                  onPrimaryAction(selectedEntry);
+                }}
+                disabled={detailPrimaryActionDisabled}
+                tone={selectedEntry.primaryActionTone}
+              />
+            ) : null}
+            <ActionButton
+              testID='bundle-launcher.detail.action.set-default'
+              label={
+                savingStartupTarget
+                  ? appI18n.bundleLauncher.actions.savingDefault
+                  : appI18n.bundleLauncher.actions.setDefault
+              }
+              onPress={() => {
+                onSaveStartupTarget();
+              }}
+              disabled={
+                savingStartupTarget || !selectedEntry.selectedStartupTarget
+              }
+              tone='ghost'
+            />
+          </View>
+
+          <DisclosureSection
+            title={appI18n.bundleLauncher.details.startupPreferencesTitle}
+            description={
+              appI18n.bundleLauncher.details.startupPreferencesDescription
+            }
+            expanded={startupPreferencesExpanded}
+            headerTestID='bundle-launcher.startup-preferences.header'
+            contentTestID='bundle-launcher.startup-preferences.content'
+            onToggle={onToggleStartupPreferences}>
+            <View style={styles.choiceGrid}>
+              {selectedEntry.launchTargets.map(target => (
+                <ChoiceChip
+                  key={target.targetId}
+                  testID={
+                    selectedEntry.selectedStartupTarget?.targetId === target.targetId
+                      ? 'bundle-launcher.startup-target.selected'
+                      : `bundle-launcher.startup-target.${target.targetId}`
+                  }
+                  label={formatLaunchTargetTitle(target)}
+                  detail={target.description}
+                  active={
+                    selectedEntry.selectedStartupTarget?.targetId === target.targetId
+                  }
+                  activeBadgeLabel={appI18n.common.choiceStatus.selected}
+                  inactiveBadgeLabel={appI18n.common.choiceStatus.available}
+                  onPress={() => {
+                    onChooseStartupTarget(selectedEntry.bundleId, target.targetId);
+                  }}
+                />
+              ))}
+            </View>
+          </DisclosureSection>
+
+          <DisclosureSection
+            title={appI18n.bundleLauncher.details.advancedTitle}
+            description={appI18n.bundleLauncher.details.advancedDescription}
+            expanded={advancedDetailsExpanded}
+            headerTestID='bundle-launcher.advanced-details.header'
+            contentTestID='bundle-launcher.advanced-details.content'
+            onToggle={onToggleAdvancedDetails}>
+            <View style={styles.advancedGrid}>
+              <DetailField
+                label={appI18n.bundleLauncher.details.bundleId}
+                value={selectedEntry.bundleId}
+              />
+              <DetailField
+                label={appI18n.bundleLauncher.details.channel}
+                value={
+                  selectedEntry.channel ??
+                  appI18n.bundleLauncher.details.values.none
+                }
+              />
+              <DetailField
+                label={appI18n.bundleLauncher.details.rollout}
+                value={
+                  selectedEntry.rolloutPercent !== null
+                    ? `${selectedEntry.rolloutPercent}%`
+                    : appI18n.bundleLauncher.details.values.fullRollout
+                }
+              />
+              <DetailField
+                label={appI18n.bundleLauncher.details.localSource}
+                value={formatSourceKind(selectedEntry.localSourceKind)}
+              />
+              <DetailField
+                label={appI18n.bundleLauncher.details.lastOta}
+                value={formatProvenanceStatus(selectedEntry.localProvenanceStatus)}
+              />
+              <DetailField
+                label={appI18n.bundleLauncher.details.stagedAt}
+                value={formatIsoTimestamp(selectedEntry.localProvenanceStagedAt)}
+              />
+              <DetailField
+                label={appI18n.bundleLauncher.details.provenance}
+                value={formatProvenanceKind(selectedEntry.localProvenanceKind)}
+              />
+              <DetailField
+                label={appI18n.bundleLauncher.details.channels}
+                value={formatChannels(selectedEntry.channels)}
+              />
+              <DetailField
+                label={appI18n.bundleLauncher.details.currentWindow}
+                value={currentWindowId ?? appI18n.common.unknown}
+              />
+            </View>
+          </DisclosureSection>
+        </View>
+      ) : (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateTitle}>
+            {appI18n.bundleLauncher.empty.title}
+          </Text>
+          <Text style={styles.emptyStateDescription}>
+            {appI18n.bundleLauncher.empty.description}
+          </Text>
+        </View>
+      )}
+    </>
   );
 }
 
 export function BundleLauncherScreen() {
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
-  const {width} = useWindowDimensions();
-  const {palette, tonePalette} = useTheme();
-  const styles = useMemo(() => createScreenStyles(palette, tonePalette), [palette, tonePalette]);
+  const {width, height} = useWindowDimensions();
+  const baseTheme = useTheme();
+  const bundleLauncherTheme = useMemo(
+    () => buildBundleLauncherTheme(baseTheme),
+    [baseTheme],
+  );
+  const {palette, tonePalette} = bundleLauncherTheme;
+  const styles = useMemo(
+    () => createScreenStyles(palette, tonePalette),
+    [palette, tonePalette],
+  );
   const supportsBundleUpdates = canManageBundleUpdates();
   const isCompactLayout = width < 1180;
+  const workspaceMinHeight = isCompactLayout
+    ? undefined
+    : Math.max(560, height - 320);
+  const [titleBarMetrics, setTitleBarMetrics] = useState<TitleBarMetrics | null>(
+    null,
+  );
+  const showCustomTitleBar = Boolean(titleBarMetrics?.extendsContentIntoTitleBar);
+  const customTitleBarHeight = Math.max(48, titleBarMetrics?.height ?? 0);
+  const customTitleBarPaddingLeft =
+    (titleBarMetrics?.leftInset ?? 0) + appSpacing.lg2;
+  const customTitleBarPaddingRight =
+    (titleBarMetrics?.rightInset ?? 0) + appSpacing.md;
 
   const [bundleAvailability, setBundleAvailability] = useState<Record<string, boolean>>({});
   const [startupTargetSelections, setStartupTargetSelections] = useState<
@@ -677,6 +1087,20 @@ export function BundleLauncherScreen() {
     () => launchTargets.map(target => target.bundleId),
     [launchTargets],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getTitleBarMetrics().then(metrics => {
+      if (!cancelled) {
+        setTitleBarMetrics(metrics);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [baseTheme.appearancePreset]);
 
   useEffect(() => {
     if (!selectedEntry) {
@@ -856,11 +1280,12 @@ export function BundleLauncherScreen() {
     }
 
     if (entry.primaryActionKind === 'open') {
-      if (!entry.defaultOpenTarget) {
+      const openTarget = resolveBundleLibraryOpenTarget(entry);
+      if (!openTarget) {
         return;
       }
 
-      await openLaunchTarget(entry.defaultOpenTarget);
+      await openLaunchTarget(openTarget);
       return;
     }
 
@@ -926,407 +1351,260 @@ export function BundleLauncherScreen() {
   const selectedTargetTitle = selectedEntry?.selectedStartupTarget
     ? formatLaunchTargetTitle(selectedEntry.selectedStartupTarget)
     : null;
-  const selectedEntryCanOpen = selectedEntry?.defaultOpenTarget
-    ? bundleAvailability[selectedEntry.defaultOpenTarget.bundleId] ?? true
+  const selectedEntryOpenTarget = selectedEntry
+    ? resolveBundleLibraryOpenTarget(selectedEntry)
+    : null;
+  const selectedEntryCanOpen = selectedEntryOpenTarget
+    ? bundleAvailability[selectedEntryOpenTarget.bundleId] ?? true
     : false;
 
   return (
-    <View testID='bundle-launcher.screen' style={styles.screen}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <AppFrame
-          eyebrow={appI18n.bundleLauncher.frame.eyebrow}
-          title={appI18n.bundleLauncher.frame.title}
-          description={appI18n.bundleLauncher.frame.description}>
-          <Stack style={styles.stack}>
-            <View style={styles.serviceBar}>
-              <View style={styles.serviceCopy}>
-                <Text style={styles.serviceLabel}>
-                  {appI18n.bundleLauncher.service.label}
-                </Text>
-                <Text testID='bundle-launcher.service.detail' style={styles.serviceValue}>
-                  {servicePresentation.detail}
-                </Text>
-              </View>
-              <View style={styles.serviceActions}>
-                <StatusBadge
-                  testID='bundle-launcher.service.status'
-                  label={servicePresentation.label}
-                  tone={servicePresentation.tone}
-                  size="sm"
-                />
-                {supportsBundleUpdates ? (
-                  <ActionButton
-                    testID='bundle-launcher.action.check-updates'
-                    label={
-                      checkingForUpdates
-                        ? appI18n.bundleLauncher.actions.checking
-                        : appI18n.bundleLauncher.actions.check
-                    }
-                    onPress={() => {
-                      void handleCheckUpdates();
-                    }}
-                    disabled={checkingForUpdates}
-                  />
-                ) : null}
-                {agentWorkbenchTarget ? (
-                  <ActionButton
-                    label={appI18n.surfaces.agentWorkbench}
-                    onPress={() => {
-                      void openSurface(
-                        createCompanionOpenSurfaceRequest(agentWorkbenchTarget),
-                      );
-                    }}
-                    tone="ghost"
-                  />
-                ) : null}
-              </View>
-            </View>
-
-            <View
-              style={[
-                styles.libraryShell,
-                isCompactLayout ? styles.libraryShellCompact : null,
-              ]}>
+    <AppThemeProvider theme={bundleLauncherTheme}>
+      <View testID='bundle-launcher.screen' style={styles.screen}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          {showCustomTitleBar ? (
+            <View style={styles.windowChromeShell}>
               <View
+                pointerEvents='none'
                 style={[
-                  styles.listPane,
-                  isCompactLayout ? styles.listPaneCompact : null,
+                  styles.windowChrome,
+                  {
+                    minHeight: customTitleBarHeight,
+                    paddingLeft: customTitleBarPaddingLeft,
+                    paddingRight: customTitleBarPaddingRight,
+                  },
                 ]}>
-                <Text style={styles.paneTitle}>
-                  {appI18n.bundleLauncher.sections.libraryTitle}
-                </Text>
-                {remoteCatalog.status === 'loading' ? (
-                  <Text style={styles.loadingHint}>
-                    {appI18n.bundleLauncher.service.status.loading}
-                  </Text>
-                ) : null}
-
-                {groupedLibraryEntries.length === 0 ? (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateTitle}>
-                      {appI18n.bundleLauncher.empty.title}
-                    </Text>
-                    <Text style={styles.emptyStateDescription}>
-                      {appI18n.bundleLauncher.empty.description}
-                    </Text>
-                  </View>
-                ) : (
-                  groupedLibraryEntries.map(section => (
-                    <View key={section.groupId} style={styles.groupSection}>
-                      <Text style={styles.groupTitle}>{section.title}</Text>
-                      <View accessibilityRole='list' style={styles.groupList}>
-                        {section.entries.map(entry => {
-                          const rowBusy = entry.isBusy;
-                          const rowOpenBusy =
-                            openingTargetId === entry.defaultOpenTarget?.targetId;
-                          const rowSelected = selectedEntry?.bundleId === entry.bundleId;
-                          const rowCanOpen = entry.defaultOpenTarget
-                            ? bundleAvailability[entry.defaultOpenTarget.bundleId] ?? true
-                            : false;
-
-                          const iconTone = entry.iconTone as AppTone;
-                          const iconToneTokens = tonePalette[iconTone].soft;
-                          return (
-                            <SelectableRow
-                              key={entry.bundleId}
-                              ref={(ref: any) => setRowRef(entry.bundleId, ref)}
-                              testID={`bundle-launcher.row.${entry.bundleId}`}
-                              keyDownEvents={arrowKeyEvents}
-                              onKeyDown={(e: any) => handleRowKeyDown(entry.bundleId, e)}
-                              selected={rowSelected}
-                              onPress={() => {
-                                setSelectedBundleId(entry.bundleId);
-                                setStatusMessage(null);
-                              }}
-                              leading={
-                                <View style={[styles.appIcon, {backgroundColor: iconToneTokens.container.backgroundColor}]}>
-                                  {rowBusy || rowOpenBusy ? (
-                                    <ActivityIndicator size="small" color={iconToneTokens.label.color as string} />
-                                  ) : (
-                                    <Text style={[styles.appIconLabel, {color: iconToneTokens.label.color as string}]}>{entry.monogram}</Text>
-                                  )}
-                                </View>
-                              }
-                              title={entry.displayName}
-                              titleStyle={styles.appName}
-                              subtitle={entry.subtitle}
-                              subtitleStyle={styles.appSubtitle}
-                              trailing={
-                                <View style={styles.appRowTrailing}>
-                                  <View style={styles.appRowSummary}>
-                                    {entry.isDefaultStartupApp ? (
-                                      <StatusBadge
-                                        label={appI18n.bundleLauncher.library.defaultStartup}
-                                        tone="accent"
-                                        size="sm"
-                                      />
-                                    ) : null}
-                                    <StatusBadge
-                                      label={entry.stateLabel}
-                                      tone={entry.stateTone}
-                                      size="sm"
-                                    />
-                                    <Text style={styles.appVersionSummary}>
-                                      {entry.versionSummary}
-                                    </Text>
-                                  </View>
-                                  {entry.primaryActionLabel ? (
-                                    <ActionButton
-                                      label={
-                                        rowBusy
-                                          ? entry.primaryActionKind === 'install'
-                                            ? appI18n.bundleLauncher.actions.installing
-                                            : appI18n.bundleLauncher.actions.updating
-                                          : rowOpenBusy
-                                            ? appI18n.bundleLauncher.actions.opening
-                                            : entry.primaryActionLabel
-                                      }
-                                      onPress={() => {
-                                        void handlePrimaryAction(entry);
-                                      }}
-                                      disabled={
-                                        rowBusy ||
-                                        rowOpenBusy ||
-                                        (entry.primaryActionKind === 'open' && !rowCanOpen)
-                                      }
-                                      tone={entry.primaryActionTone}
-                                    />
-                                  ) : (
-                                    <MutedText>
-                                      {appI18n.bundleLauncher.library.readOnlyHint}
-                                    </MutedText>
-                                  )}
-                                </View>
-                              }>
-                            </SelectableRow>
-                          );
-                        })}
-                      </View>
+                <View style={styles.windowChromeRibbon} />
+                <View
+                  style={[
+                    styles.windowChromeButtonWell,
+                    {
+                      width: Math.max(
+                        170,
+                        (titleBarMetrics?.rightInset ?? 0) + 78,
+                      ),
+                    },
+                  ]}>
+                  <View style={styles.windowChromeButtonWellRibbon} />
+                  <View style={styles.windowChromeButtonWellGlow} />
+                  <View style={styles.windowChromeButtonWellAccent} />
+                </View>
+                <View style={styles.windowChromeInner}>
+                  <View style={styles.windowChromeLead}>
+                    <View style={styles.windowChromeBadge}>
+                      <View style={styles.windowChromeBadgeDot} />
+                      <Text style={styles.windowChromeBadgeText}>OPApp</Text>
                     </View>
-                  ))
-                )}
-              </View>
-
-              <View
-                style={[
-                  styles.detailPane,
-                  isCompactLayout ? styles.detailPaneCompact : null,
-                ]}>
-                <Text style={styles.paneTitle}>
-                  {appI18n.bundleLauncher.sections.detailTitle}
-                </Text>
-
-                {selectedEntry ? (
-                  <View style={styles.detailCard}>
-                    <View style={styles.detailHeader}>
-                      <View style={styles.detailHeaderCopy}>
-                        <Text testID='bundle-launcher.detail.title' style={styles.detailTitle}>
-                          {selectedEntry.displayName}
-                        </Text>
-                        <Text testID='bundle-launcher.detail.subtitle' style={styles.detailSubtitle}>
-                          {selectedEntry.subtitle}
-                        </Text>
-                      </View>
-                      <StatusBadge
-                        label={selectedEntry.stateLabel}
-                        tone={selectedEntry.stateTone}
-                        size="sm"
-                      />
-                    </View>
-
-                    <View style={styles.detailHighlights}>
-                      <DetailField
-                        label={appI18n.bundleLauncher.details.installedVersion}
-                        value={
-                          selectedEntry.currentVersion ??
-                          appI18n.bundleLauncher.details.values.notInstalled
-                        }
-                      />
-                      <DetailField
-                        label={appI18n.bundleLauncher.details.availableVersion}
-                        value={
-                          selectedEntry.latestVersion ??
-                          appI18n.bundleLauncher.details.values.notAvailable
-                        }
-                      />
-                      <DetailField
-                        label={appI18n.bundleLauncher.details.selectedEntry}
-                        value={
-                          selectedTargetTitle ??
-                          appI18n.bundleLauncher.details.values.none
-                        }
-                      />
-                    </View>
-
-                    {selectedEntry.detailNote ? (
-                      <Text style={styles.detailNote}>{selectedEntry.detailNote}</Text>
-                    ) : null}
-                    {statusMessage ? (
-                      <Text
+                    <View style={styles.windowChromeSparkles}>
+                      <View
                         style={[
-                          styles.statusMessage,
-                          statusTone === 'support' ? styles.statusMessageSuccess : null,
-                          statusTone === 'danger' ? styles.statusMessageError : null,
-                        ]}>
-                        {statusMessage}
-                      </Text>
-                    ) : null}
-
-                    <View style={styles.detailActions}>
-                      {selectedEntry.primaryActionLabel ? (
-                        <ActionButton
-                          label={
-                            actingBundleId === selectedEntry.bundleId
-                              ? selectedEntry.primaryActionKind === 'install'
-                                ? appI18n.bundleLauncher.actions.installing
-                                : selectedEntry.primaryActionKind === 'update'
-                                  ? appI18n.bundleLauncher.actions.updating
-                                  : appI18n.bundleLauncher.actions.opening
-                              : selectedEntry.primaryActionLabel
-                          }
-                          onPress={() => {
-                            void handlePrimaryAction(selectedEntry);
-                          }}
-                          disabled={
-                            actingBundleId === selectedEntry.bundleId ||
-                            openingTargetId === selectedEntry.defaultOpenTarget?.targetId ||
-                            (selectedEntry.primaryActionKind === 'open' &&
-                              !selectedEntryCanOpen)
-                          }
-                          tone={selectedEntry.primaryActionTone}
-                        />
-                      ) : null}
-                      <ActionButton
-                        label={
-                          savingStartupTarget
-                            ? appI18n.bundleLauncher.actions.savingDefault
-                            : appI18n.bundleLauncher.actions.setDefault
-                        }
-                        onPress={() => {
-                          void handleSaveStartupTarget();
-                        }}
-                        disabled={
-                          savingStartupTarget || !selectedEntry.selectedStartupTarget
-                        }
-                        tone="ghost"
+                          styles.windowChromeSparkle,
+                          styles.windowChromeSparkleAccent,
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.windowChromeSparkle,
+                          styles.windowChromeSparklePearl,
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.windowChromeSparkle,
+                          styles.windowChromeSparkleSupport,
+                        ]}
                       />
                     </View>
-
-                    <DisclosureSection
-                      title={appI18n.bundleLauncher.details.startupPreferencesTitle}
-                      description={
-                        appI18n.bundleLauncher.details.startupPreferencesDescription
-                      }
-                      expanded={startupPreferencesExpanded}
-                      headerTestID='bundle-launcher.startup-preferences.header'
-                      contentTestID='bundle-launcher.startup-preferences.content'
-                      onToggle={() => {
-                        setStartupPreferencesExpanded(previous => !previous);
-                      }}>
-                      <View style={styles.choiceGrid}>
-                        {selectedEntry.launchTargets.map(target => (
-                          <ChoiceChip
-                            key={target.targetId}
-                            testID={
-                              selectedEntry.selectedStartupTarget?.targetId === target.targetId
-                                ? 'bundle-launcher.startup-target.selected'
-                                : `bundle-launcher.startup-target.${target.targetId}`
-                            }
-                            label={formatLaunchTargetTitle(target)}
-                            detail={target.description}
-                            active={
-                              selectedEntry.selectedStartupTarget?.targetId === target.targetId
-                            }
-                            activeBadgeLabel={appI18n.common.choiceStatus.selected}
-                            inactiveBadgeLabel={appI18n.common.choiceStatus.available}
-                            onPress={() => {
-                              setStartupTargetSelections(previous => ({
-                                ...previous,
-                                [selectedEntry.bundleId]: target.targetId,
-                              }));
-                              setStatusMessage(null);
-                            }}
-                          />
-                        ))}
+                  </View>
+                  <View style={styles.windowChromeCopy}>
+                    <View style={styles.windowChromeTitleRow}>
+                      <View style={styles.windowChromeEyebrowBadge}>
+                        <Text style={styles.windowChromeEyebrow}>
+                          {appI18n.bundleLauncher.frame.eyebrow}
+                        </Text>
                       </View>
-                    </DisclosureSection>
-
-                    <DisclosureSection
-                      title={appI18n.bundleLauncher.details.advancedTitle}
-                      description={appI18n.bundleLauncher.details.advancedDescription}
-                      expanded={advancedDetailsExpanded}
-                      headerTestID='bundle-launcher.advanced-details.header'
-                      contentTestID='bundle-launcher.advanced-details.content'
-                      onToggle={() => {
-                        setAdvancedDetailsExpanded(previous => !previous);
-                      }}>
-                      <View style={styles.advancedGrid}>
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.bundleId}
-                          value={selectedEntry.bundleId}
+                      <Text
+                        numberOfLines={1}
+                        style={styles.windowChromeTitle}>
+                        {appI18n.bundleLauncher.frame.title}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.windowChromeTrailingShell}>
+                    <View style={styles.windowChromeTrailingConnector}>
+                      <View style={styles.windowChromeTrailingConnectorRibbon} />
+                      <View style={styles.windowChromeTrailingConnectorGlow} />
+                    </View>
+                    <View style={styles.windowChromeTrailing}>
+                      <View style={styles.windowChromeTrailingPearls}>
+                        <View
+                          style={[
+                            styles.windowChromeTrailingPearl,
+                            styles.windowChromeTrailingPearlLarge,
+                          ]}
                         />
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.channel}
-                          value={
-                            selectedEntry.channel ??
-                            appI18n.bundleLauncher.details.values.none
-                          }
+                        <View
+                          style={[
+                            styles.windowChromeTrailingPearl,
+                            styles.windowChromeTrailingPearlMedium,
+                          ]}
                         />
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.rollout}
-                          value={
-                            selectedEntry.rolloutPercent !== null
-                              ? `${selectedEntry.rolloutPercent}%`
-                              : appI18n.bundleLauncher.details.values.fullRollout
-                          }
-                        />
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.localSource}
-                          value={formatSourceKind(selectedEntry.localSourceKind)}
-                        />
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.lastOta}
-                          value={formatProvenanceStatus(selectedEntry.localProvenanceStatus)}
-                        />
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.stagedAt}
-                          value={formatIsoTimestamp(selectedEntry.localProvenanceStagedAt)}
-                        />
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.provenance}
-                          value={formatProvenanceKind(selectedEntry.localProvenanceKind)}
-                        />
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.channels}
-                          value={formatChannels(selectedEntry.channels)}
-                        />
-                        <DetailField
-                          label={appI18n.bundleLauncher.details.currentWindow}
-                          value={currentWindowId ?? appI18n.common.unknown}
+                        <View
+                          style={[
+                            styles.windowChromeTrailingPearl,
+                            styles.windowChromeTrailingPearlSmall,
+                          ]}
                         />
                       </View>
-                    </DisclosureSection>
+                      <Text style={styles.windowChromeDescription}>
+                        OPApp Launcher
+                      </Text>
+                    </View>
                   </View>
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateTitle}>
-                      {appI18n.bundleLauncher.empty.title}
-                    </Text>
-                    <Text style={styles.emptyStateDescription}>
-                      {appI18n.bundleLauncher.empty.description}
-                    </Text>
-                  </View>
-                )}
+                </View>
               </View>
             </View>
-          </Stack>
-        </AppFrame>
-      </ScrollView>
-    </View>
+          ) : null}
+          <AppFrame
+            eyebrow={appI18n.bundleLauncher.frame.eyebrow}
+            title={appI18n.bundleLauncher.frame.title}
+            description={appI18n.bundleLauncher.frame.description}
+            showHero={!showCustomTitleBar}>
+            <Stack style={styles.stack}>
+              <View style={styles.serviceBar}>
+                <View style={styles.serviceCopy}>
+                  <Text style={styles.serviceLabel}>
+                    {appI18n.bundleLauncher.service.label}
+                  </Text>
+                  <Text
+                    testID='bundle-launcher.service.detail'
+                    style={styles.serviceValue}>
+                    {servicePresentation.detail}
+                  </Text>
+                </View>
+                <View style={styles.serviceActions}>
+                  <StatusBadge
+                    testID='bundle-launcher.service.status'
+                    label={servicePresentation.label}
+                    tone={servicePresentation.tone}
+                    size='sm'
+                  />
+                  {supportsBundleUpdates ? (
+                    <ActionButton
+                      testID='bundle-launcher.action.check-updates'
+                      label={
+                        checkingForUpdates
+                          ? appI18n.bundleLauncher.actions.checking
+                          : appI18n.bundleLauncher.actions.check
+                      }
+                      onPress={() => {
+                        void handleCheckUpdates();
+                      }}
+                      disabled={checkingForUpdates}
+                    />
+                  ) : null}
+                  {agentWorkbenchTarget ? (
+                    <ActionButton
+                      label={appI18n.surfaces.agentWorkbench}
+                      onPress={() => {
+                        void openSurface(
+                          createCompanionOpenSurfaceRequest(
+                            agentWorkbenchTarget,
+                          ),
+                        );
+                      }}
+                      tone='ghost'
+                    />
+                  ) : null}
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.libraryShell,
+                  typeof workspaceMinHeight === 'number'
+                    ? {minHeight: workspaceMinHeight}
+                    : null,
+                  isCompactLayout ? styles.libraryShellCompact : null,
+                ]}>
+                <View
+                  style={[
+                    styles.listPane,
+                    isCompactLayout ? styles.listPaneCompact : null,
+                  ]}>
+                  <BundleLibraryPane
+                    groupedLibraryEntries={groupedLibraryEntries}
+                    loading={remoteCatalog.status === 'loading'}
+                    selectedBundleId={selectedEntry?.bundleId ?? null}
+                    bundleAvailability={bundleAvailability}
+                    openingTargetId={openingTargetId}
+                    keyDownEvents={arrowKeyEvents}
+                    onRowRef={setRowRef}
+                    onRowKeyDown={handleRowKeyDown}
+                    onSelectEntry={bundleId => {
+                      setSelectedBundleId(bundleId);
+                      setStatusMessage(null);
+                    }}
+                    onPrimaryAction={entry => {
+                      void handlePrimaryAction(entry);
+                    }}
+                    styles={styles}
+                    tonePalette={tonePalette}
+                  />
+                </View>
+
+                <View
+                  style={[
+                    styles.detailPane,
+                    isCompactLayout ? styles.detailPaneCompact : null,
+                  ]}>
+                  <BundleDetailPane
+                    selectedEntry={selectedEntry}
+                    selectedTargetTitle={selectedTargetTitle}
+                    selectedEntryOpenTarget={selectedEntryOpenTarget}
+                    selectedEntryCanOpen={selectedEntryCanOpen}
+                    actingBundleId={actingBundleId}
+                    openingTargetId={openingTargetId}
+                    savingStartupTarget={savingStartupTarget}
+                    startupPreferencesExpanded={startupPreferencesExpanded}
+                    advancedDetailsExpanded={advancedDetailsExpanded}
+                    statusMessage={statusMessage}
+                    statusTone={statusTone}
+                    currentWindowId={currentWindowId}
+                    onPrimaryAction={entry => {
+                      void handlePrimaryAction(entry);
+                    }}
+                    onSaveStartupTarget={() => {
+                      void handleSaveStartupTarget();
+                    }}
+                    onChooseStartupTarget={(bundleId, targetId) => {
+                      setStartupTargetSelections(previous => ({
+                        ...previous,
+                        [bundleId]: targetId,
+                      }));
+                      setStatusMessage(null);
+                    }}
+                    onToggleStartupPreferences={() => {
+                      setStartupPreferencesExpanded(previous => !previous);
+                    }}
+                    onToggleAdvancedDetails={() => {
+                      setAdvancedDetailsExpanded(previous => !previous);
+                    }}
+                    styles={styles}
+                  />
+                </View>
+              </View>
+            </Stack>
+          </AppFrame>
+        </ScrollView>
+      </View>
+    </AppThemeProvider>
   );
 }
 
-type ScreenTonePalette = Record<string, Record<string, {container: {backgroundColor: string; borderColor: string}; label: {color: string}}>>;
+export type ScreenTonePalette = AppTheme['tonePalette'];
+
+export type BundleLauncherScreenStyles = ReturnType<typeof createScreenStyles>;
 
 function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette) {
   return StyleSheet.create({
@@ -1341,77 +1619,330 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
     flexGrow: 1,
     paddingBottom: appSpacing.xl,
   },
+  windowChromeShell: {
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    alignItems: 'center',
+  },
+  windowChrome: {
+    width: '100%',
+    maxWidth: appLayout.frameMaxWidth,
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderBottomColor: palette.border,
+    borderColor: palette.border,
+    borderRadius: 14,
+    backgroundColor: palette.panel,
+    paddingTop: appSpacing.sm,
+    paddingBottom: appSpacing.sm,
+  },
+  windowChromeRibbon: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: palette.accentSoft,
+  },
+  windowChromeInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: appSpacing.md,
+    minHeight: 36,
+  },
+  windowChromeButtonWell: {
+    position: 'absolute',
+    top: 4,
+    right: 0,
+    bottom: 4,
+    borderTopLeftRadius: 18,
+    borderBottomLeftRadius: 18,
+    borderLeftWidth: 1,
+    borderLeftColor: palette.border,
+    backgroundColor: palette.panelEmphasis,
+    overflow: 'hidden',
+    opacity: 0.96,
+  },
+  windowChromeButtonWellRibbon: {
+    position: 'absolute',
+    top: 0,
+    left: 18,
+    right: 0,
+    height: 3,
+    backgroundColor: palette.accentSoft,
+  },
+  windowChromeButtonWellGlow: {
+    position: 'absolute',
+    top: 8,
+    left: 18,
+    width: 64,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: palette.supportSoft,
+    opacity: 0.72,
+  },
+  windowChromeButtonWellAccent: {
+    position: 'absolute',
+    right: 28,
+    bottom: -10,
+    width: 52,
+    height: 52,
+    borderRadius: 999,
+    backgroundColor: palette.accentSoft,
+    opacity: 0.7,
+  },
+  windowChromeLead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: appSpacing.sm,
+  },
+  windowChromeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: appSpacing.xs,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoft,
+    paddingHorizontal: appSpacing.md,
+    paddingVertical: appSpacing.sm,
+  },
+  windowChromeBadgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: palette.accent,
+  },
+  windowChromeBadgeText: {
+    color: palette.ink,
+    letterSpacing: 0.6,
+    ...appTypography.captionStrong,
+  },
+  windowChromeSparkles: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: appSpacing.xxs,
+  },
+  windowChromeSparkle: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  windowChromeSparkleAccent: {
+    width: 6,
+    height: 6,
+    backgroundColor: palette.accent,
+    borderColor: palette.accent,
+  },
+  windowChromeSparklePearl: {
+    width: 10,
+    height: 10,
+    backgroundColor: palette.panel,
+  },
+  windowChromeSparkleSupport: {
+    width: 7,
+    height: 7,
+    backgroundColor: palette.supportSoft,
+    borderColor: palette.support,
+  },
+  windowChromeCopy: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+  windowChromeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: appSpacing.sm,
+    minWidth: 0,
+  },
+  windowChromeEyebrowBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoft,
+    paddingHorizontal: appSpacing.sm2,
+    paddingVertical: appSpacing.xxs,
+    flexShrink: 0,
+  },
+  windowChromeEyebrow: {
+    color: palette.accentHover,
+    letterSpacing: 0.4,
+    ...appTypography.labelTightBold,
+  },
+  windowChromeTrailingShell: {
+    position: 'relative',
+    alignItems: 'flex-end',
+    marginRight: appSpacing.xxs,
+  },
+  windowChromeTrailingConnector: {
+    position: 'absolute',
+    top: 3,
+    right: -54,
+    bottom: 3,
+    width: 86,
+    borderWidth: 1,
+    borderLeftWidth: 0,
+    borderColor: palette.border,
+    borderTopRightRadius: 999,
+    borderBottomRightRadius: 999,
+    backgroundColor: palette.panelEmphasis,
+    overflow: 'hidden',
+    opacity: 0.94,
+  },
+  windowChromeTrailingConnectorRibbon: {
+    position: 'absolute',
+    top: 0,
+    left: 10,
+    right: 0,
+    height: 3,
+    backgroundColor: palette.accentSoft,
+  },
+  windowChromeTrailingConnectorGlow: {
+    position: 'absolute',
+    top: 7,
+    right: 18,
+    width: 34,
+    height: 14,
+    borderRadius: 999,
+    backgroundColor: palette.supportSoft,
+    opacity: 0.72,
+  },
+  windowChromeTrailing: {
+    position: 'relative',
+    zIndex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: appSpacing.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.panelEmphasis,
+    paddingLeft: appSpacing.sm2,
+    paddingRight: appSpacing.md,
+    paddingVertical: appSpacing.xxs,
+  },
+  windowChromeTitle: {
+    color: palette.ink,
+    flexShrink: 1,
+    ...appTypography.subheading,
+  },
+  windowChromeTrailingPearls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: appSpacing.xxs,
+  },
+  windowChromeTrailingPearl: {
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  windowChromeTrailingPearlLarge: {
+    width: 10,
+    height: 10,
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoft,
+  },
+  windowChromeTrailingPearlMedium: {
+    width: 8,
+    height: 8,
+    borderColor: palette.support,
+    backgroundColor: palette.supportSoft,
+  },
+  windowChromeTrailingPearlSmall: {
+    width: 6,
+    height: 6,
+    borderColor: palette.border,
+    backgroundColor: palette.panelEmphasis,
+  },
+  windowChromeDescription: {
+    color: palette.inkSoft,
+    letterSpacing: 0.4,
+    ...appTypography.captionStrong,
+  },
   stack: {
-    gap: appSpacing.lg,
+    gap: appSpacing.lg2,
   },
   serviceBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: appSpacing.lg,
-    borderRadius: appRadius.control,
+    gap: appSpacing.md,
+    borderRadius: appRadius.panel,
     borderWidth: 1,
     borderColor: palette.border,
     backgroundColor: palette.panel,
-    paddingHorizontal: appSpacing.lg,
-    paddingVertical: appSpacing.md,
+    paddingHorizontal: appSpacing.lg2,
+    paddingVertical: appSpacing.lg,
   },
   serviceCopy: {
     flexGrow: 1,
+    minWidth: 280,
     gap: appSpacing.xs,
   },
   serviceLabel: {
     color: palette.inkSoft,
-    ...appTypography.captionStrong,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    ...appTypography.labelTightBold,
   },
   serviceValue: {
     color: palette.ink,
-    ...appTypography.body,
+    ...appTypography.bodyStrong,
   },
   serviceActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: appSpacing.sm,
   },
   libraryShell: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: appSpacing.lg,
+    alignItems: 'stretch',
+    borderRadius: appRadius.panel,
+    borderWidth: 1,
+    borderColor: palette.canvasShade,
+    backgroundColor: palette.panel,
+    overflow: 'hidden',
   },
   libraryShellCompact: {
     flexDirection: 'column',
   },
   listPane: {
-    flex: 1.1,
-    gap: appSpacing.md,
-    borderRadius: appRadius.control,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.panel,
-    paddingHorizontal: appSpacing.lg,
-    paddingVertical: appSpacing.lg,
+    flex: 1.06,
+    minWidth: 0,
+    gap: appSpacing.lg,
+    borderRightWidth: 1,
+    borderRightColor: palette.canvasShade,
+    paddingHorizontal: appSpacing.lg2,
+    paddingVertical: appSpacing.lg2,
   },
   listPaneCompact: {
     width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.border,
   },
   detailPane: {
-    flex: 0.9,
-    gap: appSpacing.md,
-    borderRadius: appRadius.control,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.panel,
-    paddingHorizontal: appSpacing.lg,
-    paddingVertical: appSpacing.lg,
+    flex: 0.94,
+    minWidth: 0,
+    gap: appSpacing.lg,
+    backgroundColor: palette.panelEmphasis,
+    paddingHorizontal: appSpacing.lg2,
+    paddingVertical: appSpacing.lg2,
   },
   detailPaneCompact: {
     width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: palette.border,
   },
   paneTitle: {
     color: palette.ink,
-    ...appTypography.sectionTitle,
+    ...appTypography.subheading,
   },
   paneDescription: {
     color: palette.inkMuted,
@@ -1420,16 +1951,81 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
   groupSection: {
     gap: appSpacing.sm,
   },
+  groupSectionSeparated: {
+    borderTopWidth: 1,
+    borderTopColor: palette.canvasShade,
+    paddingTop: appSpacing.lg,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: appSpacing.sm,
+  },
   groupTitle: {
+    color: palette.inkSoft,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    ...appTypography.labelTightBold,
+  },
+  groupCount: {
     color: palette.inkSoft,
     ...appTypography.captionStrong,
   },
   groupList: {
     gap: appSpacing.sm,
   },
+  appRowShell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 72,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    gap: appSpacing.sm,
+    overflow: 'hidden',
+  },
+  appRow: {
+    borderColor: palette.canvasShade,
+    backgroundColor: palette.panel,
+  },
+  appRowSelected: {
+    borderColor: palette.border,
+    backgroundColor: palette.panelEmphasis,
+  },
+  appRowIndicator: {
+    width: 2,
+    height: 26,
+    borderRadius: 1,
+    marginLeft: appSpacing.sm,
+    flexShrink: 0,
+  },
+  appRowPressable: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: appSpacing.sm,
+    paddingVertical: appSpacing.sm,
+  },
+  appRowPressablePressed: {
+    opacity: 0.92,
+  },
+  appRowBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: appSpacing.xxs,
+  },
   appRowTrailing: {
-    alignItems: 'flex-end',
+    minWidth: 152,
+    alignItems: 'stretch',
     gap: appSpacing.xs,
+    marginLeft: appSpacing.xs,
+    paddingRight: appSpacing.sm,
+    paddingVertical: appSpacing.xs,
+  },
+  appRowAction: {
+    alignSelf: 'flex-end',
+    paddingRight: appSpacing.xs,
   },
   appIcon: {
     width: 44,
@@ -1453,19 +2049,20 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: appSpacing.sm,
+    justifyContent: 'flex-start',
+    gap: appSpacing.xs,
+    paddingTop: appSpacing.xxs,
   },
   appVersionSummary: {
     color: palette.inkSoft,
-    ...appTypography.caption,
+    ...appTypography.captionStrong,
   },
   emptyState: {
     gap: appSpacing.sm,
     borderRadius: appRadius.control,
     borderWidth: 1,
     borderColor: palette.border,
-    backgroundColor: palette.canvas,
+    backgroundColor: palette.panelEmphasis,
     paddingHorizontal: appSpacing.lg,
     paddingVertical: appSpacing.lg,
   },
@@ -1478,7 +2075,8 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
     ...appTypography.body,
   },
   detailCard: {
-    gap: appSpacing.md,
+    flex: 1,
+    gap: appSpacing.lg,
   },
   detailHeader: {
     flexDirection: 'row',
@@ -1486,6 +2084,9 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: appSpacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.border,
+    paddingBottom: appSpacing.md,
   },
   detailHeaderCopy: {
     flex: 1,
@@ -1502,21 +2103,37 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
   detailHighlights: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: appSpacing.md,
+    gap: appSpacing.sm2,
   },
   detailNote: {
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: tonePalette.warning.soft.container.borderColor as string,
+    backgroundColor: tonePalette.warning.soft.container.backgroundColor as string,
     color: tonePalette.warning.soft.label.color as string,
+    paddingHorizontal: appSpacing.md,
+    paddingVertical: appSpacing.sm,
     ...appTypography.bodyStrong,
   },
   statusMessage: {
     color: palette.accent,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoft,
+    paddingHorizontal: appSpacing.md,
+    paddingVertical: appSpacing.sm,
     ...appTypography.bodyStrong,
   },
   statusMessageSuccess: {
-    color: palette.support,
+    color: tonePalette.support.soft.label.color as string,
+    borderColor: tonePalette.support.soft.container.borderColor as string,
+    backgroundColor: tonePalette.support.soft.container.backgroundColor as string,
   },
   statusMessageError: {
-    color: palette.errorRed,
+    color: tonePalette.danger.soft.label.color as string,
+    borderColor: tonePalette.danger.soft.container.borderColor as string,
+    backgroundColor: tonePalette.danger.soft.container.backgroundColor as string,
   },
   loadingHint: {
     color: palette.inkSoft,
@@ -1525,17 +2142,18 @@ function createScreenStyles(palette: AppPalette, tonePalette: ScreenTonePalette)
   detailActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: appSpacing.md,
+    gap: appSpacing.sm,
+    paddingTop: appSpacing.xs,
   },
   choiceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: appSpacing.md,
+    gap: appSpacing.sm,
   },
   advancedGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: appSpacing.md,
+    gap: appSpacing.sm,
   },
   });
 }

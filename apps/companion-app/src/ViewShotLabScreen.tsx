@@ -428,7 +428,21 @@ export function ViewShotLabScreen() {
         <AppFrame
           eyebrow={appI18n.viewShotLab.frame.eyebrow}
           title={appI18n.viewShotLab.frame.title}
-          description={appI18n.viewShotLab.frame.description}>
+          description={appI18n.viewShotLab.frame.description}
+          headerActions={[
+            {
+              label:
+                busyAction === 'return-main'
+                  ? appI18n.common.navigation.returnHomeBusy
+                  : appI18n.common.navigation.returnHome,
+              onPress: () => {
+                void handleReturnMain();
+              },
+              disabled: Boolean(busyAction),
+              tone: 'ghost',
+              testID: 'view-shot.frame.action.return-home',
+            },
+          ]}>
           <Stack>
             <SectionCard
               title={appI18n.viewShotLab.sections.targetTitle}

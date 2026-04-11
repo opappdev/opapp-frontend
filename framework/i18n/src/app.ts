@@ -36,6 +36,7 @@ export const zhCNApp = {
       check: '检查更新',
       checking: '正在检查更新...',
       open: '打开',
+      openSelected: '打开当前入口',
       opening: '正在打开...',
       update: '更新',
       updating: '正在更新...',
@@ -107,7 +108,7 @@ export const zhCNApp = {
       selectedEntry: '启动入口',
       startupPreferencesTitle: '启动偏好',
       startupPreferencesDescription:
-        '这里决定把这个应用设为默认启动时，下一次优先进入哪个入口。',
+        '先选中这次想进入的入口；可以直接打开，也可以再把它保存成默认启动。',
       advancedTitle: '高级详情',
       advancedDescription:
         '只在这里保留技术字段，方便排查版本、频道和本机落地来源。',
@@ -188,6 +189,10 @@ export const zhCNApp = {
       available: '可选择',
       owned: '已持有',
       missing: '未持有',
+    },
+    navigation: {
+      returnHome: '返回首页',
+      returnHomeBusy: '正在返回首页...',
     },
   },
   challengeAdvisor: {
@@ -909,6 +914,16 @@ export const zhCNApp = {
         detail: '缩减留白，同屏显示更多内容。',
       },
     },
+    appearancePresets: {
+      classic: {
+        label: '经典',
+        detail: '保留原来的暖色工具风格，像最初的 OPApp。', 
+      },
+      blossom: {
+        label: '樱雾',
+        detail: '把现在这套粉紫珍珠的可爱风格扩到整个应用。',
+      },
+    },
     windowModes: {
       balanced: {
         label: '均衡',
@@ -935,14 +950,17 @@ export const zhCNApp = {
     },
     frame: {
       eyebrow: '应用设置',
-      title: '窗口行为与宿主偏好',
+      title: '窗口行为、外观与宿主偏好',
       description:
-        '这里先集中管理窗口尺寸、设置页打开方式和宿主层行为。默认语言先固定为简体中文，后面再扩展多语言。',
+        '这里集中管理应用外观、窗口尺寸、设置页打开方式和宿主层行为。默认语言先固定为简体中文，后面再扩展多语言。',
     },
     sections: {
       displayDensityTitle: '显示密度',
       displayDensityDescription:
         '影响所有界面的间距和留白。切换后立即生效，不需要重启。',
+      appearanceTitle: '应用外观',
+      appearanceDescription:
+        '保留经典方案，也允许把当前这套可爱风格扩到整个应用。保存后会记住选择，并立即作用到命中的当前窗口。',
       windowSizingTitle: '默认窗口尺寸',
       windowSizingDescription:
         '这些偏好属于宿主级默认值。新窗口与下次启动都应该稳定使用它们。',
@@ -977,6 +995,7 @@ export const zhCNApp = {
     },
     status: {
       currentSavedDefaultPrefix: '当前保存的默认值：',
+      currentSavedAppearancePrefix: '当前保存的外观方案：',
       loadingPreferences: '正在读取当前宿主偏好...',
       loadingFooter: '正在读取当前偏好...',
       footerSignalLoading: '读取中',
@@ -992,6 +1011,7 @@ export const zhCNApp = {
       mainWindowModePrefix: '主窗口模式：',
       settingsWindowModePrefix: '独立设置窗口模式：',
       settingsOpenPrefix: '设置默认打开方式：',
+      appearancePresetPrefix: '外观方案：',
     },
     feedback: {
       immediateApply: {

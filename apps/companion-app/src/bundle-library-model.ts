@@ -75,6 +75,12 @@ export type BundleLibraryEntry = {
   localProvenanceStagedAt: string | null;
 };
 
+export function resolveBundleLibraryOpenTarget(
+  entry: Pick<BundleLibraryEntry, 'selectedStartupTarget' | 'defaultOpenTarget'>,
+) {
+  return entry.selectedStartupTarget ?? entry.defaultOpenTarget;
+}
+
 function resolveEntryState({
   entry,
   updateStatus,
@@ -358,10 +364,9 @@ export function buildBundleLibraryEntries({
       bundleId: entry.bundleId,
       displayName: presentation.displayName,
       subtitle: presentation.subtitle,
-      monogram: buildBundleLibraryMonogram(
-        presentation.displayName,
-        entry.bundleId,
-      ),
+      monogram:
+        presentation.monogram ??
+        buildBundleLibraryMonogram(presentation.displayName, entry.bundleId),
       iconTone: presentation.iconTone ?? 'neutral',
       group,
       state,

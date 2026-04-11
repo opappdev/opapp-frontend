@@ -9,6 +9,7 @@ import {
   CurrentWindowProvider,
   openSurface,
   useManagedSurfaceWindowSession,
+  useWindowPreferences,
 } from '@opapp/framework-windowing';
 import {
   getDiagnosticsLogPath,
@@ -458,8 +459,12 @@ export function createCompanionApp(bundleConfig: CompanionBundleConfig) {
     children,
   }: React.PropsWithChildren<{ colorScheme: AppColorScheme }>) {
     const {density} = useDensityPreference();
+    const {preferences} = useWindowPreferences();
     return (
-      <ThemeProvider colorScheme={colorScheme} density={density}>
+      <ThemeProvider
+        colorScheme={colorScheme}
+        appearancePreset={preferences.appearancePreset}
+        density={density}>
         {children}
       </ThemeProvider>
     );

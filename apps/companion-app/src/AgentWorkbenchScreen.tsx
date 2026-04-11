@@ -1,12 +1,12 @@
 import React, {useMemo, useState} from 'react';
-import {ActivityIndicator, Pressable, ScrollView, Text, TextInput as RNTextInput, View} from 'react-native';
+import {ActivityIndicator, Pressable, ScrollView, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
 import {useOpenSurface} from '@opapp/framework-windowing';
-import {ActionButton, StatusBadge, Toolbar, useTheme} from '@opapp/ui-native-primitives';
-import {WorkbenchApprovalDockSection} from './agent-workbench-approval-dock-section';
+import {StatusBadge, Toolbar, useTheme} from '@opapp/ui-native-primitives';
 import {type WorkbenchTimelineDisplayItem} from './agent-workbench-model';
 import {useAgentWorkbenchState} from './agent-workbench-state';
 import {createScreenStyles} from './agent-workbench-styles';
+import {WorkbenchTaskDraftSection} from './agent-workbench-task-draft-section';
 import {
   formatIsoTimestamp,
   resolveArtifactKindLabel,
@@ -111,7 +111,6 @@ export function AgentWorkbenchScreen() {
   const state = useAgentWorkbenchState();
   const openSurface = useOpenSurface();
   const [returnMainBusy, setReturnMainBusy] = useState(false);
-  const [showCommandInput, setShowCommandInput] = useState(false);
   const [navigationErrorMessage, setNavigationErrorMessage] = useState<string | null>(null);
   const latestTool = useMemo(
     () =>
@@ -133,14 +132,6 @@ export function AgentWorkbenchScreen() {
     appI18n.agentWorkbench.empty.timelineIdleTitle;
   const selectedCwdLabel =
     state.selectedCwd || state.trustedWorkspace?.displayName || appI18n.agentWorkbench.workspace.rootLabel;
-  const canStart =
-    state.textInputsReady &&
-    state.trustedWorkspace !== null &&
-    state.activeRunInfo === null &&
-    state.approvalBusy === null &&
-    state.taskDraftBusy === null &&
-    state.draftTask !== null &&
-    (state.draftRequiresApproval || state.draftTask.canRunDirect);
 
   async function handleReturnMain() {
     if (returnMainBusy) return;
@@ -253,58 +244,39 @@ export function AgentWorkbenchScreen() {
 
       </ScrollView>
 
-      <View style={screenStyles.composerBar}>
-        {state.selectedPendingApproval ? (
-          <WorkbenchApprovalDockSection
-            selectedPendingApproval={state.selectedPendingApproval}
-            selectedRunRequest={selectedRunRequest}
-            selectedCwd={state.selectedCwd}
-            approvalBusy={state.approvalBusy}
-            onSubmitDecision={decision => void state.handleResolveSelectedApproval(decision)}
-            cardStyle={screenStyles.approvalFloatingCard}
-            screenStyles={screenStyles}
-          />
-        ) : !state.textInputsReady ? (
-          <View style={screenStyles.loadingInline}>
-            <ActivityIndicator size='small' color={palette.accent} />
-          </View>
-        ) : (
-          <View style={[screenStyles.composerShell, {borderColor: palette.border, backgroundColor: palette.panel}]}>
-            <View style={screenStyles.composerAssistRow}>
-              <View style={screenStyles.composerAssistCluster}>
-                <ActionButton testID='agent-workbench.action.run-git-status' label={appI18n.agentWorkbench.actions.runGitStatus} onPress={() => void state.handleRunGitStatus()} tone='ghost' />
-                <ActionButton testID='agent-workbench.action.populate-write-approval-draft' label={appI18n.agentWorkbench.actions.populateWriteApprovalDraft} onPress={state.handlePopulateWriteApprovalDraft} tone='ghost' />
-                <ActionButton testID='agent-workbench.action.toggle-command-input' label={showCommandInput ? appI18n.agentWorkbench.taskDraft.collapseAdvancedCommand : appI18n.agentWorkbench.taskDraft.expandAdvancedCommand} onPress={() => setShowCommandInput(value => !value)} tone='ghost' />
-              </View>
-              <View style={screenStyles.composerModeCluster}>
-                <ActionButton label={appI18n.agentWorkbench.taskDraft.directRuntimeLabel} onPress={state.handleSelectDirectDraftMode} tone={state.draftRequiresApproval ? 'ghost' : 'accent'} />
-                <ActionButton label={appI18n.agentWorkbench.taskDraft.approvalRuntimeLabel} onPress={state.handleSelectApprovalDraftMode} tone={state.draftRequiresApproval ? 'accent' : 'ghost'} />
-              </View>
-            </View>
-            <RNTextInput testID='agent-workbench.task.goal-input' value={state.draftGoal} onChangeText={state.handleDraftGoalChange} placeholder={appI18n.agentWorkbench.taskDraft.goalPlaceholder} placeholderTextColor={palette.inkSoft} style={[screenStyles.textInputField, {color: palette.ink}]} />
-            {showCommandInput ? (
-              <RNTextInput testID='agent-workbench.task.command-input' value={state.draftCommand} onChangeText={state.handleDraftCommandChange} placeholder={appI18n.agentWorkbench.taskDraft.commandPlaceholder} placeholderTextColor={palette.inkSoft} multiline textAlignVertical='top' style={[screenStyles.textInputField, screenStyles.textInputMultiline, {color: palette.ink}]} />
-            ) : null}
-            <View style={screenStyles.composerShellFooter}>
-              <Text style={[screenStyles.composerRuntimeMeta, {color: palette.inkSoft}]}>
-                {state.trustedWorkspace?.rootPath || appI18n.agentWorkbench.empty.workspaceDescription}
-              </Text>
-              <ActionButton
-                testID='agent-workbench.action.start-draft-task'
-                label={
-                  state.activeRunInfo
-                    ? appI18n.agentWorkbench.actions.cancelRun
-                    : state.taskDraftBusy
-                      ? appI18n.agentWorkbench.actions.runningDraftTask
-                      : appI18n.agentWorkbench.actions.runDraftTask
-                }
-                onPress={() => void (state.activeRunInfo ? state.handleCancelRun() : state.handleStartDraftTask())}
-                disabled={!state.activeRunInfo && !canStart}
-              />
-            </View>
-          </View>
-        )}
-      </View>
+      <WorkbenchTaskDraftSection
+        trustedWorkspace={state.trustedWorkspace}
+        selectedCwd={state.selectedCwd}
+        selectedPendingApproval={state.selectedPendingApproval}
+        selectedRunRequest={selectedRunRequest}
+        textInputsReady={state.textInputsReady}
+        draftGoal={state.draftGoal}
+        draftCommand={state.draftCommand}
+        draftRequiresApproval={state.draftRequiresApproval}
+        draftTask={state.draftTask}
+        taskDraftBusy={state.taskDraftBusy}
+        activeRunInfo={state.activeRunInfo}
+        pendingApprovalActive={state.selectedPendingApproval !== null}
+        approvalBusy={state.approvalBusy}
+        workspaceRootDraft={state.workspaceRootDraft}
+        workspaceRecoveryTarget={state.workspaceRecoveryTarget}
+        workspaceConfigBusy={state.workspaceConfigBusy}
+        onDraftGoalChange={state.handleDraftGoalChange}
+        onDraftCommandChange={state.handleDraftCommandChange}
+        onSelectDirectMode={state.handleSelectDirectDraftMode}
+        onSelectApprovalMode={state.handleSelectApprovalDraftMode}
+        onPopulateWriteApprovalDraft={state.handlePopulateWriteApprovalDraft}
+        onRunGitStatus={() => void state.handleRunGitStatus()}
+        onStartDraftTask={() => void state.handleStartDraftTask()}
+        onSubmitApprovalDecision={decision => void state.handleResolveSelectedApproval(decision)}
+        onCancelRun={() => void state.handleCancelRun()}
+        onWorkspaceRootDraftChange={state.handleWorkspaceRootDraftChange}
+        onTrustWorkspaceRoot={() => void state.handleTrustWorkspaceRoot()}
+        onClearTrustedWorkspaceRoot={() => void state.handleClearTrustedWorkspaceRoot()}
+        onTrustRecoveredWorkspace={() => void state.handleTrustRecoveredWorkspace()}
+        allowWorkspaceManagement={false}
+        screenStyles={screenStyles}
+      />
     </View>
   );
 }

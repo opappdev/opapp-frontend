@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {buildBundleLauncherDiscoveryEntries} from '../../apps/companion-app/src/bundle-launcher-discovery';
 import {
   buildBundleLibraryEntries,
+  resolveBundleLibraryOpenTarget,
   type BundleLibraryEntry,
 } from '../../apps/companion-app/src/bundle-library-model';
 import {
@@ -205,6 +206,21 @@ export function run() {
   assert.equal(mainEntry.group, 'installed');
   assert.equal(mainEntry.state, 'installed');
   assert.equal(mainEntry.primaryActionKind, 'open');
+  assert.equal(
+    resolveBundleLibraryOpenTarget(mainEntry)?.targetId,
+    mainEntry.defaultOpenTarget?.targetId,
+  );
+
+  const customizedMainEntry = {
+    ...mainEntry,
+    selectedStartupTarget: companionLaunchTargets.find(
+      target => target.targetId === 'settings',
+    )!,
+  };
+  assert.equal(
+    resolveBundleLibraryOpenTarget(customizedMainEntry)?.targetId,
+    'settings',
+  );
 
   const chatEntry = findEntry(entries, companionBundleIds.chat);
   assert.equal(chatEntry.group, 'available');

@@ -631,7 +631,21 @@ export function WindowCaptureLabScreen() {
         <AppFrame
           eyebrow={appI18n.windowCaptureLab.frame.eyebrow}
           title={appI18n.windowCaptureLab.frame.title}
-          description={appI18n.windowCaptureLab.frame.description}>
+          description={appI18n.windowCaptureLab.frame.description}
+          headerActions={[
+            {
+              label:
+                busyAction === 'return-main'
+                  ? appI18n.common.navigation.returnHomeBusy
+                  : appI18n.common.navigation.returnHome,
+              onPress: () => {
+                void handleReturnMain();
+              },
+              disabled: Boolean(busyAction),
+              tone: 'ghost',
+              testID: 'window-capture.frame.action.return-home',
+            },
+          ]}>
           <Stack>
             <SectionCard
               title={appI18n.windowCaptureLab.sections.selectorTitle}

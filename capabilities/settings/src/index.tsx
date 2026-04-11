@@ -1,10 +1,10 @@
-import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import React, {useEffect, useMemo, useState} from 'react';
+import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {
-  settingsSurfacePresentations,
-  windowSizeModes,
+  appearancePresets,
 } from '@opapp/contracts-windowing';
 import type {
+  AppearancePreset,
   SettingsSurfacePresentation,
   WindowPolicyId,
   WindowPreferences,
@@ -27,8 +27,12 @@ import {
   SectionCard,
   Stack,
   StatusBadge,
+  blossomLightPalette,
+  desktopCursor,
+  lightPalette,
   useTheme,
   useDensityPreference,
+  windowsFocusProps,
   appRadius,
   appSpacing,
   appTypography,
@@ -100,14 +104,276 @@ const densityOptions: {
   },
 ];
 
+const appearanceOptions: {
+  mode: AppearancePreset;
+  label: string;
+  detail: string;
+}[] = appearancePresets.map(mode => ({
+  mode,
+  label: appI18n.settings.appearancePresets[mode].label,
+  detail: appI18n.settings.appearancePresets[mode].detail,
+}));
+
+const appearancePreviewPalettes: Record<
+  AppearancePreset,
+  Pick<
+    AppPalette,
+    | 'canvas'
+    | 'panel'
+    | 'panelEmphasis'
+    | 'border'
+    | 'ink'
+    | 'inkMuted'
+    | 'accent'
+    | 'accentSoft'
+    | 'support'
+    | 'supportSoft'
+  >
+> = {
+  classic: lightPalette,
+  blossom: blossomLightPalette,
+};
+
 type SettingsScreenProps = Record<string, unknown> & {
 };
+
+function AppearancePresetCard({
+  mode,
+  label,
+  detail,
+  active,
+  palette,
+  styles,
+  onPress,
+}: {
+  mode: AppearancePreset;
+  label: string;
+  detail: string;
+  active: boolean;
+  palette: AppPalette;
+  styles: ReturnType<typeof createScreenStyles>;
+  onPress: () => void;
+}) {
+  const previewPalette = appearancePreviewPalettes[mode];
+
+  return (
+    <Pressable
+      testID={`settings.appearance.${mode}`}
+      accessibilityRole='button'
+      accessibilityState={{selected: active}}
+      focusable
+      {...windowsFocusProps({nativeFocusRing: false})}
+      hitSlop={6}
+      onPress={onPress}
+      style={({pressed, hovered, focused}: any) => [
+        styles.appearanceCard,
+        {
+          borderColor: active ? palette.accent : palette.border,
+          backgroundColor: active ? palette.panel : palette.panelEmphasis,
+        },
+        hovered && !pressed
+          ? {
+              borderColor: active ? palette.accentHover : palette.border,
+              transform: [{translateY: -1}],
+            }
+          : null,
+        pressed
+          ? {
+              borderColor: active ? palette.accentHover : palette.border,
+              transform: [{translateY: 0}],
+              opacity: 0.96,
+            }
+          : null,
+        focused ? {borderColor: palette.focusRing, borderWidth: 2} : null,
+        desktopCursor,
+      ]}>
+      <View style={styles.appearanceCardHeader}>
+        <View style={styles.appearanceCardCopy}>
+          <Text style={styles.appearanceCardLabel}>{label}</Text>
+          <Text style={styles.appearanceCardDetail}>{detail}</Text>
+        </View>
+        <View
+          style={[
+            styles.appearanceCardBadge,
+            active
+              ? {
+                  backgroundColor: palette.accentSoft,
+                  borderColor: palette.accent,
+                }
+              : {
+                  backgroundColor: palette.panel,
+                  borderColor: palette.border,
+                },
+          ]}>
+          <Text
+            style={[
+              styles.appearanceCardBadgeLabel,
+              {color: active ? palette.accentHover : palette.inkSoft},
+            ]}>
+            {active
+              ? appI18n.common.choiceStatus.current
+              : appI18n.common.choiceStatus.switchTo}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.appearancePreview,
+          {backgroundColor: previewPalette.canvas},
+        ]}>
+        <View
+          style={[
+            styles.appearancePreviewRibbon,
+            {backgroundColor: previewPalette.accentSoft},
+          ]}
+        />
+        <View
+          style={[
+            styles.appearancePreviewWindow,
+            {
+              backgroundColor: previewPalette.panel,
+              borderColor: previewPalette.border,
+            },
+          ]}>
+          <View style={styles.appearancePreviewChrome}>
+            <View style={styles.appearancePreviewDots}>
+              <View
+                style={[
+                  styles.appearancePreviewDot,
+                  {backgroundColor: previewPalette.accent},
+                ]}
+              />
+              <View
+                style={[
+                  styles.appearancePreviewDot,
+                  {backgroundColor: previewPalette.support},
+                ]}
+              />
+              <View
+                style={[
+                  styles.appearancePreviewDot,
+                  {backgroundColor: previewPalette.panelEmphasis},
+                ]}
+              />
+            </View>
+            <View
+              style={[
+                styles.appearancePreviewCapsule,
+                {
+                  backgroundColor: previewPalette.panelEmphasis,
+                  borderColor: previewPalette.border,
+                },
+              ]}
+            />
+          </View>
+
+          <View
+            style={[
+              styles.appearancePreviewHero,
+              {
+                backgroundColor: previewPalette.panelEmphasis,
+                borderColor: previewPalette.border,
+              },
+            ]}>
+            <View
+              style={[
+                styles.appearancePreviewTitleLine,
+                {
+                  backgroundColor: previewPalette.ink,
+                  opacity: 0.9,
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.appearancePreviewBodyLine,
+                {
+                  backgroundColor: previewPalette.inkMuted,
+                  opacity: 0.24,
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.appearancePreviewBody}>
+            <View
+              style={[
+                styles.appearancePreviewPanePrimary,
+                {
+                  backgroundColor: previewPalette.panel,
+                  borderColor: previewPalette.border,
+                },
+              ]}>
+              <View
+                style={[
+                  styles.appearancePreviewAccentBar,
+                  {backgroundColor: previewPalette.accent},
+                ]}
+              />
+              <View style={styles.appearancePreviewPaneCopy}>
+                <View
+                  style={[
+                    styles.appearancePreviewPaneTitle,
+                    {backgroundColor: previewPalette.ink, opacity: 0.88},
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.appearancePreviewPaneBody,
+                    {backgroundColor: previewPalette.inkMuted, opacity: 0.2},
+                  ]}
+                />
+              </View>
+            </View>
+            <View
+              style={[
+                styles.appearancePreviewPaneSecondary,
+                {
+                  backgroundColor: previewPalette.panelEmphasis,
+                  borderColor: previewPalette.border,
+                },
+              ]}>
+              <View style={styles.appearancePreviewSignalRow}>
+                <View
+                  style={[
+                    styles.appearancePreviewSignal,
+                    {
+                      backgroundColor: previewPalette.supportSoft,
+                      borderColor: previewPalette.support,
+                    },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.appearancePreviewSignal,
+                    {
+                      backgroundColor: previewPalette.accentSoft,
+                      borderColor: previewPalette.accent,
+                    },
+                  ]}
+                />
+              </View>
+              <View
+                style={[
+                  styles.appearancePreviewAction,
+                  {backgroundColor: previewPalette.accent},
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
 
 function arePreferencesEqual(left: WindowPreferences, right: WindowPreferences) {
   return (
     left.mainWindowMode === right.mainWindowMode &&
     left.settingsWindowMode === right.settingsWindowMode &&
-    left.settingsPresentation === right.settingsPresentation
+    left.settingsPresentation === right.settingsPresentation &&
+    left.appearancePreset === right.appearancePreset
   );
 }
 
@@ -133,6 +399,10 @@ function formatWindowTargetLabel(policy: WindowPolicyId | null) {
 
 function formatWindowMode(mode: WindowSizeMode) {
   return appI18n.settings.windowModes[mode].label;
+}
+
+function formatAppearancePreset(mode: AppearancePreset) {
+  return appI18n.settings.appearancePresets[mode].label;
 }
 
 function buildImmediateApplyHint(policy: WindowPolicyId | null) {
@@ -408,7 +678,20 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
         <AppFrame
           eyebrow={appI18n.settings.frame.eyebrow}
           title={appI18n.settings.frame.title}
-          description={appI18n.settings.frame.description}>
+          description={appI18n.settings.frame.description}
+          headerActions={[
+            {
+              label: returningInline
+                ? appI18n.common.navigation.returnHomeBusy
+                : appI18n.common.navigation.returnHome,
+              onPress: () => {
+                void handleReturnInline();
+              },
+              disabled: returningInline,
+              tone: 'ghost',
+              testID: 'settings.frame.action.return-home',
+            },
+          ]}>
           <Stack>
             <SectionCard
               testID='settings.section.display-density'
@@ -430,6 +713,55 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                   />
                 ))}
               </View>
+            </SectionCard>
+
+            <SectionCard
+              testID='settings.section.appearance'
+              title={appI18n.settings.sections.appearanceTitle}
+              description={appI18n.settings.sections.appearanceDescription}>
+              <Stack>
+                <View style={styles.appearancePreviewRow}>
+                  {appearanceOptions.map(option => (
+                    <AppearancePresetCard
+                      key={`appearance-${option.mode}`}
+                      mode={option.mode}
+                      label={option.label}
+                      detail={option.detail}
+                      active={draft.appearancePreset === option.mode}
+                      palette={palette}
+                      styles={styles}
+                      onPress={() => {
+                        setDraft((current: WindowPreferences) => ({
+                          ...current,
+                          appearancePreset: option.mode,
+                        }));
+                      }}
+                    />
+                  ))}
+                </View>
+                <View style={styles.appearanceSavedShell}>
+                  <View style={styles.appearanceSavedDots}>
+                    <View
+                      style={[
+                        styles.appearanceSavedDot,
+                        {backgroundColor: palette.accent},
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.appearanceSavedDot,
+                        {backgroundColor: palette.support},
+                      ]}
+                    />
+                  </View>
+                  <MutedText style={styles.appearanceSavedText}>
+                  <Text testID='settings.saved-appearance'>
+                    {appI18n.settings.status.currentSavedAppearancePrefix}
+                    {formatAppearancePreset(preferences.appearancePreset)}。
+                  </Text>
+                  </MutedText>
+                </View>
+              </Stack>
             </SectionCard>
 
             <SectionCard
@@ -527,7 +859,7 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                 </MutedText>
                 <MutedText>
                   <Text testID='settings.current-draft'>
-                  {appI18n.settings.status.mainWindowModePrefix}{formatWindowMode(draft.mainWindowMode)}。{appI18n.settings.status.settingsWindowModePrefix}{formatWindowMode(draft.settingsWindowMode)}。{appI18n.settings.status.settingsOpenPrefix}{formatSettingsPresentation(draft.settingsPresentation)}。
+                  {appI18n.settings.status.mainWindowModePrefix}{formatWindowMode(draft.mainWindowMode)}。{appI18n.settings.status.settingsWindowModePrefix}{formatWindowMode(draft.settingsWindowMode)}。{appI18n.settings.status.settingsOpenPrefix}{formatSettingsPresentation(draft.settingsPresentation)}。{appI18n.settings.status.appearancePresetPrefix}{formatAppearancePreset(draft.appearancePreset)}。
                   </Text>
                 </MutedText>
                 {loading ? <MutedText>{appI18n.settings.status.loadingPreferences}</MutedText> : null}
@@ -742,6 +1074,189 @@ function createScreenStyles(palette: AppPalette) {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+  },
+  appearancePreviewRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  appearanceCard: {
+    flexBasis: 280,
+    flexGrow: 1,
+    minWidth: 260,
+    gap: 12,
+    borderRadius: appRadius.panel,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  appearanceCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  appearanceCardCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  appearanceCardLabel: {
+    color: palette.ink,
+    ...appTypography.bodyStrong,
+  },
+  appearanceCardDetail: {
+    color: palette.inkMuted,
+    ...appTypography.caption,
+  },
+  appearanceCardBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  appearanceCardBadgeLabel: {
+    letterSpacing: 0.4,
+    ...appTypography.labelTightBold,
+  },
+  appearancePreview: {
+    overflow: 'hidden',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
+  appearancePreviewRibbon: {
+    height: 4,
+    borderRadius: 999,
+    marginBottom: 8,
+    opacity: 0.92,
+  },
+  appearancePreviewWindow: {
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  appearancePreviewChrome: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  appearancePreviewDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  appearancePreviewDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+  },
+  appearancePreviewCapsule: {
+    width: 58,
+    height: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  appearancePreviewHero: {
+    gap: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  appearancePreviewTitleLine: {
+    width: '58%',
+    height: 9,
+    borderRadius: 999,
+  },
+  appearancePreviewBodyLine: {
+    width: '74%',
+    height: 6,
+    borderRadius: 999,
+  },
+  appearancePreviewBody: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  appearancePreviewPanePrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  appearancePreviewAccentBar: {
+    width: 3,
+    height: 28,
+    borderRadius: 999,
+  },
+  appearancePreviewPaneCopy: {
+    flex: 1,
+    gap: 5,
+  },
+  appearancePreviewPaneTitle: {
+    width: '65%',
+    height: 8,
+    borderRadius: 999,
+  },
+  appearancePreviewPaneBody: {
+    width: '86%',
+    height: 6,
+    borderRadius: 999,
+  },
+  appearancePreviewPaneSecondary: {
+    width: 86,
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    justifyContent: 'space-between',
+  },
+  appearancePreviewSignalRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  appearancePreviewSignal: {
+    flex: 1,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+  },
+  appearancePreviewAction: {
+    alignSelf: 'stretch',
+    height: 18,
+    borderRadius: 9,
+  },
+  appearanceSavedShell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.panelEmphasis,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  appearanceSavedDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  appearanceSavedDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+  },
+  appearanceSavedText: {
+    flex: 1,
   },
   actionRow: {
     flexDirection: 'row',

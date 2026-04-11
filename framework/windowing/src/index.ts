@@ -55,6 +55,7 @@ type NativeWindowManager = {
   getBundleUpdateStatuses?(bundleIdsPayload?: string): Promise<string>;
   runBundleUpdate?(bundleId: string): Promise<string>;
   getStagedBundleIds?(): Promise<string>;
+  getTitleBarMetrics?(): Promise<string>;
   getCurrentWindow(): Promise<string>;
   getWindowSession(windowId: string): Promise<string>;
   getWindowPreferences(): Promise<string>;
@@ -62,6 +63,7 @@ type NativeWindowManager = {
     mainWindowMode: string,
     settingsWindowMode: string,
     settingsPresentation: string,
+    appearancePreset: string,
     currentWindowId?: string | null,
   ): Promise<string>;
   getStartupTargetPreference(): Promise<string>;
@@ -133,6 +135,13 @@ export type BundleUpdateStatus = {
 };
 
 export type BundleUpdateRunResult = BundleUpdateStatus;
+
+export type TitleBarMetrics = {
+  extendsContentIntoTitleBar: boolean;
+  height: number;
+  leftInset: number;
+  rightInset: number;
+};
 
 type SurfaceWindowHostState = {
   session: WindowSessionDescriptor;
@@ -522,6 +531,37 @@ function parseBundleUpdateStatusPayload(raw: string): BundleUpdateStatus | null 
   try {
     const parsed = JSON.parse(raw) as unknown;
     return parseBundleUpdateStatusRecord(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function parseTitleBarMetricsPayload(raw: string): TitleBarMetrics | null {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+
+    const record = parsed as Record<string, unknown>;
+    return {
+      extendsContentIntoTitleBar:
+        typeof record.extendsContentIntoTitleBar === 'boolean'
+          ? record.extendsContentIntoTitleBar
+          : false,
+      height:
+        typeof record.height === 'number' && Number.isFinite(record.height)
+          ? Math.max(0, Math.round(record.height))
+          : 0,
+      leftInset:
+        typeof record.leftInset === 'number' && Number.isFinite(record.leftInset)
+          ? Math.max(0, Math.round(record.leftInset))
+          : 0,
+      rightInset:
+        typeof record.rightInset === 'number' && Number.isFinite(record.rightInset)
+          ? Math.max(0, Math.round(record.rightInset))
+          : 0,
+    };
   } catch {
     return null;
   }
@@ -1147,6 +1187,22 @@ export async function getStagedBundleIds() {
   return stagedBundles.map(bundle => bundle.bundleId);
 }
 
+export async function getTitleBarMetrics() {
+  const nativeWindowManager = getNativeWindowManager();
+  if (!nativeWindowManager?.getTitleBarMetrics) {
+    return null;
+  }
+
+  try {
+    return parseTitleBarMetricsPayload(
+      await nativeWindowManager.getTitleBarMetrics(),
+    );
+  } catch (error) {
+    console.warn('Failed to read title bar metrics', error);
+    return null;
+  }
+}
+
 export async function getBundleUpdateStatuses(bundleIds?: string[]) {
   const nativeWindowManager = getNativeWindowManager();
   if (!nativeWindowManager?.getBundleUpdateStatuses) {
@@ -1226,6 +1282,7 @@ export async function setWindowPreferences(
     normalized.mainWindowMode,
     normalized.settingsWindowMode,
     normalized.settingsPresentation,
+    normalized.appearancePreset,
     options.currentWindowId ?? '',
   );
   const savedPreferences = parseWindowPreferencesPayload(payload);
@@ -1379,25 +1436,62 @@ async function switchCurrentWindowBundle(
   return true;
 }
 
+function isCrossBundleCurrentWindowRequest(
+  normalizedRequest: OpenSurfaceRequest,
+  currentWindowController: CurrentWindowController,
+) {
+  const currentWindow = currentWindowController.getCurrentWindow();
+  const currentSession = currentWindowController.getWindowSession(
+    normalizedRequest.targetWindowId,
+  );
+
+  if (!currentWindow || !currentSession || !normalizedRequest.bundleId) {
+    return false;
+  }
+
+  const activeSessionTab = getActiveSessionTab(currentSession);
+  const currentRuntimeBundleId =
+    currentWindow.runtimeBundleId ?? activeSessionTab.bundleId ?? undefined;
+
+  return (
+    normalizedRequest.presentation === 'current-window' &&
+    Boolean(currentRuntimeBundleId) &&
+    currentRuntimeBundleId !== normalizedRequest.bundleId
+  );
+}
+
 export async function openSurface(request: OpenSurfaceRequest): Promise<OpenSurfaceResult> {
   const normalizedRequest = await normalizeOpenSurfaceRequest(request);
   const presentation = normalizedRequest.presentation ?? 'auto';
   const currentWindowController = getRegisteredCurrentWindowController(normalizedRequest);
   const nativeWindowManager = getNativeWindowManager();
+  const shouldPreferCurrentWindow =
+    presentation === 'current-window' || presentation === 'auto';
+  const currentWindowSwitchRequest =
+    shouldPreferCurrentWindow && currentWindowController
+      ? {
+          ...normalizedRequest,
+          presentation:
+            presentation === 'auto' ? 'current-window' : presentation,
+        }
+      : null;
+  const crossBundleCurrentWindowRequest =
+    currentWindowSwitchRequest && currentWindowController
+      ? isCrossBundleCurrentWindowRequest(
+          currentWindowSwitchRequest,
+          currentWindowController,
+        )
+      : false;
 
   if (
-    (presentation === 'current-window' || presentation === 'auto') &&
+    currentWindowSwitchRequest &&
     currentWindowController &&
     nativeWindowManager?.switchCurrentWindowBundle
   ) {
     try {
       const switched = await switchCurrentWindowBundle(
         nativeWindowManager,
-        {
-          ...normalizedRequest,
-          presentation:
-            presentation === 'auto' ? 'current-window' : presentation,
-        },
+        currentWindowSwitchRequest,
         currentWindowController,
       );
 
@@ -1415,6 +1509,9 @@ export async function openSurface(request: OpenSurfaceRequest): Promise<OpenSurf
       }
     } catch (bundleSwitchError) {
       console.warn('Failed to switch the current window bundle', bundleSwitchError);
+      if (crossBundleCurrentWindowRequest) {
+        throw bundleSwitchError;
+      }
     }
   }
 
@@ -1422,7 +1519,8 @@ export async function openSurface(request: OpenSurfaceRequest): Promise<OpenSurf
     (presentation === 'current-window' ||
       presentation === 'tab' ||
       presentation === 'auto') &&
-    currentWindowController
+    currentWindowController &&
+    !crossBundleCurrentWindowRequest
   ) {
     const resolvedPresentation: ResolvedSurfacePresentation =
       presentation === 'auto' ? 'current-window' : presentation;

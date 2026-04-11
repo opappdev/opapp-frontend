@@ -97,6 +97,37 @@ async function loadThreadRunHistory(
   });
 }
 
+async function loadThreadSelection(
+  preferredThreadId: string | null,
+  preferredRunId: string | null,
+) {
+  const rawThreadIndex = await readUserFile(agentThreadIndexPath);
+  const nextThreads = rawThreadIndex
+    ? parsePersistedAgentThreadIndex(rawThreadIndex)?.threads ?? []
+    : [];
+  const nextSelectedThreadId = resolveSelectedThreadId(
+    nextThreads,
+    preferredThreadId,
+  );
+  const {
+    runDocuments: nextThreadRunDocuments,
+    selectedRunId: nextSelectedRunId,
+    selectedRunDocument,
+  } = await loadThreadRunHistory(
+    nextSelectedThreadId,
+    nextThreads,
+    preferredRunId,
+  );
+
+  return {
+    nextThreads,
+    nextSelectedThreadId,
+    nextThreadRunDocuments,
+    nextSelectedRunId,
+    selectedRunDocument,
+  };
+}
+
 export type AgentWorkbenchApprovalBusy = 'requesting' | 'approving' | 'rejecting' | null;
 export type AgentWorkbenchTaskDraftBusy = 'running' | 'requesting' | null;
 export type AgentWorkbenchStatusTone = 'support' | 'danger' | 'neutral';
@@ -440,21 +471,14 @@ export function useAgentWorkbenchState() {
           logException('agent-workbench.artifact-reconcile.failed', error, {});
         }
       }
-      const rawThreadIndex = await readUserFile(agentThreadIndexPath);
-      const nextThreads = rawThreadIndex
-        ? parsePersistedAgentThreadIndex(rawThreadIndex)?.threads ?? []
-        : [];
-      const nextSelectedThreadId = resolveSelectedThreadId(
-        nextThreads,
-        preferredThreadId ?? selectedThreadIdRef.current,
-      );
       const {
-        runDocuments: nextThreadRunDocuments,
-        selectedRunId: nextSelectedRunId,
-        selectedRunDocument: runDocument,
-      } = await loadThreadRunHistory(
-        nextSelectedThreadId,
         nextThreads,
+        nextSelectedThreadId,
+        nextThreadRunDocuments,
+        nextSelectedRunId,
+        selectedRunDocument: runDocument,
+      } = await loadThreadSelection(
+        preferredThreadId ?? selectedThreadIdRef.current,
         preferredRunId ?? selectedRunIdRef.current,
       );
       const workspaceStat = workspace
@@ -493,6 +517,36 @@ export function useAgentWorkbenchState() {
     [],
   );
 
+  const refreshRunSelection = useCallback(
+    async ({
+      preferredThreadId,
+      preferredRunId,
+    }: {
+      preferredThreadId?: string | null;
+      preferredRunId?: string | null;
+    } = {}) => {
+      const {
+        nextThreads,
+        nextSelectedThreadId,
+        nextThreadRunDocuments,
+        nextSelectedRunId,
+        selectedRunDocument,
+      } = await loadThreadSelection(
+        preferredThreadId ?? selectedThreadIdRef.current,
+        preferredRunId ?? selectedRunIdRef.current,
+      );
+
+      selectedThreadIdRef.current = nextSelectedThreadId;
+      selectedRunIdRef.current = nextSelectedRunId;
+      setThreads(nextThreads);
+      setSelectedThreadId(nextSelectedThreadId);
+      setThreadRunDocuments(nextThreadRunDocuments);
+      setSelectedRunId(nextSelectedRunId);
+      setSelectedRunDocument(selectedRunDocument);
+    },
+    [],
+  );
+
   // ── init ──
   useEffect(() => {
     void (async () => {
@@ -511,8 +565,7 @@ export function useAgentWorkbenchState() {
     }
 
     const timer = setInterval(() => {
-      void refreshWorkbench({
-        preferredCwd: selectedCwdRef.current,
+      void refreshRunSelection({
         preferredThreadId: activeRunInfo.threadId,
         preferredRunId: selectedRunIdRef.current,
       });
@@ -521,7 +574,7 @@ export function useAgentWorkbenchState() {
     return () => {
       clearInterval(timer);
     };
-  }, [activeRunInfo, refreshWorkbench]);
+  }, [activeRunInfo, refreshRunSelection]);
 
   // ── text input warmup ──
   useEffect(() => {

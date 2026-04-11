@@ -4,6 +4,7 @@ export type BundleLibraryPresentation = {
   bundleId: string;
   displayName: string;
   subtitle: string;
+  monogram?: string;
   iconKey?: string;
   iconTone?: 'accent' | 'support' | 'warning' | 'neutral' | 'danger';
   defaultOpenTargetId?: string;
@@ -16,6 +17,7 @@ const knownBundlePresentations = new Map<string, BundleLibraryPresentation>([
       bundleId: companionBundleIds.main,
       displayName: 'OPApp 主页',
       subtitle: '设置、实验页和其它应用入口都从这里开始。',
+      monogram: '主页',
       iconKey: 'opapp-home',
       iconTone: 'support' as const,
       defaultOpenTargetId: 'main-launcher',
@@ -27,6 +29,7 @@ const knownBundlePresentations = new Map<string, BundleLibraryPresentation>([
       bundleId: companionBundleIds.chat,
       displayName: 'LLM Chat',
       subtitle: '独立的 OpenAI-compatible 流式聊天应用。',
+      monogram: '聊天',
       iconKey: 'llm-chat',
       iconTone: 'accent' as const,
       defaultOpenTargetId: 'llm-chat',
@@ -38,6 +41,7 @@ const knownBundlePresentations = new Map<string, BundleLibraryPresentation>([
       bundleId: 'opapp.hbr.workspace',
       displayName: 'HBR 作战空间',
       subtitle: '面向 Heaven Burns Red 的作战分析与扩展入口。',
+      monogram: '作战',
       iconKey: 'hbr-workspace',
       iconTone: 'accent' as const,
     },

@@ -576,6 +576,17 @@ export function buildWorkbenchTimelineDisplayItems(
     | Omit<WorkbenchToolInvocationTimelineItem, 'toolInvocationIndex'>;
 
   const toolResultsByCallId = new Map<string, AgentToolResultTimelineEntry[]>();
+  const nextToolCallSeqByEntryId = new Map<string, number>();
+  let nextToolCallSeq = Number.POSITIVE_INFINITY;
+
+  for (let index = document.timeline.length - 1; index >= 0; index -= 1) {
+    const entry = document.timeline[index];
+    nextToolCallSeqByEntryId.set(entry.entryId, nextToolCallSeq);
+    if (entry.kind === 'tool-call') {
+      nextToolCallSeq = entry.seq;
+    }
+  }
+
   for (const entry of document.timeline) {
     if (entry.kind !== 'tool-result') {
       continue;
@@ -610,21 +621,25 @@ export function buildWorkbenchTimelineDisplayItems(
       if (pairedResult) {
         consumedToolResultIds.add(pairedResult.entryId);
       }
-      const nextToolCall = document.timeline.find(
-        candidate =>
-          candidate.kind === 'tool-call' && candidate.seq > entry.seq,
-      );
       const terminalEventUpperBoundSeq = Math.min(
         pairedResult?.seq ?? Number.POSITIVE_INFINITY,
-        nextToolCall?.seq ?? Number.POSITIVE_INFINITY,
+        nextToolCallSeqByEntryId.get(entry.entryId) ?? Number.POSITIVE_INFINITY,
       );
-      const terminalEvents = document.timeline.filter(
-        (candidate): candidate is AgentTerminalTimelineEntry =>
+      const terminalEvents: AgentTerminalTimelineEntry[] = [];
+      for (const candidate of document.timeline) {
+        if (candidate.seq <= entry.seq) {
+          continue;
+        }
+        if (candidate.seq >= terminalEventUpperBoundSeq) {
+          break;
+        }
+        if (
           candidate.kind === 'terminal-event' &&
-          candidate.seq > entry.seq &&
-          candidate.seq < terminalEventUpperBoundSeq &&
-          !consumedTerminalEventIds.has(candidate.entryId),
-      );
+          !consumedTerminalEventIds.has(candidate.entryId)
+        ) {
+          terminalEvents.push(candidate);
+        }
+      }
       for (const terminalEvent of terminalEvents) {
         consumedTerminalEventIds.add(terminalEvent.entryId);
       }

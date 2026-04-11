@@ -330,13 +330,18 @@ export const appLayout = {
 
 export type AppTone = 'accent' | 'neutral' | 'support' | 'warning' | 'danger';
 export type AppToneEmphasis = 'soft' | 'solid';
+export type AppTonePaletteKind = 'light' | 'dark';
 
 type AppToneToken = {
   container: Pick<ViewStyle, 'backgroundColor' | 'borderColor'>;
   label: Pick<TextStyle, 'color'>;
 };
 
-function buildTonePalette(palette: AppPalette) {
+export function buildTonePalette(
+  palette: AppPalette,
+  kind: AppTonePaletteKind = 'light',
+) {
+  const isLight = kind === 'light';
   return {
     accent: {
       soft: {
@@ -344,14 +349,14 @@ function buildTonePalette(palette: AppPalette) {
           backgroundColor: palette.accentSoft,
           borderColor: palette.accent,
         },
-        label: { color: palette === lightPalette ? '#5d2b16' : '#f0c5a8' },
+        label: { color: isLight ? '#5d2b16' : '#f0c5a8' },
       },
       solid: {
         container: {
           backgroundColor: palette.accent,
           borderColor: palette.accent,
         },
-        label: { color: palette === lightPalette ? '#fff7f1' : '#1a0f0a' },
+        label: { color: isLight ? '#fff7f1' : '#1a0f0a' },
       },
     },
     neutral: {
@@ -367,7 +372,7 @@ function buildTonePalette(palette: AppPalette) {
           backgroundColor: palette.borderStrong,
           borderColor: palette.borderStrong,
         },
-        label: { color: palette === lightPalette ? '#fff8f3' : '#111714' },
+        label: { color: isLight ? '#fff8f3' : '#111714' },
       },
     },
     support: {
@@ -376,53 +381,53 @@ function buildTonePalette(palette: AppPalette) {
           backgroundColor: palette.supportSoft,
           borderColor: palette.support,
         },
-        label: { color: palette === lightPalette ? '#32503a' : '#a3d4ad' },
+        label: { color: isLight ? '#32503a' : '#a3d4ad' },
       },
       solid: {
         container: {
           backgroundColor: palette.support,
           borderColor: palette.support,
         },
-        label: { color: palette === lightPalette ? '#f4faf4' : '#121a14' },
+        label: { color: isLight ? '#f4faf4' : '#121a14' },
       },
     },
     warning: {
       soft: {
         container: {
-          backgroundColor: palette === lightPalette ? '#eee3bf' : '#2e2816',
-          borderColor: palette === lightPalette ? '#b19243' : '#8a7535',
+          backgroundColor: isLight ? '#eee3bf' : '#2e2816',
+          borderColor: isLight ? '#b19243' : '#8a7535',
         },
-        label: { color: palette === lightPalette ? '#6b531a' : '#d9c278' },
+        label: { color: isLight ? '#6b531a' : '#d9c278' },
       },
       solid: {
         container: {
-          backgroundColor: palette === lightPalette ? '#b19243' : '#8a7535',
-          borderColor: palette === lightPalette ? '#b19243' : '#8a7535',
+          backgroundColor: isLight ? '#b19243' : '#8a7535',
+          borderColor: isLight ? '#b19243' : '#8a7535',
         },
-        label: { color: palette === lightPalette ? '#fff8ec' : '#1a1508' },
+        label: { color: isLight ? '#fff8ec' : '#1a1508' },
       },
     },
     danger: {
       soft: {
         container: {
-          backgroundColor: palette === lightPalette ? '#f1dfd2' : '#2e1a14',
-          borderColor: palette === lightPalette ? '#d1ad94' : '#7a4030',
+          backgroundColor: isLight ? '#f1dfd2' : '#2e1a14',
+          borderColor: isLight ? '#d1ad94' : '#7a4030',
         },
-        label: { color: palette === lightPalette ? '#6f3a23' : '#e0a890' },
+        label: { color: isLight ? '#6f3a23' : '#e0a890' },
       },
       solid: {
         container: {
-          backgroundColor: palette === lightPalette ? '#8c4022' : '#a84e2a',
-          borderColor: palette === lightPalette ? '#8c4022' : '#a84e2a',
+          backgroundColor: isLight ? '#8c4022' : '#a84e2a',
+          borderColor: isLight ? '#8c4022' : '#a84e2a',
         },
-        label: { color: palette === lightPalette ? '#fff7f1' : '#1a0f0a' },
+        label: { color: isLight ? '#fff7f1' : '#1a0f0a' },
       },
     },
   } as const satisfies Record<AppTone, Record<AppToneEmphasis, AppToneToken>>;
 }
 
-export const lightTonePalette = buildTonePalette(lightPalette);
-export const darkTonePalette = buildTonePalette(darkPalette);
+export const lightTonePalette = buildTonePalette(lightPalette, 'light');
+export const darkTonePalette = buildTonePalette(darkPalette, 'dark');
 
 // High-contrast tone palette uses Windows HC system keywords directly.
 // soft = Window background with ButtonText border; solid = Highlight background.

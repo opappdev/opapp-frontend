@@ -15,6 +15,7 @@ export {
   appLetterSpacing,
   appLayout,
   appInteractionStates,
+  buildTonePalette,
   appTonePalette,
   lightTonePalette,
   darkTonePalette,
@@ -36,15 +37,23 @@ export type {
 // theme
 export {
   ThemeProvider,
+  AppThemeProvider,
   DensityPreferenceProvider,
   useTheme,
   useDensityPreference,
+  blossomLightPalette,
+  blossomDarkPalette,
   lightTheme,
   darkTheme,
   highContrastTheme,
 } from './theme';
 
-export type { AppColorScheme, AppTheme, DensityPreference } from './theme';
+export type {
+  AppAppearancePreset,
+  AppColorScheme,
+  AppTheme,
+  DensityPreference,
+} from './theme';
 
 // icons
 export { Icon, iconCatalog } from './icons';

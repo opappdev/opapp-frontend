@@ -12,20 +12,24 @@ export function run() {
     mainWindowMode: 'unknown' as never,
     settingsWindowMode: 'compact',
     settingsPresentation: 'side-panel' as never,
+    appearancePreset: 'sparkle' as never,
   });
 
   assert.deepEqual(normalized, {
     mainWindowMode: defaultWindowPreferences.mainWindowMode,
     settingsWindowMode: 'compact',
     settingsPresentation: defaultWindowPreferences.settingsPresentation,
+    appearancePreset: defaultWindowPreferences.appearancePreset,
   });
 
-  const fromString = parseWindowPreferencesPayload('{"mainWindowMode":"wide","settingsWindowMode":"compact","settingsPresentation":"new-window"}');
+  const fromString = parseWindowPreferencesPayload('{"mainWindowMode":"wide","settingsWindowMode":"compact","settingsPresentation":"new-window","appearancePreset":"blossom"}');
   const fromObject = parseWindowPreferencesPayload({mainWindowMode: 'balanced'});
 
   assert.equal(fromString.mainWindowMode, 'wide');
   assert.equal(fromString.settingsPresentation, 'new-window');
+  assert.equal(fromString.appearancePreset, 'blossom');
   assert.equal(fromObject.settingsWindowMode, defaultWindowPreferences.settingsWindowMode);
+  assert.equal(fromObject.appearancePreset, defaultWindowPreferences.appearancePreset);
 
   const parsed = parseWindowSessionPayload(
     JSON.stringify({

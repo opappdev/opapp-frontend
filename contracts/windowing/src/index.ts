@@ -36,10 +36,15 @@ export const settingsSurfacePresentations = [
 export type SettingsSurfacePresentation =
   (typeof settingsSurfacePresentations)[number];
 
+export const appearancePresets = ['classic', 'blossom'] as const;
+
+export type AppearancePreset = (typeof appearancePresets)[number];
+
 export type WindowPreferences = {
   mainWindowMode: WindowSizeMode;
   settingsWindowMode: WindowSizeMode;
   settingsPresentation: SettingsSurfacePresentation;
+  appearancePreset: AppearancePreset;
 };
 
 export type WindowPolicyDefinition = {

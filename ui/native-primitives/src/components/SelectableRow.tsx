@@ -157,6 +157,7 @@ export const SelectableRow = forwardRef<View, SelectableRowProps>(
             borderColor: selected ? palette.borderStrong : palette.border,
             backgroundColor: selected ? palette.panelEmphasis : palette.canvas,
           },
+          style,
           hovered && !pressed && !disabled
             ? {
                 borderColor: palette.borderStrong,
@@ -171,7 +172,6 @@ export const SelectableRow = forwardRef<View, SelectableRowProps>(
           pressed && !disabled ? styles.selectableRowPressed : null,
           disabled ? {opacity: 0.45} : null,
           !disabled ? desktopCursor : null,
-          style,
         ]}>
         <View
           pointerEvents='none'

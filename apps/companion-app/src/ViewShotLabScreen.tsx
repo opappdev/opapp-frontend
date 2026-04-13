@@ -24,6 +24,8 @@ import {
   useCurrentWindowId,
   useCurrentWindowPolicy,
   useOpenSurface,
+  useTitleBarPassthroughTargets,
+  useTitleBarMetrics,
 } from '@opapp/framework-windowing';
 import {
   ActionButton,
@@ -147,10 +149,12 @@ function formatUpdatedAt(value: string | null) {
 }
 
 export function ViewShotLabScreen() {
-  const { palette } = useTheme();
+  const { appearancePreset, palette } = useTheme();
   const styles = useMemo(() => createScreenStyles(palette), [palette]);
+  const titleBarMetrics = useTitleBarMetrics(appearancePreset);
   const captureTargetRef = useRef<View>(null);
   const viewShotRef = useRef<ViewShotHandle>(null);
+  const headerActionsHostRef = useRef<View>(null);
   const managedTmpfileRef = useRef<string | null>(null);
   const busyActionRef = useRef<
     CaptureActionId | 'release' | 'return-main' | 'open-detached' | null
@@ -172,6 +176,7 @@ export function ViewShotLabScreen() {
   const [managedTmpfile, setManagedTmpfile] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [headerActionsLayoutVersion, setHeaderActionsLayoutVersion] = useState(0);
 
   useEffect(() => {
     managedTmpfileRef.current = managedTmpfile;
@@ -180,6 +185,18 @@ export function ViewShotLabScreen() {
   useEffect(() => {
     busyActionRef.current = busyAction;
   }, [busyAction]);
+
+  const titleBarPassthroughTargets = useMemo(
+    () => [headerActionsHostRef],
+    [],
+  );
+
+  useTitleBarPassthroughTargets({
+    windowId: currentWindowId,
+    enabled: Boolean(titleBarMetrics?.extendsContentIntoTitleBar),
+    targets: titleBarPassthroughTargets,
+    refreshKey: `${appearancePreset}:${titleBarMetrics?.height ?? 0}:${headerActionsLayoutVersion}`,
+  });
 
   useEffect(() => {
     return () => {
@@ -429,6 +446,10 @@ export function ViewShotLabScreen() {
           eyebrow={appI18n.viewShotLab.frame.eyebrow}
           title={appI18n.viewShotLab.frame.title}
           description={appI18n.viewShotLab.frame.description}
+          headerActionsHostRef={headerActionsHostRef}
+          onHeaderActionsLayout={() => {
+            setHeaderActionsLayoutVersion(version => version + 1);
+          }}
           headerActions={[
             {
               label:

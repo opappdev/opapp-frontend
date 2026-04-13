@@ -1,8 +1,10 @@
 import React, {
   PropsWithChildren,
+  type RefObject,
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -56,6 +58,10 @@ type NativeWindowManager = {
   runBundleUpdate?(bundleId: string): Promise<string>;
   getStagedBundleIds?(): Promise<string>;
   getTitleBarMetrics?(): Promise<string>;
+  setTitleBarPassthroughRects?(
+    windowId: string,
+    rectsPayload: string,
+  ): Promise<void>;
   getCurrentWindow(): Promise<string>;
   getWindowSession(windowId: string): Promise<string>;
   getWindowPreferences(): Promise<string>;
@@ -141,6 +147,22 @@ export type TitleBarMetrics = {
   height: number;
   leftInset: number;
   rightInset: number;
+};
+
+export type TitleBarPassthroughRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+const lastTitleBarPassthroughPayloadByWindowId = new Map<string, string>();
+let lastKnownTitleBarMetrics: TitleBarMetrics | null = null;
+
+type TitleBarPassthroughTarget = {
+  measureInWindow?: (
+    callback: (x: number, y: number, width: number, height: number) => void,
+  ) => void;
 };
 
 type SurfaceWindowHostState = {
@@ -786,7 +808,7 @@ export function useManagedSurfaceWindowSession(
     });
   }, [hydratedStoredSession, hostState.session]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const unregister = registerCurrentWindowController(resolvedSession.windowId, {
       async openSurface(request: OpenSurfaceRequest) {
         if (
@@ -1194,13 +1216,195 @@ export async function getTitleBarMetrics() {
   }
 
   try {
-    return parseTitleBarMetricsPayload(
+    const nextMetrics = parseTitleBarMetricsPayload(
       await nativeWindowManager.getTitleBarMetrics(),
     );
+    lastKnownTitleBarMetrics = nextMetrics;
+    return nextMetrics;
   } catch (error) {
     console.warn('Failed to read title bar metrics', error);
+    return lastKnownTitleBarMetrics;
+  }
+}
+
+export function useTitleBarMetrics(refreshKey?: unknown) {
+  const [metrics, setMetrics] = useState<TitleBarMetrics | null>(
+    () => lastKnownTitleBarMetrics,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getTitleBarMetrics().then(nextMetrics => {
+      if (!cancelled) {
+        setMetrics(nextMetrics);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  return metrics;
+}
+
+export function resolveTitleBarContentInset(
+  metrics: TitleBarMetrics | null,
+) {
+  if (!metrics?.extendsContentIntoTitleBar) {
+    return 0;
+  }
+
+  return Math.max(0, metrics.height);
+}
+
+async function measureTitleBarPassthroughTarget(
+  targetRef: RefObject<TitleBarPassthroughTarget | null>,
+) {
+  const target = targetRef.current;
+  if (!target?.measureInWindow) {
     return null;
   }
+
+  return new Promise<TitleBarPassthroughRect | null>(resolve => {
+    try {
+      target.measureInWindow?.((x, y, width, height) => {
+        if (
+          !Number.isFinite(x) ||
+          !Number.isFinite(y) ||
+          !Number.isFinite(width) ||
+          !Number.isFinite(height) ||
+          width <= 0 ||
+          height <= 0
+        ) {
+          resolve(null);
+          return;
+        }
+
+        resolve({
+          x,
+          y,
+          width,
+          height,
+        });
+      });
+    } catch (error) {
+      console.warn('Failed to measure title bar passthrough target', error);
+      resolve(null);
+    }
+  });
+}
+
+export async function setTitleBarPassthroughRects(
+  windowId: string,
+  rects: ReadonlyArray<TitleBarPassthroughRect>,
+  options: {force?: boolean} = {},
+) {
+  const normalizedWindowId = windowId.trim();
+  if (!normalizedWindowId) {
+    return;
+  }
+
+  const nativeWindowManager = getNativeWindowManager();
+  if (!nativeWindowManager?.setTitleBarPassthroughRects) {
+    return;
+  }
+
+  const payload = rects
+    .filter(
+      rect =>
+        Number.isFinite(rect.x) &&
+        Number.isFinite(rect.y) &&
+        Number.isFinite(rect.width) &&
+        Number.isFinite(rect.height) &&
+        rect.width > 0 &&
+        rect.height > 0,
+    )
+    .map(rect => ({
+      x: rect.x,
+      y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      }));
+  const serializedPayload = JSON.stringify(payload);
+  if (
+    !options.force &&
+    lastTitleBarPassthroughPayloadByWindowId.get(normalizedWindowId) ===
+      serializedPayload
+  ) {
+    return;
+  }
+
+  try {
+    await nativeWindowManager.setTitleBarPassthroughRects(
+      normalizedWindowId,
+      serializedPayload,
+    );
+    lastTitleBarPassthroughPayloadByWindowId.set(
+      normalizedWindowId,
+      serializedPayload,
+    );
+  } catch (error) {
+    console.warn('Failed to set title bar passthrough rects', error);
+  }
+}
+
+export function useTitleBarPassthroughTargets({
+  windowId,
+  enabled,
+  targets,
+  refreshKey,
+}: {
+  windowId: string | null;
+  enabled: boolean;
+  targets: ReadonlyArray<RefObject<TitleBarPassthroughTarget | null>>;
+  refreshKey?: unknown;
+}) {
+  useEffect(() => {
+    if (!windowId) {
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      void (async () => {
+        if (!enabled) {
+          await setTitleBarPassthroughRects(windowId, []);
+          return;
+        }
+
+        const rects = (
+          await Promise.all(
+            targets.map(target => measureTitleBarPassthroughTarget(target)),
+          )
+        ).filter(
+          (rect): rect is TitleBarPassthroughRect => rect !== null,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        await setTitleBarPassthroughRects(windowId, rects);
+      })();
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [enabled, refreshKey, targets, windowId]);
+
+  useEffect(() => {
+    if (!windowId) {
+      return;
+    }
+
+    return () => {
+      void setTitleBarPassthroughRects(windowId, [], {force: true});
+    };
+  }, [windowId]);
 }
 
 export async function getBundleUpdateStatuses(bundleIds?: string[]) {

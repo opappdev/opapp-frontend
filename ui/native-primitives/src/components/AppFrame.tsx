@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, type RefObject } from 'react';
 import { Text, View } from 'react-native';
 import { useTheme } from '../theme';
 import { ActionButton } from './ActionButton';
@@ -9,6 +9,9 @@ export function AppFrame({
   title,
   description,
   showHero = true,
+  topInset = 0,
+  headerActionsHostRef,
+  onHeaderActionsLayout,
   headerActions = [],
   children,
   testID,
@@ -17,6 +20,9 @@ export function AppFrame({
   title: string;
   description: string;
   showHero?: boolean;
+  topInset?: number;
+  headerActionsHostRef?: RefObject<View | null>;
+  onHeaderActionsLayout?: () => void;
   headerActions?: ReadonlyArray<{
     label: string;
     onPress: () => void;
@@ -28,10 +34,23 @@ export function AppFrame({
 }>) {
   const { palette, spacing } = useTheme();
   return (
-    <View testID={testID} style={[styles.frame, { backgroundColor: palette.canvas }]}>
+    <View
+      testID={testID}
+      style={[
+        styles.frame,
+        {
+          backgroundColor: palette.canvas,
+          paddingTop: topInset > 0 ? topInset + 16 : undefined,
+        },
+      ]}
+    >
       <View style={[styles.frameInner, { gap: spacing.xl }]}>
         {headerActions.length > 0 ? (
           <View
+            ref={headerActionsHostRef}
+            onLayout={() => {
+              onHeaderActionsLayout?.();
+            }}
             style={[
               styles.headerActionsShell,
               {

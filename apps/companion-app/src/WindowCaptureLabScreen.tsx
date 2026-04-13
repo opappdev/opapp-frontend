@@ -24,6 +24,8 @@ import {
   useCurrentWindowId,
   useCurrentWindowPolicy,
   useOpenSurface,
+  useTitleBarPassthroughTargets,
+  useTitleBarMetrics,
 } from '@opapp/framework-windowing';
 import {
   ActionButton,
@@ -331,9 +333,11 @@ function upsertWindowMatch(
 }
 
 export function WindowCaptureLabScreen() {
-  const { palette } = useTheme();
+  const { appearancePreset, palette } = useTheme();
   const styles = useMemo(() => createScreenStyles(palette), [palette]);
+  const titleBarMetrics = useTitleBarMetrics(appearancePreset);
   const busyActionRef = useRef<BusyActionId>(null);
+  const headerActionsHostRef = useRef<View>(null);
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
   const currentWindowPolicy = useCurrentWindowPolicy();
@@ -349,6 +353,7 @@ export function WindowCaptureLabScreen() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectorEditorReady, setSelectorEditorReady] = useState(false);
+  const [headerActionsLayoutVersion, setHeaderActionsLayoutVersion] = useState(0);
   const selectorSummary = formatSelectorSummary(selectorDraft);
   const pinnedHandle = trimSelectorValue(selectorDraft.handle);
   const targetWindow = resolveTargetWindow(
@@ -367,6 +372,18 @@ export function WindowCaptureLabScreen() {
     // the companion mounted/dev-smoke markers are emitted.
     setSelectorEditorReady(true);
   }, []);
+
+  const titleBarPassthroughTargets = useMemo(
+    () => [headerActionsHostRef],
+    [],
+  );
+
+  useTitleBarPassthroughTargets({
+    windowId: currentWindowId,
+    enabled: Boolean(titleBarMetrics?.extendsContentIntoTitleBar),
+    targets: titleBarPassthroughTargets,
+    refreshKey: `${appearancePreset}:${titleBarMetrics?.height ?? 0}:${headerActionsLayoutVersion}`,
+  });
 
   async function refreshForegroundWindow(
     options: RunOptions & {selector?: WindowCaptureSelector} = {},
@@ -632,6 +649,10 @@ export function WindowCaptureLabScreen() {
           eyebrow={appI18n.windowCaptureLab.frame.eyebrow}
           title={appI18n.windowCaptureLab.frame.title}
           description={appI18n.windowCaptureLab.frame.description}
+          headerActionsHostRef={headerActionsHostRef}
+          onHeaderActionsLayout={() => {
+            setHeaderActionsLayoutVersion(version => version + 1);
+          }}
           headerActions={[
             {
               label:

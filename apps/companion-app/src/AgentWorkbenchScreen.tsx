@@ -1,7 +1,12 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useRef, useState} from 'react';
 import {ActivityIndicator, Pressable, ScrollView, Text, View} from 'react-native';
 import {appI18n} from '@opapp/framework-i18n';
-import {useOpenSurface} from '@opapp/framework-windowing';
+import {
+  useCurrentWindowId,
+  useOpenSurface,
+  useTitleBarPassthroughTargets,
+  useTitleBarMetrics,
+} from '@opapp/framework-windowing';
 import {StatusBadge, Toolbar, useTheme} from '@opapp/ui-native-primitives';
 import {type WorkbenchTimelineDisplayItem} from './agent-workbench-model';
 import {useAgentWorkbenchState} from './agent-workbench-state';
@@ -106,8 +111,12 @@ function renderTimelineItem(
 }
 
 export function AgentWorkbenchScreen() {
-  const {palette} = useTheme();
+  const {appearancePreset, palette} = useTheme();
   const screenStyles = useMemo(() => createScreenStyles(palette), [palette]);
+  const titleBarMetrics = useTitleBarMetrics(appearancePreset);
+  const currentWindowId = useCurrentWindowId();
+  const returnMainButtonRef = useRef<View>(null);
+  const [navigationLayoutVersion, setNavigationLayoutVersion] = useState(0);
   const state = useAgentWorkbenchState();
   const openSurface = useOpenSurface();
   const [returnMainBusy, setReturnMainBusy] = useState(false);
@@ -132,6 +141,18 @@ export function AgentWorkbenchScreen() {
     appI18n.agentWorkbench.empty.timelineIdleTitle;
   const selectedCwdLabel =
     state.selectedCwd || state.trustedWorkspace?.displayName || appI18n.agentWorkbench.workspace.rootLabel;
+
+  const titleBarPassthroughTargets = useMemo(
+    () => [returnMainButtonRef],
+    [],
+  );
+
+  useTitleBarPassthroughTargets({
+    windowId: currentWindowId,
+    enabled: Boolean(titleBarMetrics?.extendsContentIntoTitleBar),
+    targets: titleBarPassthroughTargets,
+    refreshKey: `${appearancePreset}:${titleBarMetrics?.height ?? 0}:${navigationLayoutVersion}`,
+  });
 
   async function handleReturnMain() {
     if (returnMainBusy) return;
@@ -164,12 +185,18 @@ export function AgentWorkbenchScreen() {
 
   return (
     <View testID='agent-workbench.screen' style={screenStyles.screen}>
-      <Toolbar testID='agent-workbench.toolbar' style={screenStyles.toolbar}>
+      <Toolbar
+        testID='agent-workbench.toolbar'
+        style={screenStyles.toolbar}>
         <Pressable
+          ref={returnMainButtonRef}
           testID='agent-workbench.action.return-main'
           accessibilityRole='button'
           onPress={() => void handleReturnMain()}
           disabled={returnMainBusy}
+          onLayout={() => {
+            setNavigationLayoutVersion(version => version + 1);
+          }}
           style={screenStyles.toolbarBackButton}>
           <Text style={screenStyles.toolbarBackLabel}>
             ← {returnMainBusy ? appI18n.agentWorkbench.actions.returnMainBusy : appI18n.agentWorkbench.actions.returnMain}

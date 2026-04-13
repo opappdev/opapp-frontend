@@ -75,10 +75,31 @@ export type BundleLibraryEntry = {
   localProvenanceStagedAt: string | null;
 };
 
-export function resolveBundleLibraryOpenTarget(
-  entry: Pick<BundleLibraryEntry, 'selectedStartupTarget' | 'defaultOpenTarget'>,
+export function resolveBundleLibrarySelectedStartupTarget(
+  entry: Pick<BundleLibraryEntry, 'launchTargets' | 'selectedStartupTarget'>,
+  overrideTargetId?: string | null,
 ) {
-  return entry.selectedStartupTarget ?? entry.defaultOpenTarget;
+  if (!overrideTargetId) {
+    return entry.selectedStartupTarget;
+  }
+
+  return (
+    entry.launchTargets.find(target => target.targetId === overrideTargetId) ??
+    entry.selectedStartupTarget
+  );
+}
+
+export function resolveBundleLibraryOpenTarget(
+  entry: Pick<
+    BundleLibraryEntry,
+    'launchTargets' | 'selectedStartupTarget' | 'defaultOpenTarget'
+  >,
+  overrideTargetId?: string | null,
+) {
+  return (
+    resolveBundleLibrarySelectedStartupTarget(entry, overrideTargetId) ??
+    entry.defaultOpenTarget
+  );
 }
 
 function resolveEntryState({

@@ -16,13 +16,12 @@ import {
   getCachedOtaRemoteCatalog,
   getOtaRemoteUrl,
   getStagedBundles,
-  getTitleBarMetrics,
   runBundleUpdate,
-  type BundleUpdateStatus,
-  type StagedBundleRecord,
-  type TitleBarMetrics,
   useCurrentWindowId,
   useOpenSurface,
+  useTitleBarMetrics,
+  type BundleUpdateStatus,
+  type StagedBundleRecord,
 } from '@opapp/framework-windowing';
 import {appI18n} from '@opapp/framework-i18n';
 import {
@@ -52,6 +51,7 @@ import {
 import {
   buildBundleLibraryEntries,
   resolveBundleLibraryOpenTarget,
+  resolveBundleLibrarySelectedStartupTarget,
   type BundleLibraryEntry,
   type BundleLibraryGroupId,
 } from './bundle-library-model';
@@ -91,6 +91,17 @@ type ServicePresentation = {
   tone: 'support' | 'warning' | 'neutral' | 'danger';
   detail: string;
 };
+
+const bundleLauncherStartupTargetSelectionsByWindowId = new Map<
+  string,
+  Record<string, string | undefined>
+>();
+
+function cloneStartupTargetSelections(
+  selections: Readonly<Record<string, string | undefined>>,
+) {
+  return {...selections};
+}
 
 function buildBundleLauncherTonePalette(
   palette: AppPalette,
@@ -643,6 +654,7 @@ function DetailField({
 
 type BundleDetailPaneProps = {
   selectedEntry: BundleLibraryEntry | null;
+  selectedStartupTarget: CompanionLaunchTarget | null;
   selectedTargetTitle: string | null;
   selectedEntryOpenTarget: CompanionLaunchTarget | null;
   selectedEntryCanOpen: boolean;
@@ -664,6 +676,7 @@ type BundleDetailPaneProps = {
 
 function BundleDetailPane({
   selectedEntry,
+  selectedStartupTarget,
   selectedTargetTitle,
   selectedEntryOpenTarget,
   selectedEntryCanOpen,
@@ -787,9 +800,7 @@ function BundleDetailPane({
               onPress={() => {
                 onSaveStartupTarget();
               }}
-              disabled={
-                savingStartupTarget || !selectedEntry.selectedStartupTarget
-              }
+              disabled={savingStartupTarget || !selectedStartupTarget}
               tone='ghost'
             />
           </View>
@@ -808,17 +819,16 @@ function BundleDetailPane({
                 <ChoiceChip
                   key={target.targetId}
                   testID={
-                    selectedEntry.selectedStartupTarget?.targetId === target.targetId
+                    selectedStartupTarget?.targetId === target.targetId
                       ? 'bundle-launcher.startup-target.selected'
                       : `bundle-launcher.startup-target.${target.targetId}`
                   }
                   label={formatLaunchTargetTitle(target)}
                   detail={target.description}
-                  active={
-                    selectedEntry.selectedStartupTarget?.targetId === target.targetId
-                  }
+                  active={selectedStartupTarget?.targetId === target.targetId}
                   activeBadgeLabel={appI18n.common.choiceStatus.selected}
                   inactiveBadgeLabel={appI18n.common.choiceStatus.available}
+                  activationBehavior='press-in'
                   onPress={() => {
                     onChooseStartupTarget(selectedEntry.bundleId, target.targetId);
                   }}
@@ -898,6 +908,7 @@ function BundleDetailPane({
 export function BundleLauncherScreen() {
   const openSurface = useOpenSurface();
   const currentWindowId = useCurrentWindowId();
+  const startupTargetSelectionCacheKey = currentWindowId ?? 'window.main';
   const {width, height} = useWindowDimensions();
   const baseTheme = useTheme();
   const bundleLauncherTheme = useMemo(
@@ -914,9 +925,7 @@ export function BundleLauncherScreen() {
   const workspaceMinHeight = isCompactLayout
     ? undefined
     : Math.max(560, height - 320);
-  const [titleBarMetrics, setTitleBarMetrics] = useState<TitleBarMetrics | null>(
-    null,
-  );
+  const titleBarMetrics = useTitleBarMetrics(baseTheme.appearancePreset);
   const showCustomTitleBar = Boolean(titleBarMetrics?.extendsContentIntoTitleBar);
   const customTitleBarHeight = Math.max(48, titleBarMetrics?.height ?? 0);
   const customTitleBarPaddingLeft =
@@ -927,7 +936,16 @@ export function BundleLauncherScreen() {
   const [bundleAvailability, setBundleAvailability] = useState<Record<string, boolean>>({});
   const [startupTargetSelections, setStartupTargetSelections] = useState<
     Record<string, string | undefined>
-  >({});
+  >(() =>
+    cloneStartupTargetSelections(
+      bundleLauncherStartupTargetSelectionsByWindowId.get(
+        startupTargetSelectionCacheKey,
+      ) ?? {},
+    ),
+  );
+  const startupTargetSelectionsRef = useRef<Record<string, string | undefined>>(
+    startupTargetSelections,
+  );
   const [openingTargetId, setOpeningTargetId] = useState<string | null>(null);
   const [actingBundleId, setActingBundleId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -950,6 +968,54 @@ export function BundleLauncherScreen() {
     saving: savingStartupTarget,
     save: saveStartupTarget,
   } = useCompanionStartupTarget();
+
+  const updateStartupTargetSelections = useCallback(
+    (
+      updater: (
+        previous: Record<string, string | undefined>,
+      ) => Record<string, string | undefined>,
+    ) => {
+      const nextSelections = updater(startupTargetSelectionsRef.current);
+      if (nextSelections === startupTargetSelectionsRef.current) {
+        return;
+      }
+
+      startupTargetSelectionsRef.current = nextSelections;
+      bundleLauncherStartupTargetSelectionsByWindowId.set(
+        startupTargetSelectionCacheKey,
+        cloneStartupTargetSelections(nextSelections),
+      );
+      setStartupTargetSelections(nextSelections);
+    },
+    [startupTargetSelectionCacheKey],
+  );
+
+  const handleChooseStartupTarget = useCallback(
+    (bundleId: string, targetId: string) => {
+      updateStartupTargetSelections(previous => {
+        if (previous[bundleId] === targetId) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          [bundleId]: targetId,
+        };
+      });
+      setStatusMessage(null);
+    },
+    [updateStartupTargetSelections],
+  );
+
+  useEffect(() => {
+    const cachedSelections = cloneStartupTargetSelections(
+      bundleLauncherStartupTargetSelectionsByWindowId.get(
+        startupTargetSelectionCacheKey,
+      ) ?? {},
+    );
+    startupTargetSelectionsRef.current = cachedSelections;
+    setStartupTargetSelections(cachedSelections);
+  }, [startupTargetSelectionCacheKey]);
 
   const syntheticRemoteEntries = useMemo(() => {
     if (remoteCatalog.entries.some(entry => entry.bundleId === companionBundleIds.main)) {
@@ -1089,20 +1155,6 @@ export function BundleLauncherScreen() {
   );
 
   useEffect(() => {
-    let cancelled = false;
-
-    void getTitleBarMetrics().then(metrics => {
-      if (!cancelled) {
-        setTitleBarMetrics(metrics);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [baseTheme.appearancePreset]);
-
-  useEffect(() => {
     if (!selectedEntry) {
       setSelectedBundleId(null);
       return;
@@ -1123,7 +1175,11 @@ export function BundleLauncherScreen() {
       return;
     }
 
-    setStartupTargetSelections(previous => {
+    updateStartupTargetSelections(previous => {
+      if (typeof previous[matchedSavedTarget.bundleId] === 'string') {
+        return previous;
+      }
+
       if (previous[matchedSavedTarget.bundleId] === matchedSavedTarget.targetId) {
         return previous;
       }
@@ -1137,6 +1193,7 @@ export function BundleLauncherScreen() {
     launchTargets,
     resolvedStartupTarget?.bundleId,
     resolvedStartupTarget?.surfaceId,
+    updateStartupTargetSelections,
   ]);
 
   useEffect(() => {
@@ -1280,7 +1337,10 @@ export function BundleLauncherScreen() {
     }
 
     if (entry.primaryActionKind === 'open') {
-      const openTarget = resolveBundleLibraryOpenTarget(entry);
+      const openTarget = resolveBundleLibraryOpenTarget(
+        entry,
+        startupTargetSelectionsRef.current[entry.bundleId],
+      );
       if (!openTarget) {
         return;
       }
@@ -1325,7 +1385,14 @@ export function BundleLauncherScreen() {
   }
 
   async function handleSaveStartupTarget() {
-    if (!selectedEntry?.selectedStartupTarget || savingStartupTarget) {
+    const selectedStartupTarget =
+      selectedEntry === null
+        ? null
+        : resolveBundleLibrarySelectedStartupTarget(
+            selectedEntry,
+            startupTargetSelectionsRef.current[selectedEntry.bundleId],
+          );
+    if (!selectedEntry || !selectedStartupTarget || savingStartupTarget) {
       return;
     }
 
@@ -1333,10 +1400,10 @@ export function BundleLauncherScreen() {
 
     try {
       const nextStartupTarget: CompanionStartupTarget = {
-        surfaceId: selectedEntry.selectedStartupTarget.surfaceId,
-        bundleId: selectedEntry.selectedStartupTarget.bundleId,
-        policy: selectedEntry.selectedStartupTarget.policy,
-        presentation: selectedEntry.selectedStartupTarget.presentation,
+        surfaceId: selectedStartupTarget.surfaceId,
+        bundleId: selectedStartupTarget.bundleId,
+        policy: selectedStartupTarget.policy,
+        presentation: selectedStartupTarget.presentation,
       };
       await saveStartupTarget(nextStartupTarget);
       setStatusTone('support');
@@ -1348,11 +1415,20 @@ export function BundleLauncherScreen() {
     }
   }
 
-  const selectedTargetTitle = selectedEntry?.selectedStartupTarget
-    ? formatLaunchTargetTitle(selectedEntry.selectedStartupTarget)
+  const selectedEntryStartupTarget = selectedEntry
+    ? resolveBundleLibrarySelectedStartupTarget(
+        selectedEntry,
+        startupTargetSelections[selectedEntry.bundleId],
+      )
+    : null;
+  const selectedTargetTitle = selectedEntryStartupTarget
+    ? formatLaunchTargetTitle(selectedEntryStartupTarget)
     : null;
   const selectedEntryOpenTarget = selectedEntry
-    ? resolveBundleLibraryOpenTarget(selectedEntry)
+    ? resolveBundleLibraryOpenTarget(
+        selectedEntry,
+        startupTargetSelections[selectedEntry.bundleId],
+      )
     : null;
   const selectedEntryCanOpen = selectedEntryOpenTarget
     ? bundleAvailability[selectedEntryOpenTarget.bundleId] ?? true
@@ -1505,13 +1581,10 @@ export function BundleLauncherScreen() {
                   ) : null}
                   {agentWorkbenchTarget ? (
                     <ActionButton
+                      testID='bundle-launcher.action.open-agent-workbench'
                       label={appI18n.surfaces.agentWorkbench}
                       onPress={() => {
-                        void openSurface(
-                          createCompanionOpenSurfaceRequest(
-                            agentWorkbenchTarget,
-                          ),
-                        );
+                        void openLaunchTarget(agentWorkbenchTarget);
                       }}
                       tone='ghost'
                     />
@@ -1560,6 +1633,7 @@ export function BundleLauncherScreen() {
                   ]}>
                   <BundleDetailPane
                     selectedEntry={selectedEntry}
+                    selectedStartupTarget={selectedEntryStartupTarget}
                     selectedTargetTitle={selectedTargetTitle}
                     selectedEntryOpenTarget={selectedEntryOpenTarget}
                     selectedEntryCanOpen={selectedEntryCanOpen}
@@ -1578,11 +1652,7 @@ export function BundleLauncherScreen() {
                       void handleSaveStartupTarget();
                     }}
                     onChooseStartupTarget={(bundleId, targetId) => {
-                      setStartupTargetSelections(previous => ({
-                        ...previous,
-                        [bundleId]: targetId,
-                      }));
-                      setStatusMessage(null);
+                      handleChooseStartupTarget(bundleId, targetId);
                     }}
                     onToggleStartupPreferences={() => {
                       setStartupPreferencesExpanded(previous => !previous);

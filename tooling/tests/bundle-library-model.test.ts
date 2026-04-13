@@ -3,6 +3,7 @@ import {buildBundleLauncherDiscoveryEntries} from '../../apps/companion-app/src/
 import {
   buildBundleLibraryEntries,
   resolveBundleLibraryOpenTarget,
+  resolveBundleLibrarySelectedStartupTarget,
   type BundleLibraryEntry,
 } from '../../apps/companion-app/src/bundle-library-model';
 import {
@@ -219,6 +220,14 @@ export function run() {
   };
   assert.equal(
     resolveBundleLibraryOpenTarget(customizedMainEntry)?.targetId,
+    'settings',
+  );
+  assert.equal(
+    resolveBundleLibrarySelectedStartupTarget(mainEntry, 'settings')?.targetId,
+    'settings',
+  );
+  assert.equal(
+    resolveBundleLibraryOpenTarget(mainEntry, 'settings')?.targetId,
     'settings',
   );
 

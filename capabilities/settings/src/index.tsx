@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {
   appearancePresets,
@@ -17,6 +17,8 @@ import {
   useCurrentWindowId,
   useCurrentWindowPolicy,
   useOpenSurface,
+  useTitleBarPassthroughTargets,
+  useTitleBarMetrics,
   useWindowPreferences,
 } from '@opapp/framework-windowing';
 import {
@@ -439,9 +441,13 @@ function buildSaveNotice(
 }
 
 export function SettingsScreen(props: SettingsScreenProps = {}) {
-  const { palette } = useTheme();
+  const { appearancePreset, palette } = useTheme();
   const { density, setDensity } = useDensityPreference();
   const styles = useMemo(() => createScreenStyles(palette), [palette]);
+  const titleBarMetrics = useTitleBarMetrics(appearancePreset);
+  const currentWindowId = useCurrentWindowId();
+  const headerActionsHostRef = useRef<View>(null);
+  const [headerActionsLayoutVersion, setHeaderActionsLayoutVersion] = useState(0);
   const [openingDetachedWindow, setOpeningDetachedWindow] = useState(false);
   const [returningInline, setReturningInline] = useState(false);
   const [openingMainTab, setOpeningMainTab] = useState(false);
@@ -454,7 +460,6 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
   const [savingDraft, setSavingDraft] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState<WindowPreferences>(defaultWindowPreferences);
-  const currentWindowId = useCurrentWindowId();
   const [focusingMainWindow, setFocusingMainWindow] = useState(false);
   const [closingCurrentWindow, setClosingCurrentWindow] = useState(false);
   const currentWindowPolicy = useCurrentWindowPolicy();
@@ -672,6 +677,18 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
     }
   }
 
+  const titleBarPassthroughTargets = useMemo(
+    () => [headerActionsHostRef],
+    [],
+  );
+
+  useTitleBarPassthroughTargets({
+    windowId: currentWindowId,
+    enabled: Boolean(titleBarMetrics?.extendsContentIntoTitleBar),
+    targets: titleBarPassthroughTargets,
+    refreshKey: `${appearancePreset}:${titleBarMetrics?.height ?? 0}:${headerActionsLayoutVersion}`,
+  });
+
   return (
     <View testID='settings.screen' style={styles.screen}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -679,6 +696,10 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
           eyebrow={appI18n.settings.frame.eyebrow}
           title={appI18n.settings.frame.title}
           description={appI18n.settings.frame.description}
+          headerActionsHostRef={headerActionsHostRef}
+          onHeaderActionsLayout={() => {
+            setHeaderActionsLayoutVersion(version => version + 1);
+          }}
           headerActions={[
             {
               label: returningInline

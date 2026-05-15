@@ -1,6 +1,7 @@
 {
   "companionMain": "companion.main",
   "companionChatMain": "companion.chat.main",
+  "companionOverlayProbe": "companion.overlay-probe",
   "companionAgentWorkbench": "companion.agent-workbench",
   "companionSettings": "companion.settings",
   "companionViewShot": "companion.view-shot",

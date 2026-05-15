@@ -18,6 +18,7 @@ import {
 } from '@opapp/framework-companion-runtime';
 import {AgentWorkbenchScreen} from './AgentWorkbenchScreen';
 import {BundleLauncherScreen} from './BundleLauncherScreen';
+import {OverlayProbeScreen} from './OverlayProbeScreen';
 import {ViewShotLabScreen} from './ViewShotLabScreen';
 import {WindowCaptureLabScreen} from './WindowCaptureLabScreen';
 
@@ -25,6 +26,8 @@ const launcherSurfaceComponent =
   BundleLauncherScreen as ComponentType<Record<string, unknown>>;
 const agentWorkbenchSurfaceComponent =
   AgentWorkbenchScreen as ComponentType<Record<string, unknown>>;
+const overlayProbeSurfaceComponent =
+  OverlayProbeScreen as ComponentType<Record<string, unknown>>;
 const settingsSurfaceComponent =
   SettingsScreen as ComponentType<Record<string, unknown>>;
 const viewShotLabSurfaceComponent =
@@ -52,6 +55,15 @@ const companionSurfaceDefinitions = {
     defaultPresentation: 'current-window',
     acceptsInitialProps: true,
     Component: agentWorkbenchSurfaceComponent,
+  }),
+  overlayProbe: defineSurface<Record<string, unknown>>({
+    surfaceId: companionSurfaceIds.companionOverlayProbe,
+    title: appI18n.surfaces.overlayProbe,
+    capabilityId: 'overlay-probe',
+    defaultPolicy: 'overlay',
+    defaultPresentation: 'current-window',
+    acceptsInitialProps: true,
+    Component: overlayProbeSurfaceComponent,
   }),
   settings: defineSurface<Record<string, unknown>>({
     surfaceId: companionSurfaceIds.companionSettings,
@@ -117,6 +129,7 @@ function createCompanionBundleConfig(
 
 export const mainCompanionSurfaceRegistry = createCompanionSurfaceRegistry([
   'launcher',
+  'overlayProbe',
   'agentWorkbench',
   'settings',
   'viewShotLab',

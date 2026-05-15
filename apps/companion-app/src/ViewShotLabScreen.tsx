@@ -66,6 +66,10 @@ function formatWindowTargetLabel(policy: string | null) {
     return appI18n.common.windowTarget.tool;
   }
 
+  if (policy === 'overlay') {
+    return appI18n.common.windowTarget.overlay;
+  }
+
   return appI18n.common.windowTarget.current;
 }
 

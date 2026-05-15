@@ -4,6 +4,7 @@ export const coreWindowPolicyIds = [
   'main',
   'settings',
   'tool',
+  'overlay',
 ] as const;
 
 export const windowPolicyIds = coreWindowPolicyIds;
@@ -78,7 +79,12 @@ export type ParsedWindowPolicyInput = {
 };
 
 export function isCoreWindowPolicyId(value: unknown): value is CoreWindowPolicyId {
-  return value === 'main' || value === 'settings' || value === 'tool';
+  return (
+    value === 'main' ||
+    value === 'settings' ||
+    value === 'tool' ||
+    value === 'overlay'
+  );
 }
 
 export function parseWindowPolicyInput(

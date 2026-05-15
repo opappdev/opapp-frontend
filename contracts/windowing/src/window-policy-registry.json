@@ -88,5 +88,35 @@
         "minHeight": 780
       }
     }
+  },
+  "overlay": {
+    "policyId": "overlay",
+    "defaultMode": "balanced",
+    "minWidth": 380,
+    "minHeight": 560,
+    "defaultPlacement": "centered",
+    "defaultMaximized": false,
+    "rememberWindowRect": true,
+    "allowManualResize": false,
+    "geometry": {
+      "balanced": {
+        "widthFactor": 0.22,
+        "aspectRatio": 1.52,
+        "minWidth": 380,
+        "minHeight": 560
+      },
+      "compact": {
+        "widthFactor": 0.2,
+        "aspectRatio": 1.58,
+        "minWidth": 340,
+        "minHeight": 520
+      },
+      "wide": {
+        "widthFactor": 0.26,
+        "aspectRatio": 1.42,
+        "minWidth": 420,
+        "minHeight": 600
+      }
+    }
   }
 }

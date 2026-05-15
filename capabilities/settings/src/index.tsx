@@ -12,8 +12,11 @@ import type {
 } from '@opapp/contracts-windowing';
 import {
   closeWindow,
+  canOpenScenePreview,
   defaultWindowPreferences,
   focusWindow,
+  getDefaultScenePreviewFile,
+  openScenePreview,
   useCurrentWindowId,
   useCurrentWindowPolicy,
   useOpenSurface,
@@ -396,6 +399,10 @@ function formatWindowTargetLabel(policy: WindowPolicyId | null) {
     return appI18n.common.windowTarget.tool;
   }
 
+  if (policy === 'overlay') {
+    return appI18n.common.windowTarget.overlay;
+  }
+
   return appI18n.common.windowTarget.current;
 }
 
@@ -457,6 +464,9 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
   const [openingWindowCaptureLab, setOpeningWindowCaptureLab] = useState<
     SettingsSurfacePresentation | null
   >(null);
+  const [openingScenePreview, setOpeningScenePreview] = useState(false);
+  const [scenePreviewFile, setScenePreviewFile] = useState<string | null>(null);
+  const [scenePreviewStatus, setScenePreviewStatus] = useState<string | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState<WindowPreferences>(defaultWindowPreferences);
@@ -470,10 +480,37 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
     error,
     save,
   } = useWindowPreferences();
+  const scenePreviewBridgeReady = canOpenScenePreview();
 
   useEffect(() => {
     setDraft(preferences);
   }, [preferences]);
+
+  useEffect(() => {
+    if (!scenePreviewBridgeReady) {
+      setScenePreviewFile(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void getDefaultScenePreviewFile()
+      .then(defaultPreviewFile => {
+        if (!cancelled) {
+          setScenePreviewFile(defaultPreviewFile);
+        }
+      })
+      .catch(loadError => {
+        console.error('Failed to load default scene preview file', loadError);
+        if (!cancelled) {
+          setScenePreviewFile(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scenePreviewBridgeReady]);
 
   const isDirty = useMemo(
     () => !arePreferencesEqual(draft, preferences),
@@ -624,6 +661,31 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
       console.error('Failed to open window-capture lab surface', openError);
     } finally {
       setOpeningWindowCaptureLab(null);
+    }
+  }
+
+  async function handleOpenScenePreview() {
+    if (openingScenePreview) {
+      return;
+    }
+
+    setOpeningScenePreview(true);
+    setScenePreviewStatus(null);
+
+    try {
+      const launchId = await openScenePreview(scenePreviewFile);
+      setScenePreviewStatus(
+        `${appI18n.scenePreviewLab.messages.openedPrefix}${launchId}${appI18n.scenePreviewLab.messages.openedSuffix}`,
+      );
+    } catch (openError) {
+      console.error('Failed to open scene preview window', openError);
+      const message =
+        openError instanceof Error
+          ? openError.message
+          : appI18n.scenePreviewLab.messages.openFailedFallback;
+      setScenePreviewStatus(`${appI18n.scenePreviewLab.messages.openFailedPrefix}${message}`);
+    } finally {
+      setOpeningScenePreview(false);
     }
   }
 
@@ -1018,6 +1080,45 @@ export function SettingsScreen(props: SettingsScreenProps = {}) {
                     void handleOpenWindowCaptureLab('new-window');
                   }}
                   disabled={openingWindowCaptureLab !== null}
+                />
+              </View>
+            </SectionCard>
+
+            <SectionCard
+              testID='settings.section.scene-preview-entry'
+              title={appI18n.scenePreviewLab.sections.entryTitle}
+              description={appI18n.scenePreviewLab.sections.entryDescription}>
+              <View style={styles.statusBlock}>
+                <MutedText>
+                  {scenePreviewBridgeReady
+                    ? appI18n.scenePreviewLab.feedback.settingsEntryHint
+                    : appI18n.scenePreviewLab.feedback.hostUnavailableBody}
+                </MutedText>
+                <MutedText>
+                  {scenePreviewFile
+                    ? `${appI18n.scenePreviewLab.status.defaultFilePrefix}${scenePreviewFile}`
+                    : appI18n.scenePreviewLab.status.defaultFileMissing}
+                </MutedText>
+                {scenePreviewStatus ? (
+                  <MutedText>{scenePreviewStatus}</MutedText>
+                ) : null}
+              </View>
+              <View style={styles.actionRow}>
+                <ActionButton
+                  testID='settings.action.open-scene-preview'
+                  label={
+                    openingScenePreview
+                      ? appI18n.scenePreviewLab.actions.openDefaultBusy
+                      : appI18n.scenePreviewLab.actions.openDefault
+                  }
+                  onPress={() => {
+                    void handleOpenScenePreview();
+                  }}
+                  disabled={
+                    !scenePreviewBridgeReady ||
+                    openingScenePreview ||
+                    !scenePreviewFile
+                  }
                 />
               </View>
             </SectionCard>

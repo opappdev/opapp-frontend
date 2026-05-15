@@ -10,6 +10,7 @@ export const zhCNApp = {
   },
   surfaces: {
     launcher: '应用库与更新',
+    overlayProbe: 'Overlay 宿主探针',
     agentWorkbench: 'Agent Workbench',
     challengeAdvisor: '挑战场景作战板',
     llmChat: 'LLM Chat',
@@ -171,6 +172,7 @@ export const zhCNApp = {
       main: '主作战窗口',
       settings: '独立设置窗口',
       tool: '工具窗口',
+      overlay: '悬浮窗口',
       current: '当前窗口',
     },
     lane: {
@@ -1249,6 +1251,72 @@ export const zhCNApp = {
     errors: {
       selectorRequired:
         '至少保留一个 selector 条件。可以恢复前台默认，或填写句柄/进程名/标题/类名。',
+    },
+  },
+  scenePreviewLab: {
+    sections: {
+      entryTitle: '打开小玉 3D 预览',
+      entryDescription:
+        '从当前 OPApp 宿主直接拉起原生 ScenePreviewWindow，方便继续检查小玉的站姿、武器握持、分色和自然摆动。',
+    },
+    actions: {
+      openDefault: '打开当前小玉预览',
+      openDefaultBusy: '正在打开小玉预览...',
+    },
+    status: {
+      defaultFilePrefix: '当前预览文件：',
+      defaultFileMissing:
+        '暂未找到默认预览文件。请先生成 TKunimiSwim2024 runtime，或通过启动配置指定 scene-preview.file。',
+    },
+    messages: {
+      openedPrefix: '已请求打开原生预览窗口：',
+      openedSuffix: '。',
+      openFailedPrefix: '打开失败：',
+      openFailedFallback: '宿主未返回具体错误。',
+    },
+    feedback: {
+      settingsEntryHint:
+        '宿主已加载 OpappScenePreview bridge，会优先使用启动配置或当前工作区里的私有 TKunimiSwim2024 scene-preview.json。',
+      hostUnavailableBody:
+        '当前 surface 已加载，但宿主没有把 OpappScenePreview 模块注入进来，所以按钮会保持禁用。',
+    },
+  },
+  overlayProbe: {
+    frame: {
+      eyebrow: '宿主窗口探针',
+      title: 'Overlay 宿主探针',
+      description:
+        '这页只用来验证公开的 overlay 窗口策略是否能正确启动、挂载和持久化，不再拿首页或私有 Avatar 来代替这条底座 smoke。',
+    },
+    sections: {
+      metricsTitle: '当前窗口指标',
+      metricsDescription:
+        '这里展示 smoke 最关心的 surface、窗口 ID、窗口策略和标题栏高度，方便确认这次启动确实落在 overlay 模式里。',
+      notesTitle: '边界说明',
+      notesDescription:
+        '这是一张公开诊断页，职责是守住宿主能力，不承担首页体验或角色演出的验证。',
+    },
+    status: {
+      surfaceId: 'Surface',
+      windowId: '窗口 ID',
+      windowPolicy: '窗口策略',
+      titleBarHeight: '标题栏高度',
+      expectation:
+        'Overlay 窗口正常时，这里的策略应显示为“悬浮窗口”，标题栏高度通常应接近 0px。',
+    },
+    badges: {
+      publicProbe: '公开宿主探针',
+      hostBootstrap: 'Overlay Bootstrap',
+    },
+    notes: {
+      publicBoundary:
+        '这页属于公开层，只验证通用窗口策略和前端挂载，不承载私有角色逻辑。',
+      notHomepage:
+        '窄尺寸 overlay smoke 不再拿首页做替身，所以不会再把首页布局误当成 overlay 展示效果。',
+      notAvatar:
+        'Live2D / Avatar 形象应走私有入口和独立尺寸验证，不和公开 smoke 复用同一张页面。',
+      overlayExpectation:
+        '如果这页在主窗口里被 overlay 策略拉起且日志稳定，就说明公开底座已经可供私有 Avatar 继续往上搭。',
     },
   },
 } as const;

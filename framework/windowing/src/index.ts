@@ -89,6 +89,11 @@ type NativeWindowManager = {
   setWindowSessionState(windowId: string, sessionPayload: string): Promise<void>;
 };
 
+type NativeScenePreview = {
+  getDefaultPreviewFile?(): Promise<string>;
+  openPreview?(previewFile: string): Promise<string>;
+};
+
 type CurrentWindowDescriptor = {
   windowId: string;
   activeSurfaceId: SurfaceId;
@@ -207,6 +212,14 @@ let startupTargetPreferenceLoadPromise: Promise<StartupTargetPreference | null> 
 function getNativeWindowManager(): NativeWindowManager | null {
   const nativeModule = NativeModules.OpappWindowManager as
     | NativeWindowManager
+    | undefined;
+
+  return nativeModule ?? null;
+}
+
+function getNativeScenePreview(): NativeScenePreview | null {
+  const nativeModule = NativeModules.OpappScenePreview as
+    | NativeScenePreview
     | undefined;
 
   return nativeModule ?? null;
@@ -1111,6 +1124,11 @@ export function canOpenNativeWindows() {
   return getNativeWindowManager() !== null;
 }
 
+export function canOpenScenePreview() {
+  const nativeScenePreview = getNativeScenePreview();
+  return Boolean(nativeScenePreview?.openPreview);
+}
+
 export function canManageBundleUpdates() {
   const nativeWindowManager = getNativeWindowManager();
   return Boolean(
@@ -1225,6 +1243,36 @@ export async function getTitleBarMetrics() {
     console.warn('Failed to read title bar metrics', error);
     return lastKnownTitleBarMetrics;
   }
+}
+
+export async function getDefaultScenePreviewFile() {
+  const nativeScenePreview = getNativeScenePreview();
+  if (!nativeScenePreview?.getDefaultPreviewFile) {
+    return null;
+  }
+
+  try {
+    const previewFile = (await nativeScenePreview.getDefaultPreviewFile()).trim();
+    return previewFile || null;
+  } catch (error) {
+    console.warn('Failed to read default scene preview file', error);
+    return null;
+  }
+}
+
+export async function openScenePreview(previewFile?: string | null) {
+  const nativeScenePreview = getNativeScenePreview();
+  if (!nativeScenePreview?.openPreview) {
+    throw new Error('Native scene preview bridge is not available.');
+  }
+
+  const resolvedPreviewFile =
+    previewFile?.trim() || (await getDefaultScenePreviewFile())?.trim();
+  if (!resolvedPreviewFile) {
+    throw new Error('Scene preview file is not available.');
+  }
+
+  return nativeScenePreview.openPreview(resolvedPreviewFile);
 }
 
 export function useTitleBarMetrics(refreshKey?: unknown) {

@@ -12,6 +12,7 @@
       "minHostVersion": "1.0.0.0",
       "surfaces": [
         "companion.main",
+        "companion.overlay-probe",
         "companion.agent-workbench",
         "companion.settings",
         "companion.view-shot",
